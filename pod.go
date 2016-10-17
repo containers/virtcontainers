@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -139,6 +140,46 @@ type Volume struct {
 
 	// HostPath is the host filesystem path for this volume.
 	HostPath string
+}
+
+// Volumes is a Volume list.
+type Volumes []Volume
+
+// Set assigns volume values from string to a Volume.
+func (v *Volumes) Set(volStr string) error {
+	volSlice := strings.Split(volStr, " ")
+
+	for _, vol := range volSlice {
+		volArgs := strings.Split(vol, ":")
+
+		if len(volArgs) != 2 {
+			return fmt.Errorf("Wrong string format: %s, expecting only 2 parameters separated with ':'", vol)
+		}
+
+		if volArgs[0] == "" || volArgs[1] == "" {
+			return fmt.Errorf("Volume parameters cannot be empty")
+		}
+
+		volume := Volume{
+			MountTag: volArgs[0],
+			HostPath: volArgs[1],
+		}
+
+		*v = append(*v, volume)
+	}
+
+	return nil
+}
+
+// String converts a Volume to a string.
+func (v *Volumes) String() string {
+	var volSlice []string
+
+	for _, volume := range *v {
+		volSlice = append(volSlice, fmt.Sprintf("%s:%s", volume.MountTag, volume.HostPath))
+	}
+
+	return strings.Join(volSlice, " ")
 }
 
 // EnvVar is a key/value structure representing a command

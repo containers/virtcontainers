@@ -85,14 +85,13 @@ type HyperConfig struct {
 	SockTtyName string
 	SockCtlType string
 	SockTtyType string
+	Volumes     []Volume
 }
 
 // hyper is the Agent interface implementation for hyperstart.
 type hyper struct {
 	config     HyperConfig
 	hypervisor hypervisor
-
-	sharedDir Volume
 
 	cCtl net.Conn
 	cTty net.Conn
@@ -330,14 +329,11 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 
 	h.hypervisor = hypervisor
 
-	h.sharedDir = Volume{
-		MountTag: "shared",
-		HostPath: "/",
-	}
-
-	err := h.hypervisor.addDevice(h.sharedDir, fsDev)
-	if err != nil {
-		return err
+	for _, sharedDir := range h.config.Volumes {
+		err := h.hypervisor.addDevice(sharedDir, fsDev)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -404,10 +400,17 @@ func (h *hyper) startPod(config PodConfig) error {
 		containers = append(containers, container)
 	}
 
+	var mountTag string
+	if h.config.Volumes != nil {
+		mountTag = h.config.Volumes[0].MountTag
+	} else {
+		mountTag = ""
+	}
+
 	hyperPod := hyperJson.Pod{
 		Hostname:   config.ID,
 		Containers: containers,
-		ShareDir:   h.sharedDir.MountTag,
+		ShareDir:   mountTag,
 	}
 
 	err := sendCmd(h.cCtl, startPod, hyperPod)
