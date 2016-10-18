@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/sameo/virtcontainers.svg?branch=master)](https://travis-ci.org/sameo/virtcontainers)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sameo/virtcontainers)](https://goreportcard.com/report/github.com/sameo/virtcontainers)
 
 # VirtContainers
