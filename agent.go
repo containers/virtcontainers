@@ -105,7 +105,7 @@ func newAgentConfig(config PodConfig) interface{} {
 	}
 }
 
-// Agent is the virtcontainers agent interface.
+// agent is the virtcontainers agent interface.
 // Agents are running in the guest VM and handling
 // communications between the host and guest.
 type agent interface {
@@ -122,9 +122,9 @@ type agent interface {
 	// exec will tell the agent to run a command in an already running container.
 	exec(podID string, contID string, cmd Cmd) error
 
-	// StartPod will tell the agent to start all containers related to the Pod.
+	// startPod will tell the agent to start all containers related to the Pod.
 	startPod(config PodConfig) error
 
-	// StopPod will tell the agent to stop all containers related to the Pod.
+	// stopPod will tell the agent to stop all containers related to the Pod.
 	stopPod(config PodConfig) error
 }
