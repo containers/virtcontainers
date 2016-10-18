@@ -230,7 +230,10 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 
 	glog.Infof("payload: %s\n", payloadStr)
 	intLen := len(payloadStr) + ctlHdrSize
-	payloadLen := intTo4BytesString(intLen)
+	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
+	if err != nil {
+		return err
+	}
 	glog.Infof("payload len: %x\n", payloadLen)
 
 	frame := frame{
@@ -239,7 +242,7 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 		payload:    payloadStr,
 	}
 
-	err := send(c, frame)
+	err = send(c, frame)
 	if err != nil {
 		return err
 	}
@@ -256,15 +259,44 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 	return nil
 }
 
-func intTo4BytesString(val int) string {
-	var buf [4]byte
+func sendSeq(c net.Conn, seq uint64, payload string) error {
+	intLen := len(payload) + ttyHdrSize
+	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
+	if err != nil {
+		return err
+	}
 
-	buf[0] = byte(val >> 24)
-	buf[1] = byte(val >> 16)
-	buf[2] = byte(val >> 8)
-	buf[3] = byte(val)
+	sequence, err := uint64ToNBytesString(uint64(seq), 8)
+	if err != nil {
+		return err
+	}
 
-	return string(buf[:4])
+	frame := frame{
+		cmd:        sequence,
+		payloadLen: payloadLen,
+		payload:    payload,
+	}
+
+	err = send(c, frame)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func uint64ToNBytesString(val uint64, n int) (string, error) {
+	var buf [8]byte
+
+	if n < 1 || n > 8 {
+		return "", fmt.Errorf("Invalid byte conversion")
+	}
+
+	for i := 0; i < n; i++ {
+		buf[i] = byte(val >> uint((n-i-1)*8))
+	}
+
+	return string(buf[:n]), nil
 }
 
 func retryConnectSocket(retry int, sockType, sockName string) (net.Conn, error) {
@@ -315,6 +347,38 @@ func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	return process, nil
 }
 
+func isStarted(c net.Conn, chType chType) bool {
+	ret := false
+	timeoutDuration := 1 * time.Second
+
+	if c == nil {
+		return ret
+	}
+
+	c.SetDeadline(time.Now().Add(timeoutDuration))
+
+	switch chType {
+	case ctlType:
+		err := sendCmd(c, ping, nil)
+		if err == nil {
+			ret = true
+		}
+	case ttyType:
+		err := sendSeq(c, uint64(0), "")
+		if err != nil {
+			break
+		}
+
+		_, err = recv(c, ttyType)
+		if err == nil {
+			ret = true
+		}
+	}
+
+	c.SetDeadline(time.Time{})
+	return ret
+}
+
 // init is the agent initialization implementation for hyperstart.
 func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 	switch c := config.(type) {
@@ -343,17 +407,21 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 func (h *hyper) start() error {
 	var err error
 
+	if isStarted(h.cCtl, ctlType) == true {
+		return nil
+	}
+
 	h.cCtl, err = retryConnectSocket(1000, h.config.SockCtlType, h.config.SockCtlName)
 	if err != nil {
 		return err
 	}
 
-	h.cTty, err = retryConnectSocket(1000, h.config.SockTtyType, h.config.SockTtyName)
+	err = sendCmd(h.cCtl, ping, nil)
 	if err != nil {
 		return err
 	}
 
-	err = sendCmd(h.cCtl, ping, nil)
+	h.cTty, err = retryConnectSocket(1000, h.config.SockTtyType, h.config.SockTtyName)
 	if err != nil {
 		return err
 	}

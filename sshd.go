@@ -90,6 +90,14 @@ func (s *sshd) init(config interface{}, hypervisor hypervisor) error {
 
 // start is the agent starting implementation for sshd.
 func (s *sshd) start() error {
+	if s.client != nil {
+		session, err := s.client.NewSession()
+		if err == nil {
+			session.Close()
+			return nil
+		}
+	}
+
 	sshAuthMethod, err := publicKeyAuth(s.config.PrivKeyFile)
 	if err != nil {
 		return err
