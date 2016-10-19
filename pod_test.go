@@ -54,6 +54,13 @@ func testCreatePod(t *testing.T, id string,
 	return nil
 }
 
+func TestCreateEmtpyPod(t *testing.T) {
+	err := testCreatePod(t, testPodID, MockHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
+	if err == nil {
+		t.Fatalf("VirtContainers should not allow empty pods")
+	}
+}
+
 func TestCreateEmtpyHypervisorPod(t *testing.T) {
 	err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
 	if err == nil {

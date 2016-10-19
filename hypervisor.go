@@ -26,6 +26,9 @@ type HypervisorType string
 const (
 	// QemuHypervisor is the QEMU hypervisor.
 	QemuHypervisor HypervisorType = "qemu"
+
+	// MockHypervisor is a mock hypervisor for testing purposes
+	MockHypervisor HypervisorType = "mock"
 )
 
 // deviceType describes a virtualized device type.
@@ -57,6 +60,9 @@ func (hType *HypervisorType) Set(value string) error {
 	case "qemu":
 		*hType = QemuHypervisor
 		return nil
+	case "mock":
+		*hType = MockHypervisor
+		return nil
 	default:
 		return fmt.Errorf("Unknown hypervisor type %s", value)
 	}
@@ -67,6 +73,8 @@ func (hType *HypervisorType) String() string {
 	switch *hType {
 	case QemuHypervisor:
 		return string(QemuHypervisor)
+	case MockHypervisor:
+		return string(MockHypervisor)
 	default:
 		return ""
 	}
@@ -77,6 +85,8 @@ func newHypervisor(hType HypervisorType) (hypervisor, error) {
 	switch hType {
 	case QemuHypervisor:
 		return &qemu{}, nil
+	case MockHypervisor:
+		return &mockHypervisor{}, nil
 	default:
 		return nil, fmt.Errorf("Unknown hypervisor type %s", hType)
 	}
