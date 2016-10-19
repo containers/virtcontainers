@@ -103,6 +103,63 @@ func TestCreatePodEmtpyID(t *testing.T) {
 	t.Logf("Got new ID %s", p.id)
 }
 
+func testPodStateTransition(t *testing.T, state stateString, newState stateString) error {
+	hConfig := newHypervisorConfig(nil, nil)
+
+	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Could not create mock pod")
+	}
+
+	p.state = PodState{
+		State: state,
+	}
+
+	return p.state.validTransition(state, newState)
+}
+
+func TestPodStateReadyRunning(t *testing.T) {
+	err := testPodStateTransition(t, podReady, podRunning)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStateRunningPaused(t *testing.T) {
+	err := testPodStateTransition(t, podRunning, podPaused)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStatePausedRunning(t *testing.T) {
+	err := testPodStateTransition(t, podPaused, podRunning)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStateRunningReady(t *testing.T) {
+	err := testPodStateTransition(t, podRunning, podReady)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStateReadyPaused(t *testing.T) {
+	err := testPodStateTransition(t, podReady, podPaused)
+	if err == nil {
+		t.Fatal("Invalid transition from Ready to Paused")
+	}
+}
+
+func TestPodStatePausedReady(t *testing.T) {
+	err := testPodStateTransition(t, podPaused, podReady)
+	if err == nil {
+		t.Fatal("Invalid transition from Ready to Paused")
+	}
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
