@@ -30,6 +30,17 @@ const testKernel = "kernel"
 const testImage = "image"
 const testHypervisor = "hypervisor"
 
+func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig {
+	return HypervisorConfig{
+		KernelPath:       filepath.Join(testDir, testKernel),
+		ImagePath:        filepath.Join(testDir, testImage),
+		HypervisorPath:   filepath.Join(testDir, testHypervisor),
+		KernelParams:     kernelParams,
+		HypervisorParams: hParams,
+	}
+
+}
+
 func testCreatePod(t *testing.T, id string,
 	htype HypervisorType, hconfig HypervisorConfig, atype AgentType,
 	containers []ContainerConfig, volumes []Volume) error {
@@ -65,6 +76,15 @@ func TestCreateEmtpyHypervisorPod(t *testing.T) {
 	err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
 	if err == nil {
 		t.Fatalf("VirtContainers should not allow pods with empty hypervisors")
+	}
+}
+
+func TestCreateMockPod(t *testing.T) {
+	hConfig := newHypervisorConfig(nil, nil)
+
+	err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	if err != nil {
+		t.Fatalf("Could not create mock pod")
 	}
 }
 
