@@ -43,7 +43,7 @@ func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig
 
 func testCreatePod(t *testing.T, id string,
 	htype HypervisorType, hconfig HypervisorConfig, atype AgentType,
-	containers []ContainerConfig, volumes []Volume) error {
+	containers []ContainerConfig, volumes []Volume) (*Pod, error) {
 	config := PodConfig{
 		ID:               id,
 		HypervisorType:   htype,
@@ -55,25 +55,29 @@ func testCreatePod(t *testing.T, id string,
 
 	pod, err := createPod(config)
 	if err != nil {
-		return fmt.Errorf("Could not create pod: %s", err)
+		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}
 
-	if pod.id != id {
-		return fmt.Errorf("Invalid ID")
+	if pod.id == "" {
+		return pod, fmt.Errorf("Invalid empty pod ID")
 	}
 
-	return nil
+	if id != "" && pod.id != id {
+		return pod, fmt.Errorf("Invalid ID %s vs %s", id, pod.id)
+	}
+
+	return pod, nil
 }
 
 func TestCreateEmtpyPod(t *testing.T) {
-	err := testCreatePod(t, testPodID, MockHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, MockHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
 	if err == nil {
 		t.Fatalf("VirtContainers should not allow empty pods")
 	}
 }
 
 func TestCreateEmtpyHypervisorPod(t *testing.T) {
-	err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
 	if err == nil {
 		t.Fatalf("VirtContainers should not allow pods with empty hypervisors")
 	}
@@ -82,10 +86,21 @@ func TestCreateEmtpyHypervisorPod(t *testing.T) {
 func TestCreateMockPod(t *testing.T) {
 	hConfig := newHypervisorConfig(nil, nil)
 
-	err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
 	if err != nil {
 		t.Fatalf("Could not create mock pod")
 	}
+}
+
+func TestCreatePodEmtpyID(t *testing.T) {
+	hConfig := newHypervisorConfig(nil, nil)
+
+	p, err := testCreatePod(t, "", MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	if err != nil {
+		t.Fatalf("Could not create mock pod")
+	}
+
+	t.Logf("Got new ID %s", p.id)
 }
 
 func TestMain(m *testing.M) {
