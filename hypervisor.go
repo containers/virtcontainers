@@ -106,8 +106,20 @@ type HypervisorConfig struct {
 	HypervisorParams []Param
 }
 
-func (conf *HypervisorConfig) validate() bool {
-	return true
+func (conf *HypervisorConfig) valid() (bool, error) {
+	if conf.KernelPath == "" {
+		return false, fmt.Errorf("Missing kernel path")
+	}
+
+	if conf.ImagePath == "" {
+		return false, fmt.Errorf("Missing image path")
+	}
+
+	if conf.HypervisorPath == "" {
+		return false, fmt.Errorf("Missing hypervisor path")
+	}
+
+	return true, nil
 }
 
 func appendParam(params []Param, parameter string, value string) []Param {
