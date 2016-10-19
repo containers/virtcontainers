@@ -245,8 +245,9 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 
 // init intializes the Qemu structure.
 func (q *qemu) init(config HypervisorConfig) error {
-	if config.validate() == false {
-		return fmt.Errorf("Invalid configuration")
+	valid, err := config.valid()
+	if valid == false || err != nil {
+		return err
 	}
 
 	p := config.HypervisorPath
@@ -257,7 +258,7 @@ func (q *qemu) init(config HypervisorConfig) error {
 	q.config = config
 	q.path = p
 
-	err := q.buildKernelParams(config)
+	err = q.buildKernelParams(config)
 	if err != nil {
 		return err
 	}
