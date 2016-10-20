@@ -45,3 +45,8 @@ func (n *noopAgent) startPod(config PodConfig) error {
 func (n *noopAgent) stopPod(config PodConfig) error {
 	return nil
 }
+
+// stop is the Noop agent stopping implementation. It does nothing.
+func (n *noopAgent) stop() error {
+	return nil
+}
