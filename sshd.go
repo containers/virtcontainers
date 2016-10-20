@@ -157,3 +157,8 @@ func (s *sshd) startPod(config PodConfig) error {
 func (s *sshd) stopPod(config PodConfig) error {
 	return nil
 }
+
+// stop is the agent stopping implementation for sshd.
+func (s *sshd) stop() error {
+	return nil
+}

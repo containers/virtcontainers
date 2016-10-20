@@ -812,6 +812,11 @@ func (p *Pod) stop() error {
 		return err
 	}
 
+	err = p.agent.stop()
+	if err != nil {
+		return err
+	}
+
 	err = p.hypervisor.stopPod()
 	if err != nil {
 		return err
