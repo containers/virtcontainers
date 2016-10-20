@@ -105,11 +105,11 @@ type frame struct {
 	payload    string
 }
 
-// execInfo is the structure corresponding to the format
+// ExecInfo is the structure corresponding to the format
 // expected by hyperstart to execute a command on the guest.
-type execInfo struct {
-	container string
-	process   hyperJson.Process
+type ExecInfo struct {
+	Container string            `json:"container"`
+	Process   hyperJson.Process `json:"process"`
 }
 
 func (c HyperConfig) validate() bool {
@@ -436,9 +436,9 @@ func (h *hyper) exec(podID string, contID string, cmd Cmd) error {
 		return err
 	}
 
-	execInfo := execInfo{
-		container: contID,
-		process:   process,
+	execInfo := ExecInfo{
+		Container: contID,
+		Process:   process,
 	}
 
 	err = sendCmd(h.cCtl, execCommand, execInfo)
