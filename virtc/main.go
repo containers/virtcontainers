@@ -100,6 +100,12 @@ var podConfigFlags = []cli.Flag{
 		Value: "",
 		Usage: "the hyperstart tty socket type",
 	},
+
+	cli.GenericFlag{
+		Name:  "volume",
+		Value: new(vc.Volumes),
+		Usage: "the volume to be shared with VM",
+	},
 }
 
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
@@ -123,6 +129,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	spawnerType, ok := context.Generic("spawner").(*vc.SpawnerType)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert spawner type")
+	}
+
+	volumes, ok := context.Generic("volume").(*vc.Volumes)
+	if ok != true {
+		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
 	}
 
 	u, _ := user.Current()
@@ -174,6 +185,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 			SockTtyName: hyperTtySockName,
 			SockCtlType: hyperCtlSockType,
 			SockTtyType: hyperTtySockType,
+			Volumes:     *volumes,
 		}
 	default:
 		agConfig = nil
