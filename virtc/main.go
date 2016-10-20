@@ -146,8 +146,16 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		interactive = true
 	}
 
+	envs := []vc.EnvVar{
+		vc.EnvVar{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
 	cmd := vc.Cmd{
-		Args:    []string{"/bin/bash", "echo", "hello"},
+		Args:    []string{"echo", "hello"},
+		Envs:    envs,
 		WorkDir: "/",
 	}
 
