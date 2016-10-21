@@ -139,6 +139,29 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 	return devices
 }
 
+func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
+	devices = append(devices,
+		ciaoQemu.CharDevice{
+			Driver:   ciaoQemu.VirtioSerialPort,
+			Backend:  ciaoQemu.Socket,
+			DeviceID: socket.DeviceID,
+			ID:       socket.ID,
+			Path:     socket.HostPath,
+			Name:     socket.Name,
+		},
+	)
+
+	return devices
+}
+
+func (q *qemu) appendSockets(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
+	for _, s := range podConfig.Sockets {
+		devices = q.appendSocket(devices, s)
+	}
+
+	return devices
+}
+
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	if podConfig.ID != "" {
 		// Add the pod rootfs
@@ -409,6 +432,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
+	devices = q.appendSockets(devices, podConfig)
 	devices, err := q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
@@ -479,6 +503,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case fsDev:
 		volume := devInfo.(Volume)
 		q.qemuConfig.Devices = q.appendVolume(q.qemuConfig.Devices, volume)
+	case serialPortDev:
+		socket := devInfo.(Socket)
+		q.qemuConfig.Devices = q.appendSocket(q.qemuConfig.Devices, socket)
 	default:
 		break
 	}
