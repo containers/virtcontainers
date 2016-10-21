@@ -182,6 +182,59 @@ func (v *Volumes) String() string {
 	return strings.Join(volSlice, " ")
 }
 
+// Socket defines a socket to communicate between
+// the host and any process inside the VM.
+type Socket struct {
+	DeviceID string
+	ID       string
+	HostPath string
+	Name     string
+}
+
+// Sockets is a Socket list.
+type Sockets []Socket
+
+// Set assigns socket values from string to a Socket.
+func (s *Sockets) Set(sockStr string) error {
+	sockSlice := strings.Split(sockStr, " ")
+
+	for _, sock := range sockSlice {
+		sockArgs := strings.Split(sock, ":")
+
+		if len(sockArgs) != 4 {
+			return fmt.Errorf("Wrong string format: %s, expecting only 4 parameters separated with ':'", sock)
+		}
+
+		for _, a := range sockArgs {
+			if a == "" {
+				return fmt.Errorf("Socket parameters cannot be empty")
+			}
+		}
+
+		socket := Socket{
+			DeviceID: sockArgs[0],
+			ID:       sockArgs[1],
+			HostPath: sockArgs[2],
+			Name:     sockArgs[3],
+		}
+
+		*s = append(*s, socket)
+	}
+
+	return nil
+}
+
+// String converts a Socket to a string.
+func (s *Sockets) String() string {
+	var sockSlice []string
+
+	for _, sock := range *s {
+		sockSlice = append(sockSlice, fmt.Sprintf("%s:%s:%s:%s", sock.DeviceID, sock.ID, sock.HostPath, sock.Name))
+	}
+
+	return strings.Join(sockSlice, " ")
+}
+
 // EnvVar is a key/value structure representing a command
 // environment variable.
 type EnvVar struct {
@@ -234,6 +287,10 @@ type PodConfig struct {
 
 	// Volumes is a list of shared volumes between the host and the Pod.
 	Volumes []Volume
+
+	// Sockets is a list of sockets to allowing the communication
+	// between the host and the Pod.
+	Sockets []Socket
 
 	// Containers describe the list of containers within a Pod.
 	// This list can be empty and populated by adding containers
