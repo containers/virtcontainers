@@ -106,6 +106,12 @@ var podConfigFlags = []cli.Flag{
 		Value: new(vc.Volumes),
 		Usage: "the volume to be shared with VM",
 	},
+
+	cli.GenericFlag{
+		Name:  "socket",
+		Value: new(vc.Sockets),
+		Usage: "the socket list to be shared with VM",
+	},
 }
 
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
@@ -134,6 +140,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	volumes, ok := context.Generic("volume").(*vc.Volumes)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
+	}
+
+	sockets, ok := context.Generic("socket").(*vc.Sockets)
+	if ok != true {
+		return vc.PodConfig{}, fmt.Errorf("Could not convert to socket list")
 	}
 
 	u, _ := user.Current()
@@ -205,6 +216,8 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 
 		AgentType:   *agentType,
 		AgentConfig: agConfig,
+
+		Sockets: *sockets,
 
 		Containers: containers,
 	}
