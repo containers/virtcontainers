@@ -78,6 +78,15 @@ const (
 	ttyType
 )
 
+// List of channels name according
+const (
+	// chCtlName is the name of the control channel for hyperstart.
+	chCtlName = "sh.hyper.channel.0"
+
+	// chTtyName is the name of the tty channel for hyperstart.
+	chTtyName = "sh.hyper.channel.1"
+)
+
 // HyperConfig is a structure storing information needed for
 // hyperstart agent initialization.
 type HyperConfig struct {
@@ -395,6 +404,28 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 
 	for _, sharedDir := range h.config.Volumes {
 		err := h.hypervisor.addDevice(sharedDir, fsDev)
+		if err != nil {
+			return err
+		}
+	}
+
+	sockets := []Socket{
+		Socket{
+			DeviceID: "channel0",
+			ID:       "charch0",
+			HostPath: h.config.SockCtlName,
+			Name:     chCtlName,
+		},
+		Socket{
+			DeviceID: "channel1",
+			ID:       "charch1",
+			HostPath: h.config.SockTtyName,
+			Name:     chTtyName,
+		},
+	}
+
+	for _, socket := range sockets {
+		err := h.hypervisor.addDevice(socket, serialPortDev)
 		if err != nil {
 			return err
 		}
