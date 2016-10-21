@@ -192,7 +192,7 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 	for i, c := range podConfig.Containers {
 		var console ciaoQemu.CharDevice
 		if c.Interactive == false || c.Console == "" {
-			consolePath := fmt.Sprintf("%s%s/console.sock", runStoragePath, podConfig.ID)
+			consolePath := fmt.Sprintf("%s/%s/console.sock", runStoragePath, podConfig.ID)
 
 			console = ciaoQemu.CharDevice{
 				Driver:   ciaoQemu.Console,
