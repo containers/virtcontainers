@@ -52,6 +52,9 @@ const (
 
 	// ConsoleDev is the console device type.
 	consoleDev
+
+	// SerialPortDev is the serial port device type.
+	serialPortDev
 )
 
 // Set sets an hypervisor type based on the input string.
