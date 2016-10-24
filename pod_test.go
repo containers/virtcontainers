@@ -111,7 +111,7 @@ func testPodStateTransition(t *testing.T, state stateString, newState stateStrin
 		return fmt.Errorf("Could not create mock pod")
 	}
 
-	p.state = PodState{
+	p.state = State{
 		State: state,
 	}
 
