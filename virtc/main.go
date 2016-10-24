@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
@@ -112,6 +113,12 @@ var podConfigFlags = []cli.Flag{
 		Value: new(vc.Sockets),
 		Usage: "the socket list to be shared with VM",
 	},
+
+	cli.StringFlag{
+		Name:  "init-cmd",
+		Value: "echo",
+		Usage: "the initial command to run on pod containers",
+	},
 }
 
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
@@ -127,6 +134,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	hyperCtlSockType := context.String("hyper-ctl-sock-type")
 	hyperTtySockType := context.String("hyper-tty-sock-type")
+	initCmd := context.String("init-cmd")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert agent type")
@@ -165,7 +173,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	}
 
 	cmd := vc.Cmd{
-		Args:    []string{"echo", "hello"},
+		Args:    strings.Split(initCmd, " "),
 		Envs:    envs,
 		WorkDir: "/",
 	}
