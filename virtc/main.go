@@ -299,6 +299,15 @@ func listPods(context *cli.Context) error {
 	return nil
 }
 
+func statusPod(context *cli.Context) error {
+	err := vc.StatusPod(context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not get pod status: %s\n", err)
+	}
+
+	return nil
+}
+
 var runPodCommand = cli.Command{
 	Name:  "run",
 	Usage: "run a pod",
@@ -370,6 +379,21 @@ var listPodsCommand = cli.Command{
 	},
 }
 
+var statusPodCommand = cli.Command{
+	Name:  "status",
+	Usage: "returns a detailed pod status",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return statusPod(context)
+	},
+}
+
 func main() {
 	flag.Parse()
 
@@ -388,6 +412,7 @@ func main() {
 				runPodCommand,
 				startPodCommand,
 				stopPodCommand,
+				statusPodCommand,
 			},
 		},
 	}
