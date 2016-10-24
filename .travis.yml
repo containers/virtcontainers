@@ -26,7 +26,7 @@ script:
    - go list ./... | xargs go list -f '{{.Dir}}/*.go' | xargs -I % bash -c "misspell -error %"
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs gocyclo -over 15
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
-   - go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs -I % bash -c "test % -eq 0"
+   - go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -l | wc -l | xargs -I % bash -c "test % -eq 0"
    - go build ./...
    - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/sameo/virtcontainers
 
