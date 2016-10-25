@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -65,6 +66,19 @@ const (
 )
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
+
+const (
+	defaultCPUs    = 2
+	defaultCores   = 1
+	defaultSockets = 2
+	defaultThreads = 1
+)
+
+const (
+	defaultMemSize  = "2G"
+	defaultMemSlots = 2
+	defaultMemMax   = "3G"
+)
 
 type qmpGlogLogger struct{}
 
@@ -366,6 +380,81 @@ func (q *qemu) qmpStart() error {
 	return nil
 }
 
+func (q *qemu) setCPUResources(podConfig PodConfig) (ciaoQemu.SMP, error) {
+	var err error
+
+	cpus := defaultCPUs
+	if podConfig.VMConfig.CPUs != "" {
+		cpus, err = strconv.Atoi(podConfig.VMConfig.CPUs)
+		if err != nil {
+			return ciaoQemu.SMP{}, err
+		}
+	}
+
+	cores := defaultCores
+	if podConfig.VMConfig.Cores != "" {
+		cores, err = strconv.Atoi(podConfig.VMConfig.Cores)
+		if err != nil {
+			return ciaoQemu.SMP{}, err
+		}
+	}
+
+	sockets := defaultSockets
+	if podConfig.VMConfig.Sockets != "" {
+		sockets, err = strconv.Atoi(podConfig.VMConfig.Sockets)
+		if err != nil {
+			return ciaoQemu.SMP{}, err
+		}
+	}
+
+	threads := defaultThreads
+	if podConfig.VMConfig.Threads != "" {
+		threads, err = strconv.Atoi(podConfig.VMConfig.Threads)
+		if err != nil {
+			return ciaoQemu.SMP{}, err
+		}
+	}
+
+	smp := ciaoQemu.SMP{
+		CPUs:    uint32(cpus),
+		Cores:   uint32(cores),
+		Sockets: uint32(sockets),
+		Threads: uint32(threads),
+	}
+
+	return smp, nil
+}
+
+func (q *qemu) setMemoryResources(podConfig PodConfig) (ciaoQemu.Memory, error) {
+	var err error
+
+	size := defaultMemSize
+	if podConfig.VMConfig.MemSize != "" {
+		size = podConfig.VMConfig.MemSize
+	}
+
+	slots := defaultMemSlots
+	if podConfig.VMConfig.MemSlots != "" {
+		slots, err = strconv.Atoi(podConfig.VMConfig.MemSlots)
+		if err != nil {
+			return ciaoQemu.Memory{}, err
+		}
+	}
+
+	maxMem := defaultMemMax
+	if podConfig.VMConfig.MemMax != "" {
+		maxMem = podConfig.VMConfig.MemMax
+	}
+
+	memory := ciaoQemu.Memory{
+		Size:   size,
+		Slots:  uint8(slots),
+		MaxMem: maxMem,
+	}
+
+	return memory, nil
+}
+
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
 func (q *qemu) createPod(podConfig PodConfig) error {
 	var devices []ciaoQemu.Device
@@ -375,17 +464,14 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Acceleration: "kvm,kernel_irqchip,nvdimm",
 	}
 
-	smp := ciaoQemu.SMP{
-		CPUs:    2,
-		Cores:   1,
-		Sockets: 2,
-		Threads: 1,
+	smp, err := q.setCPUResources(podConfig)
+	if err != nil {
+		return nil
 	}
 
-	memory := ciaoQemu.Memory{
-		Size:   "2G",
-		Slots:  2,
-		MaxMem: "3G",
+	memory, err := q.setMemoryResources(podConfig)
+	if err != nil {
+		return nil
 	}
 
 	knobs := ciaoQemu.Knobs{
@@ -433,7 +519,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
 	devices = q.appendSockets(devices, podConfig)
-	devices, err := q.appendImage(devices, podConfig)
+	devices, err = q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
 	}
