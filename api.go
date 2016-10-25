@@ -37,6 +37,11 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -51,6 +56,11 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Delete it.
 	err = p.delete()
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.endSession()
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +86,11 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -92,6 +107,11 @@ func StopPod(podID string) (*Pod, error) {
 	err = p.stop()
 	if err != nil {
 		p.delete()
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
 		return nil, err
 	}
 
@@ -117,6 +137,11 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	err = p.start()
 	if err != nil {
 		p.delete()
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
 		return nil, err
 	}
 

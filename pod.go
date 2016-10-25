@@ -853,3 +853,13 @@ func (p *Pod) setState(state stateString) error {
 
 	return nil
 }
+
+// endSession makes sure to end the session properly.
+func (p *Pod) endSession() error {
+	err := p.agent.stop()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

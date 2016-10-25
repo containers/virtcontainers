@@ -347,7 +347,7 @@ func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	return process, nil
 }
 
-func isStarted(c net.Conn, chType chType) bool {
+func (h *hyper) isStarted(c net.Conn, chType chType) bool {
 	ret := false
 	timeoutDuration := 1 * time.Second
 
@@ -376,6 +376,11 @@ func isStarted(c net.Conn, chType chType) bool {
 	}
 
 	c.SetDeadline(time.Time{})
+
+	if ret == false {
+		h.stop()
+	}
+
 	return ret
 }
 
@@ -407,7 +412,7 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 func (h *hyper) start() error {
 	var err error
 
-	if isStarted(h.cCtl, ctlType) == true {
+	if h.isStarted(h.cCtl, ctlType) == true {
 		return nil
 	}
 
@@ -501,25 +506,23 @@ func (h *hyper) stopPod(config PodConfig) error {
 
 // stop is the agent stopping implementation for hyperstart.
 func (h *hyper) stop() error {
-	if h.cCtl == nil {
-		return fmt.Errorf("Cannot close CTL channel, fd is nil")
+	if h.cCtl != nil {
+		err := h.cCtl.Close()
+		if err != nil {
+			return err
+		}
+
+		h.cCtl = nil
 	}
 
-	err := h.cCtl.Close()
-	if err != nil {
-		return err
-	}
-	h.cCtl = nil
+	if h.cTty != nil {
+		err := h.cTty.Close()
+		if err != nil {
+			return err
+		}
 
-	if h.cTty == nil {
-		return fmt.Errorf("Cannot close TTY channel, fd is nil")
+		h.cTty = nil
 	}
-
-	err = h.cTty.Close()
-	if err != nil {
-		return err
-	}
-	h.cTty = nil
 
 	return nil
 }
