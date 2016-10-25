@@ -72,28 +72,52 @@ const stateFile = "state.json"
 // lockFile is the file name locking the usage of a pod.
 const lockFile = "lock"
 
+// stateType represents a state type.
+type stateType int
+
+const (
+	// podStateType represents a pod state type.
+	podStateType stateType = iota
+
+	// contStateType represents a container state type.
+	contStateType
+)
+
 // stateString is a string representing a pod state.
 type stateString string
 
 const (
 	// podReady represents a pod that's ready to be run
-	podReady stateString = "ready"
+	podReady stateString = "p_ready"
 
 	// podRunning represents a pod that's currently running.
-	podRunning = "running"
+	podRunning = "p_running"
 
 	// podPaused represents a pod that has been paused.
-	podPaused = "paused"
+	podPaused = "p_paused"
+
+	// contReady represents a container that's ready to be run
+	contReady = "c_ready"
+
+	// contNotReady represents a container that's not ready to be run.
+	contNotReady = "c_not_ready"
 )
 
-// PodState is a pod state structure.
-type PodState struct {
+// State is a pod state structure.
+type State struct {
 	State stateString `json:"state"`
 }
 
 // valid checks that the pod state is valid.
-func (state *PodState) valid() bool {
-	validStates := []stateString{podReady, podRunning, podPaused}
+func (state *State) valid(stateType stateType) bool {
+	var validStates []stateString
+
+	switch stateType {
+	case podStateType:
+		validStates = []stateString{podReady, podRunning, podPaused}
+	case contStateType:
+		validStates = []stateString{contReady, contNotReady}
+	}
 
 	for _, validState := range validStates {
 		if state.State == validState {
@@ -106,7 +130,7 @@ func (state *PodState) valid() bool {
 
 // validTransition returns an error if we want to move to
 // an unreachable state.
-func (state *PodState) validTransition(oldState stateString, newState stateString) error {
+func (state *State) validTransition(oldState stateString, newState stateString) error {
 	if state.State != oldState {
 		return fmt.Errorf("Invalid state %s (Expecting %s)", state.State, oldState)
 	}
@@ -124,6 +148,16 @@ func (state *PodState) validTransition(oldState stateString, newState stateStrin
 
 	case podPaused:
 		if newState == podRunning {
+			return nil
+		}
+
+	case contNotReady:
+		if newState == contReady {
+			return nil
+		}
+
+	case contReady:
+		if newState == contNotReady {
 			return nil
 		}
 	}
@@ -321,8 +355,8 @@ func (podConfig *PodConfig) valid() bool {
 type podStorage interface {
 	storeConfig(config PodConfig) error
 	fetchConfig(podID string) (PodConfig, error)
-	storeState(podID string, state PodState) error
-	fetchState(podID string) (PodState, error)
+	storeState(podID string, state State, stateType stateType) error
+	fetchState(podID string) (State, error)
 	delete(podID string) error
 }
 
@@ -443,8 +477,8 @@ func (fs *filesystem) fetchConfig(podID string) (PodConfig, error) {
 }
 
 // storeState is the storage pod state storage implementation for filesystem.
-func (fs *filesystem) storeState(podID string, state PodState) error {
-	if state.valid() == false {
+func (fs *filesystem) storeState(podID string, state State, stateType stateType) error {
+	if state.valid(stateType) == false {
 		return fmt.Errorf("Invalid pod state")
 	}
 
@@ -475,8 +509,8 @@ func (fs *filesystem) storeState(podID string, state PodState) error {
 }
 
 // fetchState is the storage pod state retrieval implementation for filesystem.
-func (fs *filesystem) fetchState(podID string) (PodState, error) {
-	var state PodState
+func (fs *filesystem) fetchState(podID string) (State, error) {
+	var state State
 
 	podStateFile, err := podFile(podID, stateFileType)
 	if err != nil {
@@ -541,7 +575,7 @@ type Pod struct {
 
 	controlSocket string
 
-	state PodState
+	state State
 
 	lockFile *os.File
 }
@@ -597,6 +631,15 @@ func (p *Pod) createPodDirs() error {
 		return err
 	}
 
+	for _, container := range p.config.Containers {
+		path := filepath.Join(p.runPath, container.ID)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			p.storage.delete(p.id)
+			return err
+		}
+	}
+
 	podlockFile, err := podFile(p.id, lockFileType)
 	if err != nil {
 		return err
@@ -609,6 +652,22 @@ func (p *Pod) createPodDirs() error {
 			return err
 		}
 		lockFile.Close()
+	}
+
+	return nil
+}
+
+func (p *Pod) createSetStates() error {
+	err := p.setPodState(podReady)
+	if err != nil {
+		p.storage.delete(p.id)
+		return err
+	}
+
+	err = p.setContainersState(contNotReady)
+	if err != nil {
+		p.storage.delete(p.id)
+		return err
 	}
 
 	return nil
@@ -650,7 +709,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		containers: podConfig.Containers,
 		runPath:    filepath.Join(runStoragePath, podConfig.ID),
 		configPath: filepath.Join(configStoragePath, podConfig.ID),
-		state:      PodState{},
+		state:      State{},
 	}
 
 	err = p.createPodDirs()
@@ -694,7 +753,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return p, nil
 	}
 
-	err = p.setState(podReady)
+	err = p.createSetStates()
 	if err != nil {
 		p.storage.delete(p.id)
 		return nil, err
@@ -748,10 +807,63 @@ func (p *Pod) delete() error {
 	}
 
 	if state.State != podReady {
-		return fmt.Errorf("Pod not %s, impossible to delete", podReady)
+		return fmt.Errorf("Pod not ready, impossible to delete")
+	}
+
+	for _, container := range p.config.Containers {
+		path := fmt.Sprintf("%s/%s", p.id, container.ID)
+		state, err := p.storage.fetchState(path)
+		if err != nil {
+			return err
+		}
+
+		if state.State != contNotReady {
+			return fmt.Errorf("Container is ready, impossible to delete")
+		}
 	}
 
 	err = p.storage.delete(p.id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) startCheckStates() error {
+	state, err := p.storage.fetchState(p.id)
+	if err != nil {
+		return err
+	}
+
+	err = state.validTransition(podReady, podRunning)
+	if err != nil {
+		return err
+	}
+
+	for _, container := range p.config.Containers {
+		path := fmt.Sprintf("%s/%s", p.id, container.ID)
+		state, err := p.storage.fetchState(path)
+		if err != nil {
+			return err
+		}
+
+		err = state.validTransition(contNotReady, contReady)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Pod) startSetStates() error {
+	err := p.setPodState(podRunning)
+	if err != nil {
+		return err
+	}
+
+	err = p.setContainersState(contReady)
 	if err != nil {
 		return err
 	}
@@ -768,14 +880,9 @@ func (p *Pod) start() error {
 	}
 	defer p.unlock()
 
-	state, err := p.storage.fetchState(p.id)
+	err = p.startCheckStates()
 	if err != nil {
-		return err
-	}
-
-	err = state.validTransition(podReady, podRunning)
-	if err != nil {
-		return err
+		return nil
 	}
 
 	podStartedCh := make(chan struct{})
@@ -811,7 +918,7 @@ func (p *Pod) start() error {
 		}
 	}
 
-	err = p.setState(podRunning)
+	err = p.startSetStates()
 	if err != nil {
 		return err
 	}
@@ -821,7 +928,12 @@ func (p *Pod) start() error {
 	if interactive == true {
 		select {
 		case <-podStoppedCh:
-			err = p.setState(podReady)
+			err = p.setPodState(podReady)
+			if err != nil {
+				return err
+			}
+
+			err = p.setContainersState(contNotReady)
 			if err != nil {
 				return err
 			}
@@ -854,6 +966,19 @@ func (p *Pod) stop() error {
 		return err
 	}
 
+	for _, container := range p.config.Containers {
+		path := fmt.Sprintf("%s/%s", p.id, container.ID)
+		state, err := p.storage.fetchState(path)
+		if err != nil {
+			return err
+		}
+
+		err = state.validTransition(contReady, contNotReady)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = p.agent.start()
 	if err != nil {
 		return err
@@ -864,7 +989,12 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.setState(podReady)
+	err = p.setPodState(podReady)
+	if err != nil {
+		return err
+	}
+
+	err = p.setContainersState(contNotReady)
 	if err != nil {
 		return err
 	}
@@ -898,12 +1028,12 @@ func (p *Pod) enter(args []string) error {
 	return nil
 }
 
-func (p *Pod) setState(state stateString) error {
-	p.state = PodState{
+func (p *Pod) setPodState(state stateString) error {
+	p.state = State{
 		State: state,
 	}
 
-	err := p.storage.storeState(p.id, p.state)
+	err := p.storage.storeState(p.id, p.state, podStateType)
 	if err != nil {
 		return err
 	}
@@ -916,6 +1046,31 @@ func (p *Pod) endSession() error {
 	err := p.agent.stop()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) setContainerState(contID string, state stateString) error {
+	contState := State{
+		State: state,
+	}
+
+	path := fmt.Sprintf("%s/%s", p.id, contID)
+	err := p.storage.storeState(path, contState, contStateType)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) setContainersState(state stateString) error {
+	for _, container := range p.config.Containers {
+		err := p.setContainerState(container.ID, state)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
