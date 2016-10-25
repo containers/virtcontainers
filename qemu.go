@@ -470,7 +470,7 @@ func (q *qemu) stopPod() error {
 		return err
 	}
 
-	return qmp.ExecuteSystemPowerdown(q.qmpMonitorCh.ctx)
+	return qmp.ExecuteQuit(q.qmpMonitorCh.ctx)
 }
 
 // addDevice will add extra devices to Qemu command line.
