@@ -17,11 +17,11 @@
 package virtcontainers
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -32,29 +32,29 @@ import (
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
 const (
-	getVersion        = "\x00\x00\x00\x00"
-	startPod          = "\x00\x00\x00\x01"
-	getPod            = "\x00\x00\x00\x02"
-	stopPodDeprecated = "\x00\x00\x00\x03"
-	destroyPod        = "\x00\x00\x00\x04"
-	restartContainer  = "\x00\x00\x00\x05"
-	execCommand       = "\x00\x00\x00\x06"
-	cmdFinished       = "\x00\x00\x00\x07"
-	ready             = "\x00\x00\x00\x08"
-	ack               = "\x00\x00\x00\x09"
-	hyperError        = "\x00\x00\x00\x0a"
-	winSize           = "\x00\x00\x00\x0b"
-	ping              = "\x00\x00\x00\x0c"
-	podFinished       = "\x00\x00\x00\x0d"
-	next              = "\x00\x00\x00\x0e"
-	writeFile         = "\x00\x00\x00\x0f"
-	readFile          = "\x00\x00\x00\x10"
-	newContainer      = "\x00\x00\x00\x11"
-	killContainer     = "\x00\x00\x00\x12"
-	onlineCPUMem      = "\x00\x00\x00\x13"
-	setupInterface    = "\x00\x00\x00\x14"
-	setupRoute        = "\x00\x00\x00\x15"
-	removeContainer   = "\x00\x00\x00\x16"
+	getVersion        uint32 = 0
+	startPod                 = 1
+	getPod                   = 2
+	stopPodDeprecated        = 3
+	destroyPod               = 4
+	restartContainer         = 5
+	execCommand              = 6
+	cmdFinished              = 7
+	ready                    = 8
+	ack                      = 9
+	hyperError               = 10
+	winSize                  = 11
+	ping                     = 12
+	podFinished              = 13
+	next                     = 14
+	writeFile                = 15
+	readFile                 = 16
+	newContainer             = 17
+	killContainer            = 18
+	onlineCPUMem             = 19
+	setupInterface           = 20
+	setupRoute               = 21
+	removeContainer          = 22
 )
 
 // Values related to the communication on control channel.
@@ -163,12 +163,7 @@ func recv(c net.Conn, chType chType) (frame, error) {
 	frame.cmd = string(byteHdr[:hdrLenOffset])
 	frame.payloadLen = string(byteHdr[hdrLenOffset:])
 
-	payloadLen, err := strconv.ParseUint(fmt.Sprintf("%x", frame.payloadLen), 16, 0)
-	if err != nil {
-		return frame, err
-	}
-
-	payloadLen -= uint64(hdrSize)
+	payloadLen := binary.BigEndian.Uint32(byteHdr[hdrLenOffset:]) - uint32(hdrSize)
 	glog.Infof("Payload length: %d\n", payloadLen)
 
 	if payloadLen == 0 {
@@ -196,59 +191,93 @@ func recv(c net.Conn, chType chType) (frame, error) {
 	return frame, nil
 }
 
-func waitForReply(c net.Conn, cmdID string) error {
+func waitForReply(c net.Conn, cmdID uint32) error {
 	for {
 		frame, err := recv(c, ctlType)
 		if err != nil {
 			return err
 		}
 
-		if frame.cmd == cmdID {
+		fCmd := binary.BigEndian.Uint32([]byte(frame.cmd))
+
+		if fCmd == cmdID {
 			break
 		}
 
-		if frame.cmd == next || frame.cmd == ready {
+		if fCmd == next || fCmd == ready {
 			continue
 		}
 
-		if frame.cmd != cmdID {
-			if frame.cmd == hyperError {
+		if fCmd != cmdID {
+			if fCmd == hyperError {
 				return fmt.Errorf("ERROR received from Hyperstart\n")
 			}
 
-			return fmt.Errorf("CMD ID received %x not matching expected %x\n", frame.cmd, cmdID)
+			return fmt.Errorf("CMD ID received %d not matching expected %d\n", fCmd, cmdID)
 		}
 	}
 
 	return nil
 }
 
-func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
+func formatFrame(cmd uint64, payload interface{}, chType chType) (frame, error) {
 	var payloadStr string
+	var hdrSize int
+	var hdrLenOffset int
 
 	if payload != nil {
-		jsonOut, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
+		switch p := payload.(type) {
+		case string:
+			payloadStr = p
+		default:
+			jsonOut, err := json.Marshal(p)
+			if err != nil {
+				return frame{}, err
+			}
 
-		payloadStr = string(jsonOut)
+			payloadStr = string(jsonOut)
+		}
 	} else {
 		payloadStr = ""
 	}
 
 	glog.Infof("payload: %s\n", payloadStr)
-	intLen := len(payloadStr) + ctlHdrSize
-	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
-	if err != nil {
-		return err
+
+	switch chType {
+	case ctlType:
+		hdrSize = ctlHdrSize
+		hdrLenOffset = ctlHdrLenOffset
+	case ttyType:
+		hdrSize = ttyHdrSize
+		hdrLenOffset = ttyHdrLenOffset
 	}
-	glog.Infof("payload len: %x\n", payloadLen)
+
+	payloadLen := len(payloadStr) + hdrSize
+	payloadLenStr, err := uint64ToNBytesString(uint64(payloadLen), hdrSize-hdrLenOffset)
+	if err != nil {
+		return frame{}, err
+	}
+
+	glog.Infof("payload len: %x\n", payloadLenStr)
+
+	cmdStr, err := uint64ToNBytesString(cmd, hdrLenOffset)
+	if err != nil {
+		return frame{}, err
+	}
 
 	frame := frame{
-		cmd:        cmdID,
-		payloadLen: payloadLen,
+		cmd:        cmdStr,
+		payloadLen: payloadLenStr,
 		payload:    payloadStr,
+	}
+
+	return frame, nil
+}
+
+func sendCmd(c net.Conn, cmd uint32, payload interface{}) error {
+	frame, err := formatFrame(uint64(cmd), payload, ctlType)
+	if err != nil {
+		return err
 	}
 
 	err = send(c, frame)
@@ -256,7 +285,7 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 		return err
 	}
 
-	if cmdID == destroyPod {
+	if cmd == destroyPod {
 		return nil
 	}
 
@@ -269,21 +298,9 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 }
 
 func sendSeq(c net.Conn, seq uint64, payload string) error {
-	intLen := len(payload) + ttyHdrSize
-	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
+	frame, err := formatFrame(seq, payload, ttyType)
 	if err != nil {
 		return err
-	}
-
-	sequence, err := uint64ToNBytesString(uint64(seq), 8)
-	if err != nil {
-		return err
-	}
-
-	frame := frame{
-		cmd:        sequence,
-		payloadLen: payloadLen,
-		payload:    payload,
 	}
 
 	err = send(c, frame)
