@@ -69,13 +69,13 @@ const (
 	ttyHdrLenOffset = 8
 )
 
-// chType differentiates channels type.
-type chType uint8
+// HyperstartChType differentiates channels type.
+type HyperstartChType uint8
 
 // List of possible values for channels type.
 const (
-	ctlType chType = iota
-	ttyType
+	HyperstartCtlType HyperstartChType = iota
+	HyperstartTtyType
 )
 
 // List of channels name according
@@ -106,12 +106,12 @@ type hyper struct {
 	cTty net.Conn
 }
 
-// frame is the structure corresponding to the frame format
+// HyperstartFrame is the structure corresponding to the frame format
 // used to send and receive on different channels.
-type frame struct {
-	cmd        string
-	payloadLen string
-	payload    string
+type HyperstartFrame struct {
+	Cmd        string
+	PayloadLen string
+	Payload    string
 }
 
 // ExecInfo is the structure corresponding to the format
@@ -125,24 +125,26 @@ func (c HyperConfig) validate() bool {
 	return true
 }
 
-func send(c net.Conn, frame frame) error {
-	strArray := frame.cmd + frame.payloadLen + frame.payload
+// HyperstartSend is the API to send messages to hyperstart in the VM.
+func HyperstartSend(c net.Conn, frame HyperstartFrame) error {
+	strArray := frame.Cmd + frame.PayloadLen + frame.Payload
 
 	c.Write([]byte(strArray))
 
 	return nil
 }
 
-func recv(c net.Conn, chType chType) (frame, error) {
-	var frame frame
+// HyperstartRecv is the API to receive messages from hyperstart in the VM.
+func HyperstartRecv(c net.Conn, chType HyperstartChType) (HyperstartFrame, error) {
+	var frame HyperstartFrame
 	var hdrSize int
 	var hdrLenOffset int
 
 	switch chType {
-	case ctlType:
+	case HyperstartCtlType:
 		hdrSize = ctlHdrSize
 		hdrLenOffset = ctlHdrLenOffset
-	case ttyType:
+	case HyperstartTtyType:
 		hdrSize = ttyHdrSize
 		hdrLenOffset = ttyHdrLenOffset
 	}
@@ -160,8 +162,8 @@ func recv(c net.Conn, chType chType) (frame, error) {
 		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, hdrSize)
 	}
 
-	frame.cmd = string(byteHdr[:hdrLenOffset])
-	frame.payloadLen = string(byteHdr[hdrLenOffset:])
+	frame.Cmd = string(byteHdr[:hdrLenOffset])
+	frame.PayloadLen = string(byteHdr[hdrLenOffset:])
 
 	payloadLen := binary.BigEndian.Uint32(byteHdr[hdrLenOffset:]) - uint32(hdrSize)
 	glog.Infof("Payload length: %d\n", payloadLen)
@@ -178,7 +180,7 @@ func recv(c net.Conn, chType chType) (frame, error) {
 	}
 
 	glog.Infof("Payload received: %x\n", bytePayload)
-	if chType == ttyType {
+	if chType == HyperstartTtyType {
 		glog.Infof("String formatted payload: %s\n", string(bytePayload))
 	}
 
@@ -186,19 +188,19 @@ func recv(c net.Conn, chType chType) (frame, error) {
 		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, payloadLen)
 	}
 
-	frame.payload = string(bytePayload)
+	frame.Payload = string(bytePayload)
 
 	return frame, nil
 }
 
 func waitForReply(c net.Conn, cmdID uint32) error {
 	for {
-		frame, err := recv(c, ctlType)
+		frame, err := HyperstartRecv(c, HyperstartCtlType)
 		if err != nil {
 			return err
 		}
 
-		fCmd := binary.BigEndian.Uint32([]byte(frame.cmd))
+		fCmd := binary.BigEndian.Uint32([]byte(frame.Cmd))
 
 		if fCmd == cmdID {
 			break
@@ -220,7 +222,8 @@ func waitForReply(c net.Conn, cmdID uint32) error {
 	return nil
 }
 
-func formatFrame(cmd uint64, payload interface{}, chType chType) (frame, error) {
+// FormatHyperstartFrame is the API to format hyperstart messages.
+func FormatHyperstartFrame(cmd uint64, payload interface{}, chType HyperstartChType) (HyperstartFrame, error) {
 	var payloadStr string
 	var hdrSize int
 	var hdrLenOffset int
@@ -232,7 +235,7 @@ func formatFrame(cmd uint64, payload interface{}, chType chType) (frame, error) 
 		default:
 			jsonOut, err := json.Marshal(p)
 			if err != nil {
-				return frame{}, err
+				return HyperstartFrame{}, err
 			}
 
 			payloadStr = string(jsonOut)
@@ -244,10 +247,10 @@ func formatFrame(cmd uint64, payload interface{}, chType chType) (frame, error) 
 	glog.Infof("payload: %s\n", payloadStr)
 
 	switch chType {
-	case ctlType:
+	case HyperstartCtlType:
 		hdrSize = ctlHdrSize
 		hdrLenOffset = ctlHdrLenOffset
-	case ttyType:
+	case HyperstartTtyType:
 		hdrSize = ttyHdrSize
 		hdrLenOffset = ttyHdrLenOffset
 	}
@@ -255,32 +258,32 @@ func formatFrame(cmd uint64, payload interface{}, chType chType) (frame, error) 
 	payloadLen := len(payloadStr) + hdrSize
 	payloadLenStr, err := uint64ToNBytesString(uint64(payloadLen), hdrSize-hdrLenOffset)
 	if err != nil {
-		return frame{}, err
+		return HyperstartFrame{}, err
 	}
 
 	glog.Infof("payload len: %x\n", payloadLenStr)
 
 	cmdStr, err := uint64ToNBytesString(cmd, hdrLenOffset)
 	if err != nil {
-		return frame{}, err
+		return HyperstartFrame{}, err
 	}
 
-	frame := frame{
-		cmd:        cmdStr,
-		payloadLen: payloadLenStr,
-		payload:    payloadStr,
+	frame := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payloadStr,
 	}
 
 	return frame, nil
 }
 
 func sendCmd(c net.Conn, cmd uint32, payload interface{}) error {
-	frame, err := formatFrame(uint64(cmd), payload, ctlType)
+	frame, err := FormatHyperstartFrame(uint64(cmd), payload, HyperstartCtlType)
 	if err != nil {
 		return err
 	}
 
-	err = send(c, frame)
+	err = HyperstartSend(c, frame)
 	if err != nil {
 		return err
 	}
@@ -298,12 +301,12 @@ func sendCmd(c net.Conn, cmd uint32, payload interface{}) error {
 }
 
 func sendSeq(c net.Conn, seq uint64, payload string) error {
-	frame, err := formatFrame(seq, payload, ttyType)
+	frame, err := FormatHyperstartFrame(seq, payload, HyperstartTtyType)
 	if err != nil {
 		return err
 	}
 
-	err = send(c, frame)
+	err = HyperstartSend(c, frame)
 	if err != nil {
 		return err
 	}
@@ -373,7 +376,7 @@ func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	return process, nil
 }
 
-func (h *hyper) isStarted(c net.Conn, chType chType) bool {
+func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 	ret := false
 	timeoutDuration := 1 * time.Second
 
@@ -384,18 +387,18 @@ func (h *hyper) isStarted(c net.Conn, chType chType) bool {
 	c.SetDeadline(time.Now().Add(timeoutDuration))
 
 	switch chType {
-	case ctlType:
+	case HyperstartCtlType:
 		err := sendCmd(c, ping, nil)
 		if err == nil {
 			ret = true
 		}
-	case ttyType:
+	case HyperstartTtyType:
 		err := sendSeq(c, uint64(0), "")
 		if err != nil {
 			break
 		}
 
-		_, err = recv(c, ttyType)
+		_, err = HyperstartRecv(c, HyperstartTtyType)
 		if err == nil {
 			ret = true
 		}
@@ -460,7 +463,7 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 func (h *hyper) start() error {
 	var err error
 
-	if h.isStarted(h.cCtl, ctlType) == true {
+	if h.isStarted(h.cCtl, HyperstartCtlType) == true {
 		return nil
 	}
 

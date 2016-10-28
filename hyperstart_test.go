@@ -155,13 +155,13 @@ func testHyperstartWaitForReply(t *testing.T, cmdID uint32, payload interface{})
 		t.Fatal()
 	}
 
-	frame := frame{
-		cmd:        cmdStr,
-		payloadLen: string(payloadLen),
-		payload:    payloadStr,
+	frame := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: string(payloadLen),
+		Payload:    payloadStr,
 	}
 
-	err = send(cCtl, frame)
+	err = HyperstartSend(cCtl, frame)
 	if err != nil {
 		t.Fatal()
 	}
@@ -176,8 +176,8 @@ func TestHyperstartWaitForReplyToPingCmd(t *testing.T) {
 	testHyperstartWaitForReply(t, ping, nil)
 }
 
-func testHyperstartFormatFrame(t *testing.T, cmd uint64, payload interface{}, chType chType, expected frame) {
-	frame, err := formatFrame(cmd, payload, chType)
+func testHyperstartFormatFrame(t *testing.T, cmd uint64, payload interface{}, chType HyperstartChType, expected HyperstartFrame) {
+	frame, err := FormatHyperstartFrame(cmd, payload, chType)
 	if err != nil {
 		t.Fatal()
 	}
@@ -201,13 +201,13 @@ func TestHyperstartFormatFrameCtl(t *testing.T) {
 		t.Fatal()
 	}
 
-	expected := frame{
-		cmd:        cmdStr,
-		payloadLen: payloadLenStr,
-		payload:    payload,
+	expected := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payload,
 	}
 
-	testHyperstartFormatFrame(t, uint64(cmd), payload, ctlType, expected)
+	testHyperstartFormatFrame(t, uint64(cmd), payload, HyperstartCtlType, expected)
 }
 
 func TestHyperstartFormatFrameTty(t *testing.T) {
@@ -224,11 +224,11 @@ func TestHyperstartFormatFrameTty(t *testing.T) {
 		t.Fatal()
 	}
 
-	expected := frame{
-		cmd:        seqStr,
-		payloadLen: payloadLenStr,
-		payload:    payload,
+	expected := HyperstartFrame{
+		Cmd:        seqStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payload,
 	}
 
-	testHyperstartFormatFrame(t, uint64(seq), payload, ttyType, expected)
+	testHyperstartFormatFrame(t, uint64(seq), payload, HyperstartTtyType, expected)
 }
