@@ -17,11 +17,11 @@
 package virtcontainers
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -32,29 +32,29 @@ import (
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
 const (
-	getVersion        = "\x00\x00\x00\x00"
-	startPod          = "\x00\x00\x00\x01"
-	getPod            = "\x00\x00\x00\x02"
-	stopPodDeprecated = "\x00\x00\x00\x03"
-	destroyPod        = "\x00\x00\x00\x04"
-	restartContainer  = "\x00\x00\x00\x05"
-	execCommand       = "\x00\x00\x00\x06"
-	cmdFinished       = "\x00\x00\x00\x07"
-	ready             = "\x00\x00\x00\x08"
-	ack               = "\x00\x00\x00\x09"
-	hyperError        = "\x00\x00\x00\x0a"
-	winSize           = "\x00\x00\x00\x0b"
-	ping              = "\x00\x00\x00\x0c"
-	podFinished       = "\x00\x00\x00\x0d"
-	next              = "\x00\x00\x00\x0e"
-	writeFile         = "\x00\x00\x00\x0f"
-	readFile          = "\x00\x00\x00\x10"
-	newContainer      = "\x00\x00\x00\x11"
-	killContainer     = "\x00\x00\x00\x12"
-	onlineCPUMem      = "\x00\x00\x00\x13"
-	setupInterface    = "\x00\x00\x00\x14"
-	setupRoute        = "\x00\x00\x00\x15"
-	removeContainer   = "\x00\x00\x00\x16"
+	getVersion        uint32 = 0
+	startPod                 = 1
+	getPod                   = 2
+	stopPodDeprecated        = 3
+	destroyPod               = 4
+	restartContainer         = 5
+	execCommand              = 6
+	cmdFinished              = 7
+	ready                    = 8
+	ack                      = 9
+	hyperError               = 10
+	winSize                  = 11
+	ping                     = 12
+	podFinished              = 13
+	next                     = 14
+	writeFile                = 15
+	readFile                 = 16
+	newContainer             = 17
+	killContainer            = 18
+	onlineCPUMem             = 19
+	setupInterface           = 20
+	setupRoute               = 21
+	removeContainer          = 22
 )
 
 // Values related to the communication on control channel.
@@ -69,13 +69,22 @@ const (
 	ttyHdrLenOffset = 8
 )
 
-// chType differentiates channels type.
-type chType uint8
+// HyperstartChType differentiates channels type.
+type HyperstartChType uint8
 
 // List of possible values for channels type.
 const (
-	ctlType chType = iota
-	ttyType
+	HyperstartCtlType HyperstartChType = iota
+	HyperstartTtyType
+)
+
+// List of channels name according
+const (
+	// chCtlName is the name of the control channel for hyperstart.
+	chCtlName = "sh.hyper.channel.0"
+
+	// chTtyName is the name of the tty channel for hyperstart.
+	chTtyName = "sh.hyper.channel.1"
 )
 
 // HyperConfig is a structure storing information needed for
@@ -97,43 +106,45 @@ type hyper struct {
 	cTty net.Conn
 }
 
-// frame is the structure corresponding to the frame format
+// HyperstartFrame is the structure corresponding to the frame format
 // used to send and receive on different channels.
-type frame struct {
-	cmd        string
-	payloadLen string
-	payload    string
+type HyperstartFrame struct {
+	Cmd        string
+	PayloadLen string
+	Payload    string
 }
 
-// execInfo is the structure corresponding to the format
+// ExecInfo is the structure corresponding to the format
 // expected by hyperstart to execute a command on the guest.
-type execInfo struct {
-	container string
-	process   hyperJson.Process
+type ExecInfo struct {
+	Container string            `json:"container"`
+	Process   hyperJson.Process `json:"process"`
 }
 
 func (c HyperConfig) validate() bool {
 	return true
 }
 
-func send(c net.Conn, frame frame) error {
-	strArray := frame.cmd + frame.payloadLen + frame.payload
+// HyperstartSend is the API to send messages to hyperstart in the VM.
+func HyperstartSend(c net.Conn, frame HyperstartFrame) error {
+	strArray := frame.Cmd + frame.PayloadLen + frame.Payload
 
 	c.Write([]byte(strArray))
 
 	return nil
 }
 
-func recv(c net.Conn, chType chType) (frame, error) {
-	var frame frame
+// HyperstartRecv is the API to receive messages from hyperstart in the VM.
+func HyperstartRecv(c net.Conn, chType HyperstartChType) (HyperstartFrame, error) {
+	var frame HyperstartFrame
 	var hdrSize int
 	var hdrLenOffset int
 
 	switch chType {
-	case ctlType:
+	case HyperstartCtlType:
 		hdrSize = ctlHdrSize
 		hdrLenOffset = ctlHdrLenOffset
-	case ttyType:
+	case HyperstartTtyType:
 		hdrSize = ttyHdrSize
 		hdrLenOffset = ttyHdrLenOffset
 	}
@@ -151,15 +162,10 @@ func recv(c net.Conn, chType chType) (frame, error) {
 		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, hdrSize)
 	}
 
-	frame.cmd = string(byteHdr[:hdrLenOffset])
-	frame.payloadLen = string(byteHdr[hdrLenOffset:])
+	frame.Cmd = string(byteHdr[:hdrLenOffset])
+	frame.PayloadLen = string(byteHdr[hdrLenOffset:])
 
-	payloadLen, err := strconv.ParseUint(fmt.Sprintf("%x", frame.payloadLen), 16, 0)
-	if err != nil {
-		return frame, err
-	}
-
-	payloadLen -= uint64(hdrSize)
+	payloadLen := binary.BigEndian.Uint32(byteHdr[hdrLenOffset:]) - uint32(hdrSize)
 	glog.Infof("Payload length: %d\n", payloadLen)
 
 	if payloadLen == 0 {
@@ -174,7 +180,7 @@ func recv(c net.Conn, chType chType) (frame, error) {
 	}
 
 	glog.Infof("Payload received: %x\n", bytePayload)
-	if chType == ttyType {
+	if chType == HyperstartTtyType {
 		glog.Infof("String formatted payload: %s\n", string(bytePayload))
 	}
 
@@ -182,72 +188,107 @@ func recv(c net.Conn, chType chType) (frame, error) {
 		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, payloadLen)
 	}
 
-	frame.payload = string(bytePayload)
+	frame.Payload = string(bytePayload)
 
 	return frame, nil
 }
 
-func waitForReply(c net.Conn, cmdID string) error {
+func waitForReply(c net.Conn, cmdID uint32) error {
 	for {
-		frame, err := recv(c, ctlType)
+		frame, err := HyperstartRecv(c, HyperstartCtlType)
 		if err != nil {
 			return err
 		}
 
-		if frame.cmd == cmdID {
+		fCmd := binary.BigEndian.Uint32([]byte(frame.Cmd))
+
+		if fCmd == cmdID {
 			break
 		}
 
-		if frame.cmd == next || frame.cmd == ready {
+		if fCmd == next || fCmd == ready {
 			continue
 		}
 
-		if frame.cmd != cmdID {
-			if frame.cmd == hyperError {
+		if fCmd != cmdID {
+			if fCmd == hyperError {
 				return fmt.Errorf("ERROR received from Hyperstart\n")
 			}
 
-			return fmt.Errorf("CMD ID received %x not matching expected %x\n", frame.cmd, cmdID)
+			return fmt.Errorf("CMD ID received %d not matching expected %d\n", fCmd, cmdID)
 		}
 	}
 
 	return nil
 }
 
-func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
+// FormatHyperstartFrame is the API to format hyperstart messages.
+func FormatHyperstartFrame(cmd uint64, payload interface{}, chType HyperstartChType) (HyperstartFrame, error) {
 	var payloadStr string
+	var hdrSize int
+	var hdrLenOffset int
 
 	if payload != nil {
-		jsonOut, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
+		switch p := payload.(type) {
+		case string:
+			payloadStr = p
+		default:
+			jsonOut, err := json.Marshal(p)
+			if err != nil {
+				return HyperstartFrame{}, err
+			}
 
-		payloadStr = string(jsonOut)
+			payloadStr = string(jsonOut)
+		}
 	} else {
 		payloadStr = ""
 	}
 
 	glog.Infof("payload: %s\n", payloadStr)
-	intLen := len(payloadStr) + ctlHdrSize
-	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
+
+	switch chType {
+	case HyperstartCtlType:
+		hdrSize = ctlHdrSize
+		hdrLenOffset = ctlHdrLenOffset
+	case HyperstartTtyType:
+		hdrSize = ttyHdrSize
+		hdrLenOffset = ttyHdrLenOffset
+	}
+
+	payloadLen := len(payloadStr) + hdrSize
+	payloadLenStr, err := uint64ToNBytesString(uint64(payloadLen), hdrSize-hdrLenOffset)
+	if err != nil {
+		return HyperstartFrame{}, err
+	}
+
+	glog.Infof("payload len: %x\n", payloadLenStr)
+
+	cmdStr, err := uint64ToNBytesString(cmd, hdrLenOffset)
+	if err != nil {
+		return HyperstartFrame{}, err
+	}
+
+	frame := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payloadStr,
+	}
+
+	return frame, nil
+}
+
+func sendCmd(c net.Conn, cmd uint32, payload interface{}) error {
+	frame, err := FormatHyperstartFrame(uint64(cmd), payload, HyperstartCtlType)
 	if err != nil {
 		return err
 	}
-	glog.Infof("payload len: %x\n", payloadLen)
 
-	frame := frame{
-		cmd:        cmdID,
-		payloadLen: payloadLen,
-		payload:    payloadStr,
-	}
-
-	err = send(c, frame)
+	err = HyperstartSend(c, frame)
 	if err != nil {
 		return err
 	}
 
-	if cmdID == destroyPod {
+	if cmd == destroyPod {
 		return nil
 	}
 
@@ -260,24 +301,12 @@ func sendCmd(c net.Conn, cmdID string, payload interface{}) error {
 }
 
 func sendSeq(c net.Conn, seq uint64, payload string) error {
-	intLen := len(payload) + ttyHdrSize
-	payloadLen, err := uint64ToNBytesString(uint64(intLen), 4)
+	frame, err := FormatHyperstartFrame(seq, payload, HyperstartTtyType)
 	if err != nil {
 		return err
 	}
 
-	sequence, err := uint64ToNBytesString(uint64(seq), 8)
-	if err != nil {
-		return err
-	}
-
-	frame := frame{
-		cmd:        sequence,
-		payloadLen: payloadLen,
-		payload:    payload,
-	}
-
-	err = send(c, frame)
+	err = HyperstartSend(c, frame)
 	if err != nil {
 		return err
 	}
@@ -347,7 +376,7 @@ func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	return process, nil
 }
 
-func isStarted(c net.Conn, chType chType) bool {
+func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 	ret := false
 	timeoutDuration := 1 * time.Second
 
@@ -358,24 +387,29 @@ func isStarted(c net.Conn, chType chType) bool {
 	c.SetDeadline(time.Now().Add(timeoutDuration))
 
 	switch chType {
-	case ctlType:
+	case HyperstartCtlType:
 		err := sendCmd(c, ping, nil)
 		if err == nil {
 			ret = true
 		}
-	case ttyType:
+	case HyperstartTtyType:
 		err := sendSeq(c, uint64(0), "")
 		if err != nil {
 			break
 		}
 
-		_, err = recv(c, ttyType)
+		_, err = HyperstartRecv(c, HyperstartTtyType)
 		if err == nil {
 			ret = true
 		}
 	}
 
 	c.SetDeadline(time.Time{})
+
+	if ret == false {
+		h.stop()
+	}
+
 	return ret
 }
 
@@ -400,6 +434,28 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 		}
 	}
 
+	sockets := []Socket{
+		{
+			DeviceID: "channel0",
+			ID:       "charch0",
+			HostPath: h.config.SockCtlName,
+			Name:     chCtlName,
+		},
+		{
+			DeviceID: "channel1",
+			ID:       "charch1",
+			HostPath: h.config.SockTtyName,
+			Name:     chTtyName,
+		},
+	}
+
+	for _, socket := range sockets {
+		err := h.hypervisor.addDevice(socket, serialPortDev)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -407,7 +463,7 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 func (h *hyper) start() error {
 	var err error
 
-	if isStarted(h.cCtl, ctlType) == true {
+	if h.isStarted(h.cCtl, HyperstartCtlType) == true {
 		return nil
 	}
 
@@ -436,9 +492,9 @@ func (h *hyper) exec(podID string, contID string, cmd Cmd) error {
 		return err
 	}
 
-	execInfo := execInfo{
-		container: contID,
-		process:   process,
+	execInfo := ExecInfo{
+		Container: contID,
+		Process:   process,
 	}
 
 	err = sendCmd(h.cCtl, execCommand, execInfo)
@@ -494,6 +550,29 @@ func (h *hyper) stopPod(config PodConfig) error {
 	err := sendCmd(h.cCtl, destroyPod, nil)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// stop is the agent stopping implementation for hyperstart.
+func (h *hyper) stop() error {
+	if h.cCtl != nil {
+		err := h.cCtl.Close()
+		if err != nil {
+			return err
+		}
+
+		h.cCtl = nil
+	}
+
+	if h.cTty != nil {
+		err := h.cTty.Close()
+		if err != nil {
+			return err
+		}
+
+		h.cTty = nil
 	}
 
 	return nil

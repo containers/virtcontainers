@@ -37,6 +37,11 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -51,6 +56,11 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Delete it.
 	err = p.delete()
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.endSession()
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +86,11 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -92,6 +107,11 @@ func StopPod(podID string) (*Pod, error) {
 	err = p.stop()
 	if err != nil {
 		p.delete()
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
 		return nil, err
 	}
 
@@ -120,10 +140,16 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
 var listFormat = "%s\t%s\t%s\t%s\n"
+var statusFormat = "%s\t%s\n"
 
 // ListPod is the virtcontainers pod listing entry point.
 func ListPod() error {
@@ -157,6 +183,42 @@ func ListPod() error {
 
 		fmt.Fprintf(w, listFormat,
 			config.ID, state.State, config.HypervisorType, config.AgentType)
+	}
+
+	w.Flush()
+	return nil
+}
+
+// StatusPod is the virtcontainers pod status entry point.
+func StatusPod(podID string) error {
+	fs := filesystem{}
+
+	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
+	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+
+	config, err := fs.fetchConfig(podID)
+	if err != nil {
+		return err
+	}
+
+	state, err := fs.fetchState(podID)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, listFormat+"\n",
+		podID, state.State, config.HypervisorType, config.AgentType)
+
+	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
+
+	for _, container := range config.Containers {
+		path := fmt.Sprintf("%s/%s", podID, container.ID)
+		contState, err := fs.fetchState(path)
+		if err != nil {
+			continue
+		}
+
+		fmt.Fprintf(w, statusFormat, container.ID, contState.State)
 	}
 
 	w.Flush()

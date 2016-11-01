@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
@@ -106,6 +107,60 @@ var podConfigFlags = []cli.Flag{
 		Value: new(vc.Volumes),
 		Usage: "the volume to be shared with VM",
 	},
+
+	cli.GenericFlag{
+		Name:  "socket",
+		Value: new(vc.Sockets),
+		Usage: "the socket list to be shared with VM",
+	},
+
+	cli.StringFlag{
+		Name:  "init-cmd",
+		Value: "echo",
+		Usage: "the initial command to run on pod containers",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-cpu-cpus",
+		Value: "",
+		Usage: "the number of cpus available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-cpu-cores",
+		Value: "",
+		Usage: "the number of cores available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-cpu-sockets",
+		Value: "",
+		Usage: "the number of sockets available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-cpu-threads",
+		Value: "",
+		Usage: "the number of threads available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-mem-size",
+		Value: "",
+		Usage: "the standard amount of memory available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-mem-slots",
+		Value: "",
+		Usage: "the number of memory slots available for this pod",
+	},
+
+	cli.StringFlag{
+		Name:  "vm-mem-max",
+		Value: "",
+		Usage: "the maximum amount of memory available for this pod",
+	},
 }
 
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
@@ -121,6 +176,14 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	hyperCtlSockType := context.String("hyper-ctl-sock-type")
 	hyperTtySockType := context.String("hyper-tty-sock-type")
+	initCmd := context.String("init-cmd")
+	cpuCPUs := context.String("vm-cpu-cpus")
+	cpuCores := context.String("vm-cpu-cores")
+	cpuSockets := context.String("vm-cpu-sockets")
+	cpuThreads := context.String("vm-cpu-threads")
+	memSize := context.String("vm-mem-size")
+	memSlots := context.String("vm-mem-slots")
+	memMax := context.String("vm-mem-max")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert agent type")
@@ -136,6 +199,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
 	}
 
+	sockets, ok := context.Generic("socket").(*vc.Sockets)
+	if ok != true {
+		return vc.PodConfig{}, fmt.Errorf("Could not convert to socket list")
+	}
+
 	u, _ := user.Current()
 	if sshdUser == "" {
 		sshdUser = u.Username
@@ -146,8 +214,16 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		interactive = true
 	}
 
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
 	cmd := vc.Cmd{
-		Args:    []string{"/bin/bash", "echo", "hello"},
+		Args:    strings.Split(initCmd, " "),
+		Envs:    envs,
 		WorkDir: "/",
 	}
 
@@ -191,12 +267,26 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = nil
 	}
 
+	vmConfig := vc.HardwareConfig{
+		CPUs:     cpuCPUs,
+		Cores:    cpuCores,
+		Sockets:  cpuSockets,
+		Threads:  cpuThreads,
+		MemSize:  memSize,
+		MemSlots: memSlots,
+		MemMax:   memMax,
+	}
+
 	podConfig := vc.PodConfig{
+		VMConfig: vmConfig,
+
 		HypervisorType:   vc.QemuHypervisor,
 		HypervisorConfig: hypervisorConfig,
 
 		AgentType:   *agentType,
 		AgentConfig: agConfig,
+
+		Sockets: *sockets,
 
 		Containers: containers,
 	}
@@ -265,6 +355,15 @@ func listPods(context *cli.Context) error {
 	err := vc.ListPod()
 	if err != nil {
 		return fmt.Errorf("Could not list pod: %s\n", err)
+	}
+
+	return nil
+}
+
+func statusPod(context *cli.Context) error {
+	err := vc.StatusPod(context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not get pod status: %s\n", err)
 	}
 
 	return nil
@@ -341,6 +440,21 @@ var listPodsCommand = cli.Command{
 	},
 }
 
+var statusPodCommand = cli.Command{
+	Name:  "status",
+	Usage: "returns a detailed pod status",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return statusPod(context)
+	},
+}
+
 func main() {
 	flag.Parse()
 
@@ -359,6 +473,7 @@ func main() {
 				runPodCommand,
 				startPodCommand,
 				stopPodCommand,
+				statusPodCommand,
 			},
 		},
 	}
