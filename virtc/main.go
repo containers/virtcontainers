@@ -262,6 +262,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 			SockCtlType: hyperCtlSockType,
 			SockTtyType: hyperTtySockType,
 			Volumes:     *volumes,
+			Sockets:     *sockets,
 		}
 	default:
 		agConfig = nil
@@ -285,8 +286,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 
 		AgentType:   *agentType,
 		AgentConfig: agConfig,
-
-		Sockets: *sockets,
 
 		Containers: containers,
 	}

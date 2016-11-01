@@ -86,8 +86,6 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 		devices = q.appendSocket(devices, s)
 	case PodConfig:
 		switch devType {
-		case serialPortDev:
-			devices = q.appendSockets(devices, s)
 		case fsDev:
 			devices = q.appendFSDevices(devices, s)
 		case consoleDev:
@@ -148,53 +146,6 @@ func TestQemuAppendSocket(t *testing.T) {
 	}
 
 	testQemuAppend(t, socket, expectedOut, -1)
-}
-
-func TestQemuAppendSockets(t *testing.T) {
-	deviceID := "channelTest"
-	id := "charchTest"
-	hostPath := "/tmp/hyper_test.sock"
-	name := "sh.hyper.channel.test"
-
-	expectedOut := []ciaoQemu.Device{
-		ciaoQemu.CharDevice{
-			Driver:   ciaoQemu.VirtioSerialPort,
-			Backend:  ciaoQemu.Socket,
-			DeviceID: fmt.Sprintf("%s.1", deviceID),
-			ID:       fmt.Sprintf("%s.1", id),
-			Path:     fmt.Sprintf("%s.1", hostPath),
-			Name:     fmt.Sprintf("%s.1", name),
-		},
-		ciaoQemu.CharDevice{
-			Driver:   ciaoQemu.VirtioSerialPort,
-			Backend:  ciaoQemu.Socket,
-			DeviceID: fmt.Sprintf("%s.2", deviceID),
-			ID:       fmt.Sprintf("%s.2", id),
-			Path:     fmt.Sprintf("%s.2", hostPath),
-			Name:     fmt.Sprintf("%s.2", name),
-		},
-	}
-
-	sockets := Sockets{
-		{
-			DeviceID: fmt.Sprintf("%s.1", deviceID),
-			ID:       fmt.Sprintf("%s.1", id),
-			HostPath: fmt.Sprintf("%s.1", hostPath),
-			Name:     fmt.Sprintf("%s.1", name),
-		},
-		{
-			DeviceID: fmt.Sprintf("%s.2", deviceID),
-			ID:       fmt.Sprintf("%s.2", id),
-			HostPath: fmt.Sprintf("%s.2", hostPath),
-			Name:     fmt.Sprintf("%s.2", name),
-		},
-	}
-
-	podConfig := PodConfig{
-		Sockets: sockets,
-	}
-
-	testQemuAppend(t, podConfig, expectedOut, serialPortDev)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {

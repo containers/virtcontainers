@@ -339,10 +339,6 @@ type PodConfig struct {
 	// Volumes is a list of shared volumes between the host and the Pod.
 	Volumes []Volume
 
-	// Sockets is a list of sockets to allowing the communication
-	// between the host and the Pod.
-	Sockets []Socket
-
 	// Containers describe the list of containers within a Pod.
 	// This list can be empty and populated by adding containers
 	// to the Pod a posteriori.

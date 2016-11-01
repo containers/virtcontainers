@@ -168,14 +168,6 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 	return devices
 }
 
-func (q *qemu) appendSockets(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
-	for _, s := range podConfig.Sockets {
-		devices = q.appendSocket(devices, s)
-	}
-
-	return devices
-}
-
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	if podConfig.ID != "" {
 		// Add the pod rootfs
@@ -518,7 +510,6 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
-	devices = q.appendSockets(devices, podConfig)
 	devices, err = q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
