@@ -17,11 +17,8 @@
 package virtcontainers
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -29,6 +26,7 @@ import (
 	"github.com/golang/glog"
 
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
+	"github.com/sameo/virtcontainers/hyperstart"
 )
 
 var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}
@@ -38,53 +36,8 @@ var defaultIDTemplate = "charch%d"
 var defaultSharedDir = "/tmp/hyper/shared/pods/"
 var mountTag = "hyperShared"
 
-// Control command IDs
-// Need to be in sync with hyperstart/src/api.h
 const (
-	getVersion        uint32 = 0
-	startPod                 = 1
-	getPod                   = 2
-	stopPodDeprecated        = 3
-	destroyPod               = 4
-	restartContainer         = 5
-	execCommand              = 6
-	cmdFinished              = 7
-	ready                    = 8
-	ack                      = 9
-	hyperError               = 10
-	winSize                  = 11
-	ping                     = 12
-	podFinished              = 13
-	next                     = 14
-	writeFile                = 15
-	readFile                 = 16
-	newContainer             = 17
-	killContainer            = 18
-	onlineCPUMem             = 19
-	setupInterface           = 20
-	setupRoute               = 21
-	removeContainer          = 22
-)
-
-// Values related to the communication on control channel.
-const (
-	ctlHdrSize      = 8
-	ctlHdrLenOffset = 4
-)
-
-// Values related to the communication on tty channel.
-const (
-	ttyHdrSize      = 12
-	ttyHdrLenOffset = 8
-)
-
-// HyperstartChType differentiates channels type.
-type HyperstartChType uint8
-
-// List of possible values for channels type.
-const (
-	HyperstartCtlType HyperstartChType = iota
-	HyperstartTtyType
+	unixSocket = "unix"
 )
 
 // HyperConfig is a structure storing information needed for
@@ -133,16 +86,7 @@ type hyper struct {
 	pod    Pod
 	config HyperConfig
 
-	cCtl net.Conn
-	cTty net.Conn
-}
-
-// HyperstartFrame is the structure corresponding to the frame format
-// used to send and receive on different channels.
-type HyperstartFrame struct {
-	Cmd        string
-	PayloadLen string
-	Payload    string
+	hyperstart *hyperstart.Hyperstart
 }
 
 // ExecInfo is the structure corresponding to the format
@@ -152,218 +96,11 @@ type ExecInfo struct {
 	Process   hyperJson.Process `json:"process"`
 }
 
-// HyperstartSend is the API to send messages to hyperstart in the VM.
-func HyperstartSend(c net.Conn, frame HyperstartFrame) error {
-	strArray := frame.Cmd + frame.PayloadLen + frame.Payload
-
-	c.Write([]byte(strArray))
-
-	return nil
-}
-
-// HyperstartRecv is the API to receive messages from hyperstart in the VM.
-func HyperstartRecv(c net.Conn, chType HyperstartChType) (HyperstartFrame, error) {
-	var frame HyperstartFrame
-	var hdrSize int
-	var hdrLenOffset int
-
-	switch chType {
-	case HyperstartCtlType:
-		hdrSize = ctlHdrSize
-		hdrLenOffset = ctlHdrLenOffset
-	case HyperstartTtyType:
-		hdrSize = ttyHdrSize
-		hdrLenOffset = ttyHdrLenOffset
-	}
-
-	byteHdr := make([]byte, hdrSize)
-
-	byteRead, err := c.Read(byteHdr)
-	if err != nil {
-		return frame, err
-	}
-
-	glog.Infof("Header received: %x\n", byteHdr)
-
-	if byteRead != hdrSize {
-		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, hdrSize)
-	}
-
-	frame.Cmd = string(byteHdr[:hdrLenOffset])
-	frame.PayloadLen = string(byteHdr[hdrLenOffset:])
-
-	payloadLen := binary.BigEndian.Uint32(byteHdr[hdrLenOffset:]) - uint32(hdrSize)
-	glog.Infof("Payload length: %d\n", payloadLen)
-
-	if payloadLen == 0 {
-		return frame, nil
-	}
-
-	bytePayload := make([]byte, payloadLen)
-
-	byteRead, err = c.Read(bytePayload)
-	if err != nil {
-		return frame, err
-	}
-
-	glog.Infof("Payload received: %x\n", bytePayload)
-	if chType == HyperstartTtyType {
-		glog.Infof("String formatted payload: %s\n", string(bytePayload))
-	}
-
-	if byteRead != int(payloadLen) {
-		return frame, fmt.Errorf("Not enough bytes read (%d/%d)\n", byteRead, payloadLen)
-	}
-
-	frame.Payload = string(bytePayload)
-
-	return frame, nil
-}
-
-func waitForReply(c net.Conn, cmdID uint32) error {
-	for {
-		frame, err := HyperstartRecv(c, HyperstartCtlType)
-		if err != nil {
-			return err
-		}
-
-		fCmd := binary.BigEndian.Uint32([]byte(frame.Cmd))
-
-		if fCmd == cmdID {
-			break
-		}
-
-		if fCmd == next || fCmd == ready {
-			continue
-		}
-
-		glog.Infof("Received command %d (Expecting %d)", fCmd, cmdID)
-
-		if fCmd != cmdID {
-			glog.Errorf("Unexpected command %d", fCmd)
-			if fCmd == hyperError {
-				return fmt.Errorf("ERROR received from Hyperstart\n")
-			}
-
-			return fmt.Errorf("CMD ID received %d not matching expected %d\n", fCmd, cmdID)
-		}
-	}
-
-	return nil
-}
-
-// FormatHyperstartFrame is the API to format hyperstart messages.
-func FormatHyperstartFrame(cmd uint64, payload interface{}, chType HyperstartChType) (HyperstartFrame, error) {
-	var payloadStr string
-	var hdrSize int
-	var hdrLenOffset int
-
-	if payload != nil {
-		switch p := payload.(type) {
-		case string:
-			payloadStr = p
-		default:
-			jsonOut, err := json.Marshal(p)
-			if err != nil {
-				return HyperstartFrame{}, err
-			}
-
-			payloadStr = string(jsonOut)
-		}
-	} else {
-		payloadStr = ""
-	}
-
-	glog.Infof("payload: %s\n", payloadStr)
-
-	switch chType {
-	case HyperstartCtlType:
-		hdrSize = ctlHdrSize
-		hdrLenOffset = ctlHdrLenOffset
-	case HyperstartTtyType:
-		hdrSize = ttyHdrSize
-		hdrLenOffset = ttyHdrLenOffset
-	}
-
-	payloadLen := len(payloadStr) + hdrSize
-	payloadLenStr, err := uint64ToNBytesString(uint64(payloadLen), hdrSize-hdrLenOffset)
-	if err != nil {
-		return HyperstartFrame{}, err
-	}
-
-	glog.Infof("payload len: %x\n", payloadLenStr)
-
-	cmdStr, err := uint64ToNBytesString(cmd, hdrLenOffset)
-	if err != nil {
-		return HyperstartFrame{}, err
-	}
-
-	frame := HyperstartFrame{
-		Cmd:        cmdStr,
-		PayloadLen: payloadLenStr,
-		Payload:    payloadStr,
-	}
-
-	return frame, nil
-}
-
-func sendCmd(c net.Conn, cmd uint32, payload interface{}) error {
-	frame, err := FormatHyperstartFrame(uint64(cmd), payload, HyperstartCtlType)
-	if err != nil {
-		return err
-	}
-
-	err = HyperstartSend(c, frame)
-	if err != nil {
-		return err
-	}
-
-	if cmd == destroyPod {
-		return nil
-	}
-
-	err = waitForReply(c, ack)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func sendSeq(c net.Conn, seq uint64, payload string) error {
-	frame, err := FormatHyperstartFrame(seq, payload, HyperstartTtyType)
-	if err != nil {
-		return err
-	}
-
-	err = HyperstartSend(c, frame)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func uint64ToNBytesString(val uint64, n int) (string, error) {
-	var buf [8]byte
-
-	if n < 1 || n > 8 {
-		return "", fmt.Errorf("Invalid byte conversion")
-	}
-
-	for i := 0; i < n; i++ {
-		buf[i] = byte(val >> uint((n-i-1)*8))
-	}
-
-	return string(buf[:n]), nil
-}
-
-func retryConnectSocket(retry int, sockType, sockName string) (net.Conn, error) {
+func (h *hyper) retryConnectSocket(retry int) error {
 	var err error
-	var c net.Conn
 
 	for i := 0; i < retry; i++ {
-		c, err = net.Dial(sockType, sockName)
+		err = h.hyperstart.OpenSockets()
 		if err == nil {
 			break
 		}
@@ -374,14 +111,10 @@ func retryConnectSocket(retry int, sockType, sockName string) (net.Conn, error) 
 		}
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("Failed to dial on %s socket %s: %s\n", sockType, sockName, err)
-	}
-
-	return c, nil
+	return err
 }
 
-func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
+func (h *hyper) buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	var envVars []hyperJson.EnvironmentVar
 
 	for _, e := range cmd.Envs {
@@ -404,43 +137,6 @@ func buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 	}
 
 	return process, nil
-}
-
-func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
-	ret := false
-	timeoutDuration := 1 * time.Second
-
-	if c == nil {
-		return ret
-	}
-
-	c.SetDeadline(time.Now().Add(timeoutDuration))
-
-	switch chType {
-	case HyperstartCtlType:
-		err := sendCmd(c, ping, nil)
-		if err == nil {
-			ret = true
-		}
-	case HyperstartTtyType:
-		err := sendSeq(c, uint64(0), "")
-		if err != nil {
-			break
-		}
-
-		_, err = HyperstartRecv(c, HyperstartTtyType)
-		if err == nil {
-			ret = true
-		}
-	}
-
-	c.SetDeadline(time.Time{})
-
-	if ret == false {
-		h.stopAgent()
-	}
-
-	return ret
 }
 
 func bindMountContainerRootfs(pod Pod, container ContainerConfig) error {
@@ -504,28 +200,23 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 		return err
 	}
 
+	h.hyperstart = hyperstart.NewHyperstart(h.config.SockCtlName, h.config.SockTtyName, unixSocket)
+
 	return nil
 }
 
 // start is the agent starting implementation for hyperstart.
 func (h *hyper) startAgent() error {
-	var err error
-
-	if h.isStarted(h.cCtl, HyperstartCtlType) == true {
+	if h.hyperstart.IsStarted() == true {
 		return nil
 	}
 
-	h.cCtl, err = retryConnectSocket(1000, "unix", h.config.SockCtlName)
+	err := h.retryConnectSocket(1000)
 	if err != nil {
 		return err
 	}
 
-	err = sendCmd(h.cCtl, ping, nil)
-	if err != nil {
-		return err
-	}
-
-	h.cTty, err = retryConnectSocket(1000, "unix", h.config.SockTtyName)
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.Ping, nil)
 	if err != nil {
 		return err
 	}
@@ -535,7 +226,7 @@ func (h *hyper) startAgent() error {
 
 // exec is the agent command execution implementation for hyperstart.
 func (h *hyper) exec(podID string, contID string, cmd Cmd) error {
-	process, err := buildHyperContainerProcess(cmd)
+	process, err := h.buildHyperContainerProcess(cmd)
 	if err != nil {
 		return err
 	}
@@ -545,7 +236,12 @@ func (h *hyper) exec(podID string, contID string, cmd Cmd) error {
 		Process:   process,
 	}
 
-	err = sendCmd(h.cCtl, execCommand, execInfo)
+	payload, err := hyperstart.FormatMessage(execInfo)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.ExecCmd, payload)
 	if err != nil {
 		return err
 	}
@@ -558,7 +254,7 @@ func (h *hyper) startPod(config PodConfig) error {
 	var containers []hyperJson.Container
 
 	for _, c := range config.Containers {
-		process, err := buildHyperContainerProcess(c.Cmd)
+		process, err := h.buildHyperContainerProcess(c.Cmd)
 		if err != nil {
 			return err
 		}
@@ -579,7 +275,12 @@ func (h *hyper) startPod(config PodConfig) error {
 		ShareDir:   mountTag,
 	}
 
-	err := sendCmd(h.cCtl, startPod, hyperPod)
+	payload, err := hyperstart.FormatMessage(hyperPod)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.StartPod, payload)
 	if err != nil {
 		return err
 	}
@@ -589,7 +290,7 @@ func (h *hyper) startPod(config PodConfig) error {
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(config PodConfig) error {
-	err := sendCmd(h.cCtl, destroyPod, nil)
+	_, err := h.hyperstart.SendCtlMessage(hyperstart.DestroyPod, nil)
 	if err != nil {
 		return err
 	}
@@ -599,22 +300,9 @@ func (h *hyper) stopPod(config PodConfig) error {
 
 // stop is the agent stopping implementation for hyperstart.
 func (h *hyper) stopAgent() error {
-	if h.cCtl != nil {
-		err := h.cCtl.Close()
-		if err != nil {
-			return err
-		}
-
-		h.cCtl = nil
-	}
-
-	if h.cTty != nil {
-		err := h.cTty.Close()
-		if err != nil {
-			return err
-		}
-
-		h.cTty = nil
+	err := h.hyperstart.CloseSockets()
+	if err != nil {
+		return err
 	}
 
 	bindUnmountAllRootfs(h.pod)
