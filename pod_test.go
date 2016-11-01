@@ -160,6 +160,100 @@ func TestPodStatePausedReady(t *testing.T) {
 	}
 }
 
+func testPodDir(t *testing.T, resource podResource, expected string) error {
+	dir, err := podDir(testPodID, resource)
+	if err != nil {
+		return err
+	}
+
+	if dir != expected {
+		return fmt.Errorf("Unexpected pod directory %s vs %s", dir, expected)
+	}
+
+	return nil
+}
+
+func testPodFile(t *testing.T, resource podResource, expected string) error {
+	file, err := podFile(testPodID, resource)
+	if err != nil {
+		return err
+	}
+
+	if file != expected {
+		return fmt.Errorf("Unexpected pod file %s vs %s", file, expected)
+	}
+
+	return nil
+}
+
+var podDirConfig = filepath.Join(configStoragePath, testPodID)
+
+func TestPodDirConfig(t *testing.T) {
+	err := testPodDir(t, configFileType, podDirConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podDirState = filepath.Join(runStoragePath, testPodID)
+
+func TestPodDirState(t *testing.T) {
+	err := testPodDir(t, stateFileType, podDirState)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podDirLock = filepath.Join(runStoragePath, testPodID)
+
+func TestPodDirLock(t *testing.T) {
+	err := testPodDir(t, lockFileType, podDirLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodDirNegative(t *testing.T) {
+	_, err := podDir("", lockFileType)
+	if err == nil {
+		t.Fatal("Empty pod IDs should not be allowed")
+	}
+}
+
+var podFileConfig = filepath.Join(configStoragePath, testPodID, configFile)
+
+func TestPodFileConfig(t *testing.T) {
+	err := testPodFile(t, configFileType, podFileConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podFileState = filepath.Join(runStoragePath, testPodID, stateFile)
+
+func TestPodFileState(t *testing.T) {
+	err := testPodFile(t, stateFileType, podFileState)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podFileLock = filepath.Join(runStoragePath, testPodID, lockFile)
+
+func TestPodFileLock(t *testing.T) {
+	err := testPodFile(t, lockFileType, podFileLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodFileNegative(t *testing.T) {
+	_, err := podFile("", lockFileType)
+	if err == nil {
+		t.Fatal("Empty pod IDs should not be allowed")
+	}
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 

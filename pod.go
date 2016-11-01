@@ -690,7 +690,7 @@ func (p *Pod) createSetStates() error {
 	return nil
 }
 
-// createPod creates a pod from the sandbox config, the containers list, the hypervisor
+// createPod creates a pod from a pod description, the containers list, the hypervisor
 // and the agent passed through the Config structure.
 // It will create and store the pod structure, and then ask the hypervisor
 // to physically create that pod i.e. starts a VM for that pod to eventually
