@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/01org/cc-oci-runtime/tests/mock"
@@ -54,7 +55,7 @@ func disconnectHyperstart(cCtl, cTty net.Conn) {
 	cCtl.Close()
 }
 
-func testHyperstartSendCmd(t *testing.T, cmdID string, payload interface{}) {
+func testHyperstartSendCmd(t *testing.T, cmdID uint32, payload interface{}) {
 	h, cCtl, cTty, err := connectHyperstart(t)
 	if err != nil {
 		t.Fatal()
@@ -69,7 +70,7 @@ func testHyperstartSendCmd(t *testing.T, cmdID string, payload interface{}) {
 	}
 }
 
-var cmdList = []string{
+var cmdList = []uint32{
 	getVersion,
 	startPod,
 	getPod,
@@ -123,7 +124,7 @@ func TestHyperstartSendSeqHello(t *testing.T) {
 	testHyperstartSendSeq(t, uint64(rand.Int63()), "hello")
 }
 
-func testHyperstartWaitForReply(t *testing.T, cmdID string, payload interface{}) {
+func testHyperstartWaitForReply(t *testing.T, cmdID uint32, payload interface{}) {
 	var payloadStr string
 
 	h, cCtl, cTty, err := connectHyperstart(t)
@@ -149,13 +150,18 @@ func testHyperstartWaitForReply(t *testing.T, cmdID string, payload interface{})
 	length := len(payloadStr) + ctlHdrSize
 	binary.BigEndian.PutUint32(payloadLen, uint32(length))
 
-	frame := frame{
-		cmd:        cmdID,
-		payloadLen: string(payloadLen),
-		payload:    payloadStr,
+	cmdStr, err := uint64ToNBytesString(uint64(cmdID), ctlHdrLenOffset)
+	if err != nil {
+		t.Fatal()
 	}
 
-	err = send(cCtl, frame)
+	frame := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: string(payloadLen),
+		Payload:    payloadStr,
+	}
+
+	err = HyperstartSend(cCtl, frame)
 	if err != nil {
 		t.Fatal()
 	}
@@ -168,4 +174,61 @@ func testHyperstartWaitForReply(t *testing.T, cmdID string, payload interface{})
 
 func TestHyperstartWaitForReplyToPingCmd(t *testing.T) {
 	testHyperstartWaitForReply(t, ping, nil)
+}
+
+func testHyperstartFormatFrame(t *testing.T, cmd uint64, payload interface{}, chType HyperstartChType, expected HyperstartFrame) {
+	frame, err := FormatHyperstartFrame(cmd, payload, chType)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if reflect.DeepEqual(frame, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestHyperstartFormatFrameCtl(t *testing.T) {
+	cmd := ping
+	payload := "testPayload"
+
+	cmdStr, err := uint64ToNBytesString(uint64(cmd), 4)
+	if err != nil {
+		t.Fatal()
+	}
+
+	payloadLenStr, err := uint64ToNBytesString(uint64(19), 4)
+	if err != nil {
+		t.Fatal()
+	}
+
+	expected := HyperstartFrame{
+		Cmd:        cmdStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payload,
+	}
+
+	testHyperstartFormatFrame(t, uint64(cmd), payload, HyperstartCtlType, expected)
+}
+
+func TestHyperstartFormatFrameTty(t *testing.T) {
+	seq := 1
+	payload := "testPayload"
+
+	seqStr, err := uint64ToNBytesString(uint64(seq), 8)
+	if err != nil {
+		t.Fatal()
+	}
+
+	payloadLenStr, err := uint64ToNBytesString(uint64(23), 4)
+	if err != nil {
+		t.Fatal()
+	}
+
+	expected := HyperstartFrame{
+		Cmd:        seqStr,
+		PayloadLen: payloadLenStr,
+		Payload:    payload,
+	}
+
+	testHyperstartFormatFrame(t, uint64(seq), payload, HyperstartTtyType, expected)
 }
