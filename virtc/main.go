@@ -120,46 +120,16 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the initial command to run on pod containers",
 	},
 
-	cli.StringFlag{
-		Name:  "vm-cpu-cpus",
-		Value: "",
-		Usage: "the number of cpus available for this pod",
+	cli.UintFlag{
+		Name:  "vm-vcpus",
+		Value: 0,
+		Usage: "the number of virtual cpus available for this pod",
 	},
 
-	cli.StringFlag{
-		Name:  "vm-cpu-cores",
-		Value: "",
-		Usage: "the number of cores available for this pod",
-	},
-
-	cli.StringFlag{
-		Name:  "vm-cpu-sockets",
-		Value: "",
-		Usage: "the number of sockets available for this pod",
-	},
-
-	cli.StringFlag{
-		Name:  "vm-cpu-threads",
-		Value: "",
-		Usage: "the number of threads available for this pod",
-	},
-
-	cli.StringFlag{
-		Name:  "vm-mem-size",
-		Value: "",
-		Usage: "the standard amount of memory available for this pod",
-	},
-
-	cli.StringFlag{
-		Name:  "vm-mem-slots",
-		Value: "",
-		Usage: "the number of memory slots available for this pod",
-	},
-
-	cli.StringFlag{
-		Name:  "vm-mem-max",
-		Value: "",
-		Usage: "the maximum amount of memory available for this pod",
+	cli.UintFlag{
+		Name:  "vm-memory",
+		Value: 0,
+		Usage: "the amount of memory available for this pod in MiB",
 	},
 }
 
@@ -177,13 +147,8 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperCtlSockType := context.String("hyper-ctl-sock-type")
 	hyperTtySockType := context.String("hyper-tty-sock-type")
 	initCmd := context.String("init-cmd")
-	cpuCPUs := context.String("vm-cpu-cpus")
-	cpuCores := context.String("vm-cpu-cores")
-	cpuSockets := context.String("vm-cpu-sockets")
-	cpuThreads := context.String("vm-cpu-threads")
-	memSize := context.String("vm-mem-size")
-	memSlots := context.String("vm-mem-slots")
-	memMax := context.String("vm-mem-max")
+	vmVCPUs := context.Uint("vm-vcpus")
+	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert agent type")
@@ -268,14 +233,9 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = nil
 	}
 
-	vmConfig := vc.HardwareConfig{
-		CPUs:     cpuCPUs,
-		Cores:    cpuCores,
-		Sockets:  cpuSockets,
-		Threads:  cpuThreads,
-		MemSize:  memSize,
-		MemSlots: memSlots,
-		MemMax:   memMax,
+	vmConfig := vc.Resources{
+		VCPUs:  vmVCPUs,
+		Memory: vmMemory,
 	}
 
 	podConfig := vc.PodConfig{

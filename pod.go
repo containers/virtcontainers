@@ -286,18 +286,13 @@ type Cmd struct {
 	Group string
 }
 
-// HardwareConfig describes VM resources configuration.
-type HardwareConfig struct {
-	// Related to processor resources
-	CPUs    string
-	Cores   string
-	Sockets string
-	Threads string
+// Resources describes VM resources configuration.
+type Resources struct {
+	// VCPUs is the number of available virtual CPUs.
+	VCPUs uint
 
-	// Related to memory resources
-	MemSize  string
-	MemSlots string
-	MemMax   string
+	// Memory is the amount of available memory in MiB.
+	Memory uint
 }
 
 // ContainerConfig describes one container runtime configuration.
@@ -322,7 +317,7 @@ type PodConfig struct {
 	ID string
 
 	// VMConfig is the VM configuration to set for this pod.
-	VMConfig HardwareConfig
+	VMConfig Resources
 
 	HypervisorType   HypervisorType
 	HypervisorConfig HypervisorConfig

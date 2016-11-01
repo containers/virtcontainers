@@ -340,35 +340,26 @@ func TestQemuInit(t *testing.T) {
 }
 
 func TestQemuSetCPUResources(t *testing.T) {
-	cpus := uint32(1)
-	cores := uint32(1)
-	sockets := uint32(1)
-	threads := uint32(1)
+	vcpus := 1
 
 	q := &qemu{}
 
 	expectedOut := ciaoQemu.SMP{
-		CPUs:    cpus,
-		Cores:   cores,
-		Sockets: sockets,
-		Threads: threads,
+		CPUs:    uint32(vcpus),
+		Cores:   uint32(vcpus),
+		Sockets: uint32(1),
+		Threads: uint32(1),
 	}
 
-	vmConfig := HardwareConfig{
-		CPUs:    fmt.Sprintf("%d", cpus),
-		Cores:   fmt.Sprintf("%d", cores),
-		Sockets: fmt.Sprintf("%d", sockets),
-		Threads: fmt.Sprintf("%d", threads),
+	vmConfig := Resources{
+		VCPUs: uint(vcpus),
 	}
 
 	podConfig := PodConfig{
 		VMConfig: vmConfig,
 	}
 
-	smp, err := q.setCPUResources(podConfig)
-	if err != nil {
-		t.Fatal()
-	}
+	smp := q.setCPUResources(podConfig)
 
 	if reflect.DeepEqual(smp, expectedOut) == false {
 		t.Fatal()
@@ -376,32 +367,25 @@ func TestQemuSetCPUResources(t *testing.T) {
 }
 
 func TestQemuSetMemoryResources(t *testing.T) {
-	memSize := "1G"
-	memSlots := uint8(1)
-	memMax := "2G"
+	mem := 1000
 
 	q := &qemu{}
 
 	expectedOut := ciaoQemu.Memory{
-		Size:   memSize,
-		Slots:  memSlots,
-		MaxMem: memMax,
+		Size:   "1000M",
+		Slots:  uint8(2),
+		MaxMem: "1500M",
 	}
 
-	vmConfig := HardwareConfig{
-		MemSize:  memSize,
-		MemSlots: fmt.Sprintf("%d", memSlots),
-		MemMax:   memMax,
+	vmConfig := Resources{
+		Memory: uint(mem),
 	}
 
 	podConfig := PodConfig{
 		VMConfig: vmConfig,
 	}
 
-	memory, err := q.setMemoryResources(podConfig)
-	if err != nil {
-		t.Fatal()
-	}
+	memory := q.setMemoryResources(podConfig)
 
 	if reflect.DeepEqual(memory, expectedOut) == false {
 		t.Fatal()
