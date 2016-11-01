@@ -160,6 +160,53 @@ func TestPodStatePausedReady(t *testing.T) {
 	}
 }
 
+func testPodDir(t *testing.T, resource podResource, expected string) error {
+	dir, err := podDir(testPodID, resource)
+	if err != nil {
+		return err
+	}
+
+	if dir != expected {
+		return fmt.Errorf("Unexpected pod directory %s vs %s", dir, expected)
+	}
+
+	return nil
+}
+
+var podDirConfig = filepath.Join(configStoragePath, testPodID)
+
+func TestPodDirConfig(t *testing.T) {
+	err := testPodDir(t, configFileType, podDirConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podDirState = filepath.Join(runStoragePath, testPodID)
+
+func TestPodDirState(t *testing.T) {
+	err := testPodDir(t, stateFileType, podDirState)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var podDirLock = filepath.Join(runStoragePath, testPodID)
+
+func TestPodDirLock(t *testing.T) {
+	err := testPodDir(t, lockFileType, podDirLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodDirNegative(t *testing.T) {
+	_, err := podDir("", lockFileType)
+	if err == nil {
+		t.Fatal("Empty pod IDs should not be allowed")
+	}
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
