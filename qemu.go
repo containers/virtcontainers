@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -68,16 +68,14 @@ const (
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
 const (
-	defaultCPUs    = 2
-	defaultCores   = 1
-	defaultSockets = 2
-	defaultThreads = 1
+	defaultSockets uint32 = 1
+	defaultThreads uint32 = 1
 )
 
 const (
-	defaultMemSize  = "2G"
-	defaultMemSlots = 2
-	defaultMemMax   = "3G"
+	defaultMemSize        = "2G"
+	defaultMemMax         = "3G"
+	defaultMemSlots uint8 = 2
 )
 
 type qmpGlogLogger struct{}
@@ -164,14 +162,6 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 			Name:     socket.Name,
 		},
 	)
-
-	return devices
-}
-
-func (q *qemu) appendSockets(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
-	for _, s := range podConfig.Sockets {
-		devices = q.appendSocket(devices, s)
-	}
 
 	return devices
 }
@@ -380,79 +370,38 @@ func (q *qemu) qmpStart() error {
 	return nil
 }
 
-func (q *qemu) setCPUResources(podConfig PodConfig) (ciaoQemu.SMP, error) {
-	var err error
-
-	cpus := defaultCPUs
-	if podConfig.VMConfig.CPUs != "" {
-		cpus, err = strconv.Atoi(podConfig.VMConfig.CPUs)
-		if err != nil {
-			return ciaoQemu.SMP{}, err
-		}
-	}
-
-	cores := defaultCores
-	if podConfig.VMConfig.Cores != "" {
-		cores, err = strconv.Atoi(podConfig.VMConfig.Cores)
-		if err != nil {
-			return ciaoQemu.SMP{}, err
-		}
-	}
-
-	sockets := defaultSockets
-	if podConfig.VMConfig.Sockets != "" {
-		sockets, err = strconv.Atoi(podConfig.VMConfig.Sockets)
-		if err != nil {
-			return ciaoQemu.SMP{}, err
-		}
-	}
-
-	threads := defaultThreads
-	if podConfig.VMConfig.Threads != "" {
-		threads, err = strconv.Atoi(podConfig.VMConfig.Threads)
-		if err != nil {
-			return ciaoQemu.SMP{}, err
-		}
+func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
+	vcpus := uint(runtime.NumCPU())
+	if podConfig.VMConfig.VCPUs > 0 {
+		vcpus = podConfig.VMConfig.VCPUs
 	}
 
 	smp := ciaoQemu.SMP{
-		CPUs:    uint32(cpus),
-		Cores:   uint32(cores),
-		Sockets: uint32(sockets),
-		Threads: uint32(threads),
+		CPUs:    uint32(vcpus),
+		Cores:   uint32(vcpus),
+		Sockets: defaultSockets,
+		Threads: defaultThreads,
 	}
 
-	return smp, nil
+	return smp
 }
 
-func (q *qemu) setMemoryResources(podConfig PodConfig) (ciaoQemu.Memory, error) {
-	var err error
-
-	size := defaultMemSize
-	if podConfig.VMConfig.MemSize != "" {
-		size = podConfig.VMConfig.MemSize
-	}
-
-	slots := defaultMemSlots
-	if podConfig.VMConfig.MemSlots != "" {
-		slots, err = strconv.Atoi(podConfig.VMConfig.MemSlots)
-		if err != nil {
-			return ciaoQemu.Memory{}, err
-		}
-	}
-
-	maxMem := defaultMemMax
-	if podConfig.VMConfig.MemMax != "" {
-		maxMem = podConfig.VMConfig.MemMax
+func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
+	mem := defaultMemSize
+	memMax := defaultMemMax
+	if podConfig.VMConfig.Memory > 0 {
+		mem = fmt.Sprintf("%dM", podConfig.VMConfig.Memory)
+		intMemMax := int(float64(podConfig.VMConfig.Memory) * 1.5)
+		memMax = fmt.Sprintf("%dM", intMemMax)
 	}
 
 	memory := ciaoQemu.Memory{
-		Size:   size,
-		Slots:  uint8(slots),
-		MaxMem: maxMem,
+		Size:   mem,
+		Slots:  defaultMemSlots,
+		MaxMem: memMax,
 	}
 
-	return memory, nil
+	return memory
 }
 
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
@@ -464,15 +413,9 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Acceleration: "kvm,kernel_irqchip,nvdimm",
 	}
 
-	smp, err := q.setCPUResources(podConfig)
-	if err != nil {
-		return nil
-	}
+	smp := q.setCPUResources(podConfig)
 
-	memory, err := q.setMemoryResources(podConfig)
-	if err != nil {
-		return nil
-	}
+	memory := q.setMemoryResources(podConfig)
 
 	knobs := ciaoQemu.Knobs{
 		NoUserConfig: true,
@@ -518,8 +461,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
-	devices = q.appendSockets(devices, podConfig)
-	devices, err = q.appendImage(devices, podConfig)
+	devices, err := q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
 	}
