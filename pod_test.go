@@ -119,42 +119,42 @@ func testPodStateTransition(t *testing.T, state stateString, newState stateStrin
 }
 
 func TestPodStateReadyRunning(t *testing.T) {
-	err := testPodStateTransition(t, podReady, podRunning)
+	err := testPodStateTransition(t, stateReady, stateRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateRunningPaused(t *testing.T) {
-	err := testPodStateTransition(t, podRunning, podPaused)
+	err := testPodStateTransition(t, stateRunning, statePaused)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStatePausedRunning(t *testing.T) {
-	err := testPodStateTransition(t, podPaused, podRunning)
+	err := testPodStateTransition(t, statePaused, stateRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateRunningReady(t *testing.T) {
-	err := testPodStateTransition(t, podRunning, podReady)
+	err := testPodStateTransition(t, stateRunning, stateReady)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStateReadyPaused(t *testing.T) {
-	err := testPodStateTransition(t, podReady, podPaused)
+	err := testPodStateTransition(t, stateReady, statePaused)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
 }
 
 func TestPodStatePausedReady(t *testing.T) {
-	err := testPodStateTransition(t, podPaused, podReady)
+	err := testPodStateTransition(t, statePaused, stateReady)
 	if err == nil {
 		t.Fatal("Invalid transition from Ready to Paused")
 	}
