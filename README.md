@@ -92,3 +92,103 @@ The function will fail if the Pod is running. In that case `StopPod()` needs to 
 * `EnterContainer(containerID string, cmd Cmd)` enters an already running container and runs a given command.
 
 * `ContainerStatus(containerID string)` returns a detailed container status.
+
+## Virtc example
+
+Here we explain how to use the pod API from __virtc__ command line.
+
+### Prepare your environment
+
+#### Get your image and kernel
+
+You can dowload the following tested [image](https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz) and [kernel](https://download.clearlinux.org/releases/11130/clear/x86_64/os/Packages/linux-container-4.5-49.x86_64.rpm).
+
+Then, extract them to __/usr/share/clear-containers__.
+You should now have __clear-11130-containers.img__ and __vmlinux-4.5-49.container__ in __/usr/share/clear-containers/__ directory.
+
+#### Create symbolic links
+
+```
+$ sudo su
+# cd /usr/share/clear-containers
+# ln -s vmlinux-4.5-49.container vmlinux.container
+# ln -s clear-11130-containers.img clear-containers.img
+```
+
+#### Get virtc
+
+_Download virtc_
+```
+$ go get github.com/sameo/virtcontainers
+```
+
+_Build virtc_
+```
+$ cd $GOPATH/src/github.com/sameo/virtcontainers
+$ go build virtc/main.go
+```
+
+#### Mount your rootfs
+```
+$ sudo su
+# mkdir -p /tmp/rootfs
+# mount -o loop,offset=$((2048 * 512)) /usr/share/clear-containers/clear-11130-containers.img /tmp/rootfs
+```
+
+### Run virtc
+
+All following commands needs to be run as root. Currently, __virtc__ starts only one container for the pod.
+
+#### Run a new pod (Create + Start)
+```
+./main pod run --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/home/sebastien/devlp/clearcontainers/" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
+```
+#### Create a new pod
+```
+./main pod create --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/home/sebastien/devlp/clearcontainers/" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
+```
+This should generate that kind of output
+```
+Created pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+
+#### Start an existing pod
+```
+./main pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+
+#### Stop an existing pod
+```
+./main pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+
+#### Get the status of an existing pod and its containers
+```
+./main pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This should generate the following output:
+```
+POD ID                                  STATE   HYPERVISOR      AGENT
+306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
+
+CONTAINER ID    STATE
+1               ready
+```
+
+#### Delete an existing pod
+```
+./main pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+
+#### List all existing pods
+```
+./main pod list
+```
+This should generate that kind of output
+```
+POD ID                                  STATE   HYPERVISOR      AGENT
+306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
+92d73f74-4514-4a0d-81df-db1cc4c59100    running qemu            hyperstart
+7088148c-049b-4be7-b1be-89b3ae3c551c    ready   qemu            hyperstart
+6d57654e-4804-4a91-b72d-b5fe375ed3e1    ready   qemu            hyperstart
+```
