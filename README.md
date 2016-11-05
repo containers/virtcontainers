@@ -150,7 +150,7 @@ All following commands needs to be run as root. Currently, __virtc__ starts only
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/tmp/shared/hyper" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
+./virtc pod run --bundle="" --agent="hyperstart" -volume="shared:/tmp/shared/hyper" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
 ```
 #### Create a new pod
 ```
