@@ -99,20 +99,29 @@ Here we explain how to use the pod API from __virtc__ command line.
 
 ### Prepare your environment
 
-#### Get your image and kernel
+#### Get your kernel
 
-You can dowload the following tested [image](https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz) and [kernel](https://download.clearlinux.org/releases/11130/clear/x86_64/os/Packages/linux-container-4.5-49.x86_64.rpm).
+_Fedora_
+```
+$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/Fedora_24/home:clearlinux:preview:clear-containers-2.0.repo
+$ sudo dnf install linux-container 
+```
 
-Then, extract them to __/usr/share/clear-containers__.
-You should now have __clear-11130-containers.img__ and __vmlinux-4.5-49.container__ in __/usr/share/clear-containers/__ directory.
+_Ubuntu_
+```
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.0/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+$ sudo apt install linux-container
+```
 
-#### Create symbolic links
+#### Get your image
+
+It has to be a recent Clear Linux image to make sure it contains hyperstart binary.
+You can dowload the following tested [image](https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz), or any version more recent.
 
 ```
-$ sudo su
-# cd /usr/share/clear-containers
-# ln -s vmlinux-4.5-49.container vmlinux.container
-# ln -s clear-11130-containers.img clear-containers.img
+$ wget https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz
+$ unxz clear-11130-containers.img.xz
+$ sudo cp clear-11130-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
@@ -125,14 +134,14 @@ $ go get github.com/sameo/virtcontainers
 _Build virtc_
 ```
 $ cd $GOPATH/src/github.com/sameo/virtcontainers
-$ go build virtc/main.go
+$ cd virtc && go build
 ```
 
 #### Mount your rootfs
 ```
 $ sudo su
-# mkdir -p /tmp/rootfs
-# mount -o loop,offset=$((2048 * 512)) /usr/share/clear-containers/clear-11130-containers.img /tmp/rootfs
+# mkdir -p /tmp/shared/hyper
+# mount -o loop,offset=$((2048 * 512)) /usr/share/clear-containers/clear-containers.img /tmp/shared/hyper
 ```
 
 ### Run virtc
@@ -141,11 +150,11 @@ All following commands needs to be run as root. Currently, __virtc__ starts only
 
 #### Run a new pod (Create + Start)
 ```
-./main pod run --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/home/sebastien/devlp/clearcontainers/" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
+./virtc pod run --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/tmp/shared/hyper" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
 ```
 #### Create a new pod
 ```
-./main pod create --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/home/sebastien/devlp/clearcontainers/" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
+./virtc pod create --bundle="" --agent="hyperstart" --hyper-ctl-sock-name="/tmp/hyper.sock" --hyper-tty-sock-name="/tmp/tty.sock" --hyper-ctl-sock-type="unix" --hyper-tty-sock-type="unix" -volume="shared:/tmp/shared/hyper" -socket="channel0:charch0:/tmp/hyper.sock:sh.hyper.channel.0 channel1:charch1:/tmp/tty.sock:sh.hyper.channel.1" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -vm-vcpus=2 -vm-memory=2000
 ```
 This should generate that kind of output
 ```
@@ -154,17 +163,17 @@ Created pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 
 #### Start an existing pod
 ```
-./main pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+./virtc pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### Stop an existing pod
 ```
-./main pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+./virtc pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### Get the status of an existing pod and its containers
 ```
-./main pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+./virtc pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This should generate the following output:
 ```
@@ -177,12 +186,12 @@ CONTAINER ID    STATE
 
 #### Delete an existing pod
 ```
-./main pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+./virtc pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### List all existing pods
 ```
-./main pod list
+./virtc pod list
 ```
 This should generate that kind of output
 ```
