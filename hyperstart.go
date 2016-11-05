@@ -29,7 +29,7 @@ import (
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
-var defaultSocks = []string{"/tmp/hyper.sock", "/tmp/tty.sock"}
+var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}
 var defaultSocketType = "unix"
 var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
@@ -95,20 +95,25 @@ type HyperConfig struct {
 	Sockets     []Socket
 }
 
-func (c *HyperConfig) validate() bool {
+func (c *HyperConfig) validate(pod Pod) bool {
 	if len(c.Sockets) == 0 {
 		glog.Infof("No sockets from configuration\n")
 
-		c.SockCtlName = defaultSocks[0]
+		podSocketPaths := []string{
+			fmt.Sprintf(defaultSockPathTemplates[0], pod.id),
+			fmt.Sprintf(defaultSockPathTemplates[1], pod.id),
+		}
+
+		c.SockCtlName = podSocketPaths[0]
 		c.SockCtlType = defaultSocketType
-		c.SockTtyName = defaultSocks[1]
+		c.SockTtyName = podSocketPaths[1]
 		c.SockTtyType = defaultSocketType
 
-		for i := 0; i < len(defaultSocks); i++ {
+		for i := 0; i < len(podSocketPaths); i++ {
 			s := Socket{
 				DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, i),
 				ID:       fmt.Sprintf(defaultIDTemplate, i),
-				HostPath: defaultSocks[i],
+				HostPath: podSocketPaths[i],
 				Name:     fmt.Sprintf(defaultChannelTemplate, i),
 			}
 			c.Sockets = append(c.Sockets, s)
@@ -437,10 +442,10 @@ func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 }
 
 // init is the agent initialization implementation for hyperstart.
-func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
+func (h *hyper) init(pod Pod, config interface{}) error {
 	switch c := config.(type) {
 	case HyperConfig:
-		if c.validate() == false {
+		if c.validate(pod) == false {
 			return fmt.Errorf("Invalid configuration\n")
 		}
 		h.config = c
@@ -448,7 +453,7 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 		return fmt.Errorf("Invalid config type\n")
 	}
 
-	h.hypervisor = hypervisor
+	h.hypervisor = pod.hypervisor
 
 	for _, sharedDir := range h.config.Volumes {
 		err := h.hypervisor.addDevice(sharedDir, fsDev)

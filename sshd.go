@@ -76,7 +76,7 @@ func execCmd(session *ssh.Session, cmd string) error {
 }
 
 // init is the agent initialization implementation for sshd.
-func (s *sshd) init(config interface{}, hypervisor hypervisor) error {
+func (s *sshd) init(pod Pod, config interface{}) error {
 	c := config.(SshdConfig)
 	if c.validate() == false {
 		return fmt.Errorf("Invalid configuration")
