@@ -90,18 +90,6 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the hyperstart tty socket name",
 	},
 
-	cli.StringFlag{
-		Name:  "hyper-ctl-sock-type",
-		Value: "",
-		Usage: "the hyperstart control socket type",
-	},
-
-	cli.StringFlag{
-		Name:  "hyper-tty-sock-type",
-		Value: "",
-		Usage: "the hyperstart tty socket type",
-	},
-
 	cli.GenericFlag{
 		Name:  "volume",
 		Value: new(vc.Volumes),
@@ -144,8 +132,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	sshdKey := context.String("sshd-auth-file")
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
-	hyperCtlSockType := context.String("hyper-ctl-sock-type")
-	hyperTtySockType := context.String("hyper-tty-sock-type")
 	initCmd := context.String("init-cmd")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
@@ -224,8 +210,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = vc.HyperConfig{
 			SockCtlName: hyperCtlSockName,
 			SockTtyName: hyperTtySockName,
-			SockCtlType: hyperCtlSockType,
-			SockTtyType: hyperTtySockType,
 			Volumes:     *volumes,
 			Sockets:     *sockets,
 		}

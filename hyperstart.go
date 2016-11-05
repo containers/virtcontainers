@@ -30,7 +30,6 @@ import (
 )
 
 var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}
-var defaultSocketType = "unix"
 var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
 var defaultIDTemplate = "charch%d"
@@ -89,8 +88,6 @@ const (
 type HyperConfig struct {
 	SockCtlName string
 	SockTtyName string
-	SockCtlType string
-	SockTtyType string
 	Volumes     []Volume
 	Sockets     []Socket
 }
@@ -105,9 +102,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 		}
 
 		c.SockCtlName = podSocketPaths[0]
-		c.SockCtlType = defaultSocketType
 		c.SockTtyName = podSocketPaths[1]
-		c.SockTtyType = defaultSocketType
 
 		for i := 0; i < len(podSocketPaths); i++ {
 			s := Socket{
@@ -480,7 +475,7 @@ func (h *hyper) start() error {
 		return nil
 	}
 
-	h.cCtl, err = retryConnectSocket(1000, h.config.SockCtlType, h.config.SockCtlName)
+	h.cCtl, err = retryConnectSocket(1000, "unix", h.config.SockCtlName)
 	if err != nil {
 		return err
 	}
@@ -490,7 +485,7 @@ func (h *hyper) start() error {
 		return err
 	}
 
-	h.cTty, err = retryConnectSocket(1000, h.config.SockTtyType, h.config.SockTtyName)
+	h.cTty, err = retryConnectSocket(1000, "unix", h.config.SockTtyName)
 	if err != nil {
 		return err
 	}
