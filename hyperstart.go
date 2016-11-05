@@ -29,6 +29,12 @@ import (
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
+var defaultSocks = []string{"/tmp/hyper.sock", "/tmp/tty.sock"}
+var defaultSocketType = "unix"
+var defaultChannelTemplate = "sh.hyper.channel.%d"
+var defaultDeviceIDTemplate = "channel%d"
+var defaultIDTemplate = "charch%d"
+
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
 const (
@@ -89,6 +95,35 @@ type HyperConfig struct {
 	Sockets     []Socket
 }
 
+func (c *HyperConfig) validate() bool {
+	if len(c.Sockets) == 0 {
+		glog.Infof("No sockets from configuration\n")
+
+		c.SockCtlName = defaultSocks[0]
+		c.SockCtlType = defaultSocketType
+		c.SockTtyName = defaultSocks[1]
+		c.SockTtyType = defaultSocketType
+
+		for i := 0; i < len(defaultSocks); i++ {
+			s := Socket{
+				DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, i),
+				ID:       fmt.Sprintf(defaultIDTemplate, i),
+				HostPath: defaultSocks[i],
+				Name:     fmt.Sprintf(defaultChannelTemplate, i),
+			}
+			c.Sockets = append(c.Sockets, s)
+		}
+	}
+
+	if len(c.Sockets) != 2 {
+		return false
+	}
+
+	glog.Infof("Hyperstart config %v\n", c)
+
+	return true
+}
+
 // hyper is the Agent interface implementation for hyperstart.
 type hyper struct {
 	config     HyperConfig
@@ -111,10 +146,6 @@ type HyperstartFrame struct {
 type ExecInfo struct {
 	Container string            `json:"container"`
 	Process   hyperJson.Process `json:"process"`
-}
-
-func (c HyperConfig) validate() bool {
-	return true
 }
 
 // HyperstartSend is the API to send messages to hyperstart in the VM.
