@@ -121,13 +121,13 @@ var podConfigFlags = []cli.Flag{
 	},
 
 	cli.UintFlag{
-		Name:  "vm-vcpus",
+		Name:  "cpus",
 		Value: 0,
 		Usage: "the number of virtual cpus available for this pod",
 	},
 
 	cli.UintFlag{
-		Name:  "vm-memory",
+		Name:  "memory",
 		Value: 0,
 		Usage: "the amount of memory available for this pod in MiB",
 	},
