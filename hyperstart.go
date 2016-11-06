@@ -29,6 +29,11 @@ import (
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
+var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}
+var defaultChannelTemplate = "sh.hyper.channel.%d"
+var defaultDeviceIDTemplate = "channel%d"
+var defaultIDTemplate = "charch%d"
+
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
 const (
@@ -83,10 +88,40 @@ const (
 type HyperConfig struct {
 	SockCtlName string
 	SockTtyName string
-	SockCtlType string
-	SockTtyType string
 	Volumes     []Volume
 	Sockets     []Socket
+}
+
+func (c *HyperConfig) validate(pod Pod) bool {
+	if len(c.Sockets) == 0 {
+		glog.Infof("No sockets from configuration\n")
+
+		podSocketPaths := []string{
+			fmt.Sprintf(defaultSockPathTemplates[0], pod.id),
+			fmt.Sprintf(defaultSockPathTemplates[1], pod.id),
+		}
+
+		c.SockCtlName = podSocketPaths[0]
+		c.SockTtyName = podSocketPaths[1]
+
+		for i := 0; i < len(podSocketPaths); i++ {
+			s := Socket{
+				DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, i),
+				ID:       fmt.Sprintf(defaultIDTemplate, i),
+				HostPath: podSocketPaths[i],
+				Name:     fmt.Sprintf(defaultChannelTemplate, i),
+			}
+			c.Sockets = append(c.Sockets, s)
+		}
+	}
+
+	if len(c.Sockets) != 2 {
+		return false
+	}
+
+	glog.Infof("Hyperstart config %v\n", c)
+
+	return true
 }
 
 // hyper is the Agent interface implementation for hyperstart.
@@ -111,10 +146,6 @@ type HyperstartFrame struct {
 type ExecInfo struct {
 	Container string            `json:"container"`
 	Process   hyperJson.Process `json:"process"`
-}
-
-func (c HyperConfig) validate() bool {
-	return true
 }
 
 // HyperstartSend is the API to send messages to hyperstart in the VM.
@@ -406,10 +437,10 @@ func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 }
 
 // init is the agent initialization implementation for hyperstart.
-func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
+func (h *hyper) init(pod Pod, config interface{}) error {
 	switch c := config.(type) {
 	case HyperConfig:
-		if c.validate() == false {
+		if c.validate(pod) == false {
 			return fmt.Errorf("Invalid configuration\n")
 		}
 		h.config = c
@@ -417,7 +448,7 @@ func (h *hyper) init(config interface{}, hypervisor hypervisor) error {
 		return fmt.Errorf("Invalid config type\n")
 	}
 
-	h.hypervisor = hypervisor
+	h.hypervisor = pod.hypervisor
 
 	for _, sharedDir := range h.config.Volumes {
 		err := h.hypervisor.addDevice(sharedDir, fsDev)
@@ -444,7 +475,7 @@ func (h *hyper) start() error {
 		return nil
 	}
 
-	h.cCtl, err = retryConnectSocket(1000, h.config.SockCtlType, h.config.SockCtlName)
+	h.cCtl, err = retryConnectSocket(1000, "unix", h.config.SockCtlName)
 	if err != nil {
 		return err
 	}
@@ -454,7 +485,7 @@ func (h *hyper) start() error {
 		return err
 	}
 
-	h.cTty, err = retryConnectSocket(1000, h.config.SockTtyType, h.config.SockTtyName)
+	h.cTty, err = retryConnectSocket(1000, "unix", h.config.SockTtyName)
 	if err != nil {
 		return err
 	}

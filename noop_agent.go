@@ -22,7 +22,7 @@ type noopAgent struct {
 }
 
 // init initializes the Noop agent, i.e. it does nothing.
-func (n *noopAgent) init(config interface{}, hypervisor hypervisor) error {
+func (n *noopAgent) init(pod Pod, config interface{}) error {
 	return nil
 }
 

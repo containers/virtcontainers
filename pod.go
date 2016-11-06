@@ -700,7 +700,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		agentConfig = nil
 	}
 
-	err = p.agent.init(agentConfig, p.hypervisor)
+	err = p.agent.init(*p, agentConfig)
 	if err != nil {
 		p.storage.delete(p.id, nil)
 		return nil, err
