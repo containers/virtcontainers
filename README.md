@@ -137,24 +137,31 @@ $ cd $GOPATH/src/github.com/sameo/virtcontainers
 $ cd virtc && go build
 ```
 
-#### Mount your rootfs
-```
-$ sudo su
-# mkdir -p /tmp/shared/hyper
-# mount -o loop,offset=$((2048 * 512)) /usr/share/clear-containers/clear-containers.img /tmp/shared/hyper
-```
-
 ### Run virtc
 
-All following commands needs to be run as root. Currently, __virtc__ starts only one container for the pod.
+All following commands needs to be run as root. Currently, __virtc__ only starts single container pods.
+
+_Create your container bundle_
+
+As an example we will create a busybox bundle:
+
+```
+$ mkdir -p /tmp/bundles/busybox/
+$ docker pull busybox
+$ cd /tmp/bundles/busybox/
+$ mkdir rootfs
+$ docker export $(docker create busybox) | tar -C rootfs -xvf -
+$ echo -e '#!/bin/sh\ncd "\"\n"sh"' > rootfs/.containerexec
+$ echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nTERM=xterm' > rootfs/.containerenv
+```
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --bundle="" --agent="hyperstart" -volume="shared:/tmp/shared/hyper" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -cpus=2 -memory=2000
+./virtc pod run --bundle="/tmp/bundles/busybox/rootfs" --agent="hyperstart" --init-cmd="/bin/sh"
 ```
 #### Create a new pod
 ```
-./virtc pod create --bundle="" --agent="hyperstart" -volume="shared:/tmp/shared/hyper" --init-cmd="stress --vm 12 --vm-bytes 128M --timeout 10s" -cpus=2 -memory=2000
+./virtc pod create --bundle="/tmp/bundles/busybox/rootfs" --agent="hyperstart" --init-cmd="/bin/sh"
 ```
 This should generate that kind of output
 ```
