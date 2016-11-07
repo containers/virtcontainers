@@ -436,7 +436,7 @@ func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 	c.SetDeadline(time.Time{})
 
 	if ret == false {
-		h.stop()
+		h.stopAgent()
 	}
 
 	return ret
@@ -507,7 +507,7 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 }
 
 // start is the agent starting implementation for hyperstart.
-func (h *hyper) start() error {
+func (h *hyper) startAgent() error {
 	var err error
 
 	if h.isStarted(h.cCtl, HyperstartCtlType) == true {
@@ -597,7 +597,7 @@ func (h *hyper) stopPod(config PodConfig) error {
 }
 
 // stop is the agent stopping implementation for hyperstart.
-func (h *hyper) stop() error {
+func (h *hyper) stopAgent() error {
 	if h.cCtl != nil {
 		err := h.cCtl.Close()
 		if err != nil {

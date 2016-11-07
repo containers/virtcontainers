@@ -27,7 +27,7 @@ func (n *noopAgent) init(pod Pod, config interface{}) error {
 }
 
 // start is the Noop agent starting implementation. It does nothing.
-func (n *noopAgent) start() error {
+func (n *noopAgent) startAgent() error {
 	return nil
 }
 
@@ -47,6 +47,6 @@ func (n *noopAgent) stopPod(config PodConfig) error {
 }
 
 // stop is the Noop agent stopping implementation. It does nothing.
-func (n *noopAgent) stop() error {
+func (n *noopAgent) stopAgent() error {
 	return nil
 }

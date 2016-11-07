@@ -89,7 +89,7 @@ func (s *sshd) init(pod Pod, config interface{}) error {
 }
 
 // start is the agent starting implementation for sshd.
-func (s *sshd) start() error {
+func (s *sshd) startAgent() error {
 	if s.client != nil {
 		session, err := s.client.NewSession()
 		if err == nil {
@@ -159,6 +159,6 @@ func (s *sshd) stopPod(config PodConfig) error {
 }
 
 // stop is the agent stopping implementation for sshd.
-func (s *sshd) stop() error {
+func (s *sshd) stopAgent() error {
 	return nil
 }

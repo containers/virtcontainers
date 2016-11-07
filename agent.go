@@ -116,8 +116,11 @@ type agent interface {
 	// to handle all other Agent interface methods.
 	init(pod Pod, config interface{}) error
 
-	// start will start the agent on the host.
-	start() error
+	// startAgent will start the agent.
+	startAgent() error
+
+	// stopAgent will stop the agent.
+	stopAgent() error
 
 	// exec will tell the agent to run a command in an already running container.
 	exec(podID string, contID string, cmd Cmd) error
@@ -127,7 +130,4 @@ type agent interface {
 
 	// stopPod will tell the agent to stop all containers related to the Pod.
 	stopPod(config PodConfig) error
-
-	// stop will stop the agent on the host.
-	stop() error
 }
