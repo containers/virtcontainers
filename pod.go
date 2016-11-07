@@ -831,14 +831,16 @@ func (p *Pod) start() error {
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err = p.agent.start()
+	err = p.agent.startAgent()
 	if err != nil {
+		p.unlock()
 		p.stop()
 		return err
 	}
 
 	err = p.agent.startPod(*p.config)
 	if err != nil {
+		p.unlock()
 		p.stop()
 		return err
 	}
@@ -922,7 +924,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.start()
+	err = p.agent.startAgent()
 	if err != nil {
 		return err
 	}
@@ -937,7 +939,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.stop()
+	err = p.agent.stopAgent()
 	if err != nil {
 		return err
 	}
@@ -981,7 +983,7 @@ func (p *Pod) setPodState(state stateString) error {
 
 // endSession makes sure to end the session properly.
 func (p *Pod) endSession() error {
-	err := p.agent.stop()
+	err := p.agent.stopAgent()
 	if err != nil {
 		return err
 	}
