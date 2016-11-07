@@ -279,7 +279,7 @@ func deletePod(context *cli.Context) error {
 func startPod(context *cli.Context) error {
 	_, err := vc.StartPod(context.String("id"))
 	if err != nil {
-		return fmt.Errorf("Could not delete pod: %s\n", err)
+		return fmt.Errorf("Could not start pod: %s\n", err)
 	}
 
 	return nil
