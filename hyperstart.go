@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -33,6 +35,8 @@ var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%
 var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
 var defaultIDTemplate = "charch%d"
+var defaultSharedDir = "/tmp/hyper/shared/pods/"
+var mountTag = "hyperShared"
 
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
@@ -126,8 +130,8 @@ func (c *HyperConfig) validate(pod Pod) bool {
 
 // hyper is the Agent interface implementation for hyperstart.
 type hyper struct {
-	config     HyperConfig
-	hypervisor hypervisor
+	pod    Pod
+	config HyperConfig
 
 	cCtl net.Conn
 	cTty net.Conn
@@ -232,6 +236,8 @@ func waitForReply(c net.Conn, cmdID uint32) error {
 		if fCmd == next || fCmd == ready {
 			continue
 		}
+
+		glog.Infof("Received command %d\n", fCmd)
 
 		if fCmd != cmdID {
 			if fCmd == hyperError {
@@ -436,6 +442,19 @@ func (h *hyper) isStarted(c net.Conn, chType HyperstartChType) bool {
 	return ret
 }
 
+func bindMountContainerRootfs(pod Pod, container ContainerConfig) error {
+	rootfsDest := filepath.Join(defaultSharedDir, pod.id, container.ID)
+
+	return bindMount(container.RootFs, rootfsDest)
+}
+
+func bindUnmountAllRootfs(pod Pod) {
+	for _, c := range pod.containers {
+		rootfsDest := filepath.Join(defaultSharedDir, pod.id, c.ID)
+		syscall.Unmount(rootfsDest, 0)
+	}
+}
+
 // init is the agent initialization implementation for hyperstart.
 func (h *hyper) init(pod Pod, config interface{}) error {
 	switch c := config.(type) {
@@ -448,20 +467,40 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 		return fmt.Errorf("Invalid config type\n")
 	}
 
-	h.hypervisor = pod.hypervisor
+	h.pod = pod
 
-	for _, sharedDir := range h.config.Volumes {
-		err := h.hypervisor.addDevice(sharedDir, fsDev)
+	for _, volume := range h.config.Volumes {
+		err := h.pod.hypervisor.addDevice(volume, fsDev)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, socket := range h.config.Sockets {
-		err := h.hypervisor.addDevice(socket, serialPortDev)
+		err := h.pod.hypervisor.addDevice(socket, serialPortDev)
 		if err != nil {
 			return err
 		}
+	}
+
+	for _, c := range pod.containers {
+		err := bindMountContainerRootfs(pod, c)
+		if err != nil {
+			bindUnmountAllRootfs(pod)
+			return err
+		}
+	}
+
+	// Adding the hyper shared volume.
+	// This volume contains all bind mounted container bundles.
+	sharedVolume := Volume{
+		MountTag: mountTag,
+		HostPath: filepath.Join(defaultSharedDir, pod.id),
+	}
+
+	err := h.pod.hypervisor.addDevice(sharedVolume, fsDev)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -525,18 +564,12 @@ func (h *hyper) startPod(config PodConfig) error {
 
 		container := hyperJson.Container{
 			Id:      c.ID,
+			Image:   c.ID,
 			Rootfs:  c.RootFs,
 			Process: process,
 		}
 
 		containers = append(containers, container)
-	}
-
-	var mountTag string
-	if h.config.Volumes != nil {
-		mountTag = h.config.Volumes[0].MountTag
-	} else {
-		mountTag = ""
 	}
 
 	hyperPod := hyperJson.Pod{
@@ -582,6 +615,8 @@ func (h *hyper) stop() error {
 
 		h.cTty = nil
 	}
+
+	bindUnmountAllRootfs(h.pod)
 
 	return nil
 }
