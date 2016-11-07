@@ -833,12 +833,14 @@ func (p *Pod) start() error {
 
 	err = p.agent.startAgent()
 	if err != nil {
+		p.unlock()
 		p.stop()
 		return err
 	}
 
 	err = p.agent.startPod(*p.config)
 	if err != nil {
+		p.unlock()
 		p.stop()
 		return err
 	}
