@@ -237,9 +237,10 @@ func waitForReply(c net.Conn, cmdID uint32) error {
 			continue
 		}
 
-		glog.Infof("Received command %d\n", fCmd)
+		glog.Infof("Received command %d (Expecting %d)", fCmd, cmdID)
 
 		if fCmd != cmdID {
+			glog.Errorf("Unexpected command %d", fCmd)
 			if fCmd == hyperError {
 				return fmt.Errorf("ERROR received from Hyperstart\n")
 			}
@@ -565,7 +566,7 @@ func (h *hyper) startPod(config PodConfig) error {
 		container := hyperJson.Container{
 			Id:      c.ID,
 			Image:   c.ID,
-			Rootfs:  c.RootFs,
+			Rootfs:  "rootfs",
 			Process: process,
 		}
 
