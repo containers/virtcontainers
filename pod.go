@@ -259,23 +259,6 @@ type Resources struct {
 	Memory uint
 }
 
-// ContainerConfig describes one container runtime configuration.
-type ContainerConfig struct {
-	ID string
-
-	// RootFs is the container workload image on the host.
-	RootFs string
-
-	// Interactive specifies if the container runs in the foreground.
-	Interactive bool
-
-	// Console is a console path provided by the caller.
-	Console string
-
-	// Cmd specifies the command to run on a container
-	Cmd Cmd
-}
-
 // PodConfig is a Pod configuration.
 type PodConfig struct {
 	ID string
@@ -327,6 +310,8 @@ func (podConfig *PodConfig) valid() bool {
 type podStorage interface {
 	storeConfig(config PodConfig) error
 	fetchConfig(podID string) (PodConfig, error)
+	storeContainerConfig(podID string, config ContainerConfig) error
+	fetchContainerConfig(containerPath string) (ContainerConfig, error)
 	storeState(podID string, state State) error
 	fetchState(podID string) (State, error)
 	delete(podID string, resources []podResource) error

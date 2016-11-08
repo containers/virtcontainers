@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 )
 
@@ -222,5 +223,188 @@ func StatusPod(podID string) error {
 	}
 
 	w.Flush()
+	return nil
+}
+
+// CreateContainer is the virtcontainers container creation entry point.
+// CreateContainer creates a container on a given pod.
+func CreateContainer(podID string, containerConfig ContainerConfig) (*Container, error) {
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the container.
+	c, err := createContainer(p, containerConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store it.
+	err = c.storeContainer()
+	if err != nil {
+		return nil, err
+	}
+
+	// Update pod config
+	p.config.Containers = append(p.config.Containers, containerConfig)
+	err = p.storePod()
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// DeleteContainer is the virtcontainers container deletion entry point.
+// DeleteContainer deletes a Container from a Pod. If the container is running,
+// it needs to be stopped first.
+func DeleteContainer(podID, containerID string) (*Container, error) {
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Delete it.
+	err = c.delete()
+	if err != nil {
+		return nil, err
+	}
+
+	// Update pod config
+	for idx, contConfig := range p.config.Containers {
+		if contConfig.ID == containerID {
+			p.config.Containers = append(p.config.Containers[:idx], p.config.Containers[idx+1:]...)
+			break
+		}
+	}
+	err = p.storePod()
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// StartContainer is the virtcontainers container starting entry point.
+// StartContainer starts an already created container.
+func StartContainer(podID, containerID string) (*Container, error) {
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start it.
+	err = c.start()
+	if err != nil {
+		c.delete()
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// StopContainer is the virtcontainers container stopping entry point.
+// StopContainer stops an already running container.
+func StopContainer(podID, containerID string) (*Container, error) {
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stop it.
+	err = c.stop()
+	if err != nil {
+		c.delete()
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// EnterContainer is the virtcontainers container command execution entry point.
+// EnterContainer enters an already running container and runs a given command.
+func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enter it.
+	err = c.enter(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// ContainerStatus is the virtcontainers container status entry point.
+// ContainerStatus returns a detailed container status.
+func ContainerStatus(podID, containerID string) error {
+	fs := filesystem{}
+
+	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
+
+	cPath := filepath.Join(podID, containerID)
+	state, err := fs.fetchState(cPath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
+	fmt.Fprintf(w, statusFormat, containerID, state.State)
+
+	w.Flush()
+
 	return nil
 }

@@ -319,8 +319,8 @@ func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) 
 
 	container := hyperJson.Container{
 		Id:      contConfig.ID,
-		Image:   contConfig.ID,
-		Rootfs:  contConfig.RootFs,
+		Image:   "",
+		Rootfs:  "",
 		Process: process,
 	}
 
