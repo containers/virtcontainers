@@ -312,10 +312,39 @@ func (h *hyper) stopAgent() error {
 
 // startContainer is the agent Container starting implementation for hyperstart.
 func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	process, err := h.buildHyperContainerProcess(contConfig.Cmd)
+	if err != nil {
+		return err
+	}
+
+	container := hyperJson.Container{
+		Id:      contConfig.ID,
+		Image:   contConfig.ID,
+		Rootfs:  contConfig.RootFs,
+		Process: process,
+	}
+
+	payload, err := hyperstart.FormatMessage(container)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.NewContainer, payload)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	payload := []byte(fmt.Sprintf("{\"container\":\"%s\",\"signal\":\"9\"}", contConfig.ID))
+
+	_, err := h.hyperstart.SendCtlMessage(hyperstart.KillContainer, payload)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
