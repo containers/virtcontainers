@@ -83,15 +83,15 @@ The function will fail if the Pod is running. In that case `StopPod()` needs to 
 
 * `CreateContainer(podID string, container ContainerConfig)` creates a Container on a given Pod.
 
-* `DeleteContainer(containerID string)` deletes a Container from a Pod. If the container is running it needs to be stopped first.
+* `DeleteContainer(podID, containerID string)` deletes a Container from a Pod. If the container is running it needs to be stopped first.
 
-* `StartContainer(containerID string)` starts an already created container.
+* `StartContainer(podID, containerID string)` starts an already created container.
 
-* `StopContainer(containerID string)` stops an already running container.
+* `StopContainer(podID, containerID string)` stops an already running container.
 
-* `EnterContainer(containerID string, cmd Cmd)` enters an already running container and runs a given command.
+* `EnterContainer(podID, containerID string, cmd Cmd)` enters an already running container and runs a given command.
 
-* `ContainerStatus(containerID string)` returns a detailed container status.
+* `ContainerStatus(podID, containerID string)` returns a detailed container status.
 
 ## Virtc example
 
