@@ -189,12 +189,11 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 
 		devices = append(devices,
 			ciaoQemu.FSDevice{
-				Driver:   ciaoQemu.Virtio9P,
-				FSDriver: ciaoQemu.Local,
-				ID:       fmt.Sprintf("ctr-%s-9p", c.ID),
-				Path:     c.RootFs,
-				//MountTag:      fmt.Sprintf("ctr-rootfs-%s", c.ID),
-				MountTag:      "rootfs", // CC hack, systemd mounts rootfs.
+				Driver:        ciaoQemu.Virtio9P,
+				FSDriver:      ciaoQemu.Local,
+				ID:            fmt.Sprintf("ctr-%s-9p", c.ID),
+				Path:          c.RootFs,
+				MountTag:      fmt.Sprintf("ctr-rootfs-%s", c.ID),
 				SecurityModel: ciaoQemu.None,
 			},
 		)
