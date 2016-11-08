@@ -170,7 +170,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			FSDriver:      ciaoQemu.Local,
 			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.1", contID)),
 			Path:          fmt.Sprintf("%s.1", contRootFs),
-			MountTag:      "rootfs",
+			MountTag:      fmt.Sprintf("ctr-rootfs-%s.1", contID),
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
@@ -178,7 +178,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 			FSDriver:      ciaoQemu.Local,
 			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.2", contID)),
 			Path:          fmt.Sprintf("%s.2", contRootFs),
-			MountTag:      "rootfs",
+			MountTag:      fmt.Sprintf("ctr-rootfs-%s.2", contID),
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
