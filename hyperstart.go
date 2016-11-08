@@ -309,3 +309,13 @@ func (h *hyper) stopAgent() error {
 
 	return nil
 }
+
+// startContainer is the agent Container starting implementation for hyperstart.
+func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}
+
+// stopContainer is the agent Container stopping implementation for hyperstart.
+func (h *hyper) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}

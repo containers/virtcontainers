@@ -50,3 +50,13 @@ func (n *noopAgent) stopPod(config PodConfig) error {
 func (n *noopAgent) stopAgent() error {
 	return nil
 }
+
+// startContainer is the Noop agent Container starting implementation. It does nothing.
+func (n *noopAgent) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}
+
+// stopContainer is the Noop agent Container stopping implementation. It does nothing.
+func (n *noopAgent) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}

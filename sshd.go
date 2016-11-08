@@ -162,3 +162,13 @@ func (s *sshd) stopPod(config PodConfig) error {
 func (s *sshd) stopAgent() error {
 	return nil
 }
+
+// startContainer is the agent Container starting implementation for sshd.
+func (s *sshd) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}
+
+// stopContainer is the agent Container stopping implementation for sshd.
+func (s *sshd) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	return nil
+}

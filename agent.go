@@ -130,4 +130,10 @@ type agent interface {
 
 	// stopPod will tell the agent to stop all containers related to the Pod.
 	stopPod(config PodConfig) error
+
+	// startContainer will tell the agent to start a container related to a Pod.
+	startContainer(podConfig PodConfig, contConfig ContainerConfig) error
+
+	// stopContainer will tell the agent to stop a container related to a Pod.
+	stopContainer(podConfig PodConfig, contConfig ContainerConfig) error
 }
