@@ -70,7 +70,7 @@ const configFile = "config.json"
 const stateFile = "state.json"
 
 // lockFile is the file name locking the usage of a pod.
-const lockFile = "lock"
+const lockFileName = "lock"
 
 // stateString is a string representing a pod state.
 type stateString string
@@ -363,7 +363,7 @@ func podFile(podID string, resource podResource) (string, error) {
 	case stateFileType:
 		filename = stateFile
 	case lockFileType:
-		filename = lockFile
+		filename = lockFileName
 		break
 	default:
 		return "", fmt.Errorf("Invalid pod resource")
@@ -513,8 +513,8 @@ func (fs *filesystem) delete(podID string, resources []podResource) error {
 	return nil
 }
 
-// storePodConfigUnlocked stores a pod config without taking any lock.
-func storePodConfigUnlocked(config PodConfig, fs filesystem) error {
+// storePodConfig stores a pod config without taking any lock.
+func storePodConfig(config PodConfig, fs filesystem) error {
 	err := fs.storeConfig(config)
 	if err != nil {
 		return err
@@ -523,9 +523,9 @@ func storePodConfigUnlocked(config PodConfig, fs filesystem) error {
 	return nil
 }
 
-// fetchPodConfigUnlocked fetches a pod config from a pod ID and returns a pod.
+// fetchPodConfig fetches a pod config from a pod ID and returns a pod.
 // It does not take any lock.
-func fetchPodConfigUnlocked(podID string, fs filesystem) (PodConfig, error) {
+func fetchPodConfig(podID string, fs filesystem) (PodConfig, error) {
 	config, err := fs.fetchConfig(podID)
 	if err != nil {
 		return PodConfig{}, err
@@ -597,30 +597,6 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
-}
-
-// lock locks the current pod to prevent it from being accessed
-// by other processes.
-func (p *Pod) lock() error {
-	var err error
-
-	p.lockFile, err = lockPod(p.id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// unlock unlocks the current pod to allow it being accessed by
-// other processes.
-func (p *Pod) unlock() error {
-	err := unlockPod(p.lockFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (p *Pod) createPodDirs() error {
@@ -726,12 +702,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.lock()
-	if err != nil {
-		return nil, err
-	}
-	defer p.unlock()
-
 	err = p.hypervisor.createPod(podConfig)
 	if err != nil {
 		p.storage.delete(p.id, nil)
@@ -773,14 +743,8 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 // storePod stores a pod config.
 func (p *Pod) storePod() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
 	fs := filesystem{}
-	err = storePodConfigUnlocked(*(p.config), fs)
+	err := storePodConfig(*(p.config), fs)
 	if err != nil {
 		return err
 	}
@@ -798,7 +762,7 @@ func (p *Pod) storePod() error {
 // fetchPod fetches a pod config from a pod ID and returns a pod.
 func fetchPod(podID string) (*Pod, error) {
 	fs := filesystem{}
-	config, err := fetchPodConfigUnlocked(podID, fs)
+	config, err := fetchPodConfig(podID, fs)
 	if err != nil {
 		return nil, err
 	}
@@ -811,12 +775,6 @@ func fetchPod(podID string) (*Pod, error) {
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
 	state, err := p.storage.fetchState(p.id)
 	if err != nil {
 		return err
@@ -870,13 +828,7 @@ func (p *Pod) startSetStates() error {
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
-	err = p.startCheckStates()
+	err := p.startCheckStates()
 	if err != nil {
 		return nil
 	}
@@ -896,14 +848,12 @@ func (p *Pod) start() error {
 
 	err = p.agent.startAgent()
 	if err != nil {
-		p.unlock()
 		p.stop()
 		return err
 	}
 
 	err = p.agent.startPod(*p.config)
 	if err != nil {
-		p.unlock()
 		p.stop()
 		return err
 	}
@@ -920,8 +870,6 @@ func (p *Pod) start() error {
 	if err != nil {
 		return err
 	}
-
-	p.unlock()
 
 	if interactive == true {
 		select {
@@ -976,13 +924,7 @@ func (p *Pod) stopSetStates() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
-	err = p.stopCheckStates()
+	err := p.stopCheckStates()
 	if err != nil {
 		return err
 	}
@@ -1022,12 +964,6 @@ func (p *Pod) list() ([]Pod, error) {
 
 // enter runs an executable within a pod.
 func (p *Pod) enter(args []string) error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
 	return nil
 }
 
