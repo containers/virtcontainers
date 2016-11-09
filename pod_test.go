@@ -238,7 +238,7 @@ func TestPodFileState(t *testing.T) {
 	}
 }
 
-var podFileLock = filepath.Join(runStoragePath, testPodID, lockFile)
+var podFileLock = filepath.Join(runStoragePath, testPodID, lockFileName)
 
 func TestPodFileLock(t *testing.T) {
 	err := testPodFile(t, lockFileType, podFileLock)
