@@ -229,6 +229,12 @@ func StatusPod(podID string) error {
 // CreateContainer is the virtcontainers container creation entry point.
 // CreateContainer creates a container on a given pod.
 func CreateContainer(podID string, containerConfig ContainerConfig) (*Container, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	p, err := fetchPod(podID)
 	if err != nil {
 		return nil, err
@@ -246,9 +252,10 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Container,
 		return nil, err
 	}
 
-	// Update pod config
+	// Update pod config.
 	p.config.Containers = append(p.config.Containers, containerConfig)
-	err = p.storePod()
+	fs := filesystem{}
+	err = storePodConfigUnlocked(*(p.config), fs)
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +272,12 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Container,
 // DeleteContainer deletes a Container from a Pod. If the container is running,
 // it needs to be stopped first.
 func DeleteContainer(podID, containerID string) (*Container, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	p, err := fetchPod(podID)
 	if err != nil {
 		return nil, err
@@ -289,7 +302,8 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 			break
 		}
 	}
-	err = p.storePod()
+	fs := filesystem{}
+	err = storePodConfigUnlocked(*(p.config), fs)
 	if err != nil {
 		return nil, err
 	}
@@ -305,6 +319,12 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 // StartContainer is the virtcontainers container starting entry point.
 // StartContainer starts an already created container.
 func StartContainer(podID, containerID string) (*Container, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	p, err := fetchPod(podID)
 	if err != nil {
 		return nil, err
@@ -334,6 +354,12 @@ func StartContainer(podID, containerID string) (*Container, error) {
 // StopContainer is the virtcontainers container stopping entry point.
 // StopContainer stops an already running container.
 func StopContainer(podID, containerID string) (*Container, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	p, err := fetchPod(podID)
 	if err != nil {
 		return nil, err
@@ -363,6 +389,12 @@ func StopContainer(podID, containerID string) (*Container, error) {
 // EnterContainer is the virtcontainers container command execution entry point.
 // EnterContainer enters an already running container and runs a given command.
 func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	p, err := fetchPod(podID)
 	if err != nil {
 		return nil, err

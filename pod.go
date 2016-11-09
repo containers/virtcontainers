@@ -513,6 +513,61 @@ func (fs *filesystem) delete(podID string, resources []podResource) error {
 	return nil
 }
 
+// storePodConfigUnlocked stores a pod config without taking any lock.
+func storePodConfigUnlocked(config PodConfig, fs filesystem) error {
+	err := fs.storeConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// fetchPodConfigUnlocked fetches a pod config from a pod ID and returns a pod.
+// It does not take any lock.
+func fetchPodConfigUnlocked(podID string, fs filesystem) (PodConfig, error) {
+	config, err := fs.fetchConfig(podID)
+	if err != nil {
+		return PodConfig{}, err
+	}
+
+	glog.Infof("Info structure:\n%+v\n", config)
+
+	return config, nil
+}
+
+// lock locks any pod to prevent it from being accessed by other processes.
+func lockPod(podID string) (*os.File, error) {
+	podlockFile, err := podFile(podID, lockFileType)
+	if err != nil {
+		return nil, err
+	}
+
+	lockFile, err := os.Open(podlockFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return nil, err
+	}
+
+	return lockFile, nil
+}
+
+// unlock unlocks any pod to allow it being accessed by other processes.
+func unlockPod(lockFile *os.File) error {
+	err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	if err != nil {
+		return err
+	}
+
+	lockFile.Close()
+
+	return nil
+}
+
 // Pod is composed of a set of containers and a runtime environment.
 // A Pod can be created, deleted, started, stopped, listed, entered, paused and restored.
 type Pod struct {
@@ -545,19 +600,11 @@ func (p *Pod) ID() string {
 }
 
 // lock locks the current pod to prevent it from being accessed
-// by other processes
+// by other processes.
 func (p *Pod) lock() error {
-	podlockFile, err := podFile(p.id, lockFileType)
-	if err != nil {
-		return err
-	}
+	var err error
 
-	p.lockFile, err = os.Open(podlockFile)
-	if err != nil {
-		return err
-	}
-
-	err = syscall.Flock(int(p.lockFile.Fd()), syscall.LOCK_EX)
+	p.lockFile, err = lockPod(p.id)
 	if err != nil {
 		return err
 	}
@@ -566,14 +613,12 @@ func (p *Pod) lock() error {
 }
 
 // unlock unlocks the current pod to allow it being accessed by
-// other processes
+// other processes.
 func (p *Pod) unlock() error {
-	err := syscall.Flock(int(p.lockFile.Fd()), syscall.LOCK_UN)
+	err := unlockPod(p.lockFile)
 	if err != nil {
 		return err
 	}
-
-	p.lockFile.Close()
 
 	return nil
 }
@@ -735,7 +780,7 @@ func (p *Pod) storePod() error {
 	defer p.unlock()
 
 	fs := filesystem{}
-	err = fs.storeConfig(*(p.config))
+	err = storePodConfigUnlocked(*(p.config), fs)
 	if err != nil {
 		return err
 	}
@@ -753,7 +798,7 @@ func (p *Pod) storePod() error {
 // fetchPod fetches a pod config from a pod ID and returns a pod.
 func fetchPod(podID string) (*Pod, error) {
 	fs := filesystem{}
-	config, err := fs.fetchConfig(podID)
+	config, err := fetchPodConfigUnlocked(podID, fs)
 	if err != nil {
 		return nil, err
 	}
