@@ -623,6 +623,20 @@ func (p *Pod) createPodDirs() error {
 	return nil
 }
 
+func (p *Pod) createSetStates() error {
+	err := p.setPodState(stateReady)
+	if err != nil {
+		return err
+	}
+
+	err = p.setContainersState(stateReady)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // createPod creates a pod from a pod description, the containers list, the hypervisor
 // and the agent passed through the Config structure.
 // It will create and store the pod structure, and then ask the hypervisor
@@ -703,7 +717,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return p, nil
 	}
 
-	err = p.setPodState(stateReady)
+	err = p.createSetStates()
 	if err != nil {
 		p.storage.delete(p.id, nil)
 		return nil, err
@@ -786,6 +800,11 @@ func (p *Pod) startCheckStates() error {
 		return err
 	}
 
+	err = p.checkContainersState(stateReady)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -795,7 +814,7 @@ func (p *Pod) startSetStates() error {
 		return err
 	}
 
-	err = p.setContainersState(stateReady)
+	err = p.setContainersState(stateRunning)
 	if err != nil {
 		return err
 	}
@@ -877,7 +896,7 @@ func (p *Pod) start() error {
 }
 
 func (p *Pod) stopCheckStates() error {
-	err := p.checkContainersState(stateReady)
+	err := p.checkContainersState(stateRunning)
 	if err != nil {
 		return err
 	}
@@ -896,7 +915,7 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.deleteContainersState()
+	err := p.setContainersState(stateReady)
 	if err != nil {
 		return err
 	}
