@@ -129,8 +129,6 @@ type Container struct {
 	containerPath string
 
 	state State
-
-	lockFile *os.File
 }
 
 // ID returns the container identifier string.
