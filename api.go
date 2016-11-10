@@ -26,6 +26,12 @@ import (
 // CreatePod is the virtcontainers pod creation entry point.
 // CreatePod creates a pod and its containers. It does not start them.
 func CreatePod(podConfig PodConfig) (*Pod, error) {
+	lockFile, err := globalLock()
+	if err != nil {
+		return nil, err
+	}
+	defer globalUnlock(lockFile)
+
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
@@ -140,14 +146,34 @@ func StopPod(podID string) (*Pod, error) {
 // RunPod is the virtcontainers pod running entry point.
 // RunPod creates a pod and its containers and then it starts them.
 func RunPod(podConfig PodConfig) (*Pod, error) {
+	globalLockFile, err := globalLock()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
+		err = globalUnlock(globalLockFile)
+		if err != nil {
+			return nil, err
+		}
+
 		return nil, err
 	}
 
 	// Store it.
 	err = p.storePod()
+	if err != nil {
+		err = globalUnlock(globalLockFile)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, err
+	}
+
+	err = globalUnlock(globalLockFile)
 	if err != nil {
 		return nil, err
 	}

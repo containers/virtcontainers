@@ -513,6 +513,50 @@ func (fs *filesystem) delete(podID string, resources []podResource) error {
 	return nil
 }
 
+func globalLock() (*os.File, error) {
+	var lockFile *os.File
+
+	err := os.MkdirAll(runStoragePath, os.ModeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	globalFilePath := filepath.Join(runStoragePath, lockFileName)
+
+	_, err = os.Stat(globalFilePath)
+	if os.IsNotExist(err) {
+		lockFile, err = os.Create(globalFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else if err == nil {
+		lockFile, err = os.Open(globalFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
+
+	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return nil, err
+	}
+
+	return lockFile, nil
+}
+
+func globalUnlock(lockFile *os.File) error {
+	err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	if err != nil {
+		return err
+	}
+
+	lockFile.Close()
+
+	return nil
+}
+
 // storePodConfig stores a pod config without taking any lock.
 func storePodConfig(config PodConfig, fs filesystem) error {
 	err := fs.storeConfig(config)
