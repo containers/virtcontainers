@@ -32,6 +32,18 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 	}
 	defer globalUnlock(lockFile)
 
+	// Check this pod does not exist to avoid any overwriting.
+	// In case pod ID is empty, CreatePod will assign a unique
+	// podID, thus no worry about this case.
+	if podConfig.ID != "" {
+		res, err := podExist(podConfig.ID)
+		if err != nil {
+			return nil, err
+		} else if res == true {
+			return nil, fmt.Errorf("Pod already existing, impossible to overwrite it")
+		}
+	}
+
 	// Create the pod.
 	p, err := createPod(podConfig)
 	if err != nil {
@@ -149,6 +161,18 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	globalLockFile, err := globalLock()
 	if err != nil {
 		return nil, err
+	}
+
+	// Check this pod does not exist to avoid any overwriting.
+	// In case pod ID is empty, CreatePod will assign a unique
+	// podID, thus no worry about this case.
+	if podConfig.ID != "" {
+		res, err := podExist(podConfig.ID)
+		if err != nil {
+			return nil, err
+		} else if res == true {
+			return nil, fmt.Errorf("Pod already existing, impossible to overwrite it")
+		}
 	}
 
 	// Create the pod.

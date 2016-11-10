@@ -557,6 +557,19 @@ func globalUnlock(lockFile *os.File) error {
 	return nil
 }
 
+func podExist(podID string) (bool, error) {
+	configPodPath := filepath.Join(configStoragePath, podID, configFile)
+
+	_, err := os.Stat(configPodPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err == nil {
+		return true, nil
+	} else {
+		return false, err
+	}
+}
+
 // storePodConfig stores a pod config without taking any lock.
 func storePodConfig(config PodConfig, fs filesystem) error {
 	err := fs.storeConfig(config)
