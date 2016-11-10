@@ -591,7 +591,14 @@ func (p *Pod) createPodDirs() error {
 	}
 
 	for _, container := range p.config.Containers {
-		path := filepath.Join(p.runPath, container.ID)
+		path := filepath.Join(p.configPath, container.ID)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			p.storage.delete(p.id, nil)
+			return err
+		}
+
+		path = filepath.Join(p.runPath, container.ID)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			p.storage.delete(p.id, nil)
@@ -717,6 +724,13 @@ func (p *Pod) storePod() error {
 	err = fs.storeConfig(*(p.config))
 	if err != nil {
 		return err
+	}
+
+	for _, container := range p.containers {
+		err = fs.storeContainerConfig(p.id, container)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
