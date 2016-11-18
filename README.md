@@ -25,6 +25,17 @@ Implementing yet another container runtime is out of VirtContainers scope. Any t
 or executables provided with VirtContainers are only provided for demonstration or
 testing purposes.
 
+### VirtContainers and CRI
+
+VirtContainers API is inspired by Kubernetes
+[CRI](https://github.com/kubernetes/kubernetes/blob/master/docs/proposals/container-runtime-interface-v1.md)
+runtime API because we believe it provides the right level of abstractions
+for containerized pods.
+Here we want to emphasize that despite the API similarities between those 2
+projects, VirtContainers primary goal is not to build a Kubernetes CRI runtime server
+but to provide a generic, runtime specification agnostic, hardware virtualized
+containers library.
+
 ## Design
 
 ### Goals
