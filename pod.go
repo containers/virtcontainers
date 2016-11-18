@@ -70,7 +70,7 @@ const configFile = "config.json"
 const stateFile = "state.json"
 
 // lockFile is the file name locking the usage of a pod.
-const lockFile = "lock"
+const lockFileName = "lock"
 
 // stateString is a string representing a pod state.
 type stateString string
@@ -259,23 +259,6 @@ type Resources struct {
 	Memory uint
 }
 
-// ContainerConfig describes one container runtime configuration.
-type ContainerConfig struct {
-	ID string
-
-	// RootFs is the container workload image on the host.
-	RootFs string
-
-	// Interactive specifies if the container runs in the foreground.
-	Interactive bool
-
-	// Console is a console path provided by the caller.
-	Console string
-
-	// Cmd specifies the command to run on a container
-	Cmd Cmd
-}
-
 // PodConfig is a Pod configuration.
 type PodConfig struct {
 	ID string
@@ -327,6 +310,8 @@ func (podConfig *PodConfig) valid() bool {
 type podStorage interface {
 	storeConfig(config PodConfig) error
 	fetchConfig(podID string) (PodConfig, error)
+	storeContainerConfig(podID string, config ContainerConfig) error
+	fetchContainerConfig(containerPath string) (ContainerConfig, error)
 	storeState(podID string, state State) error
 	fetchState(podID string) (State, error)
 	delete(podID string, resources []podResource) error
@@ -378,7 +363,7 @@ func podFile(podID string, resource podResource) (string, error) {
 	case stateFileType:
 		filename = stateFile
 	case lockFileType:
-		filename = lockFile
+		filename = lockFileName
 		break
 	default:
 		return "", fmt.Errorf("Invalid pod resource")
@@ -528,6 +513,118 @@ func (fs *filesystem) delete(podID string, resources []podResource) error {
 	return nil
 }
 
+func globalLock() (*os.File, error) {
+	var lockFile *os.File
+
+	err := os.MkdirAll(runStoragePath, os.ModeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	globalFilePath := filepath.Join(runStoragePath, lockFileName)
+
+	_, err = os.Stat(globalFilePath)
+	if os.IsNotExist(err) {
+		lockFile, err = os.Create(globalFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else if err == nil {
+		lockFile, err = os.Open(globalFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
+
+	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return nil, err
+	}
+
+	return lockFile, nil
+}
+
+func globalUnlock(lockFile *os.File) error {
+	err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	if err != nil {
+		return err
+	}
+
+	lockFile.Close()
+
+	return nil
+}
+
+func podExist(podID string) (bool, error) {
+	configPodPath := filepath.Join(configStoragePath, podID, configFile)
+
+	_, err := os.Stat(configPodPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err == nil {
+		return true, nil
+	} else {
+		return false, err
+	}
+}
+
+// storePodConfig stores a pod config without taking any lock.
+func storePodConfig(config PodConfig, fs filesystem) error {
+	err := fs.storeConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// fetchPodConfig fetches a pod config from a pod ID and returns a pod.
+// It does not take any lock.
+func fetchPodConfig(podID string, fs filesystem) (PodConfig, error) {
+	config, err := fs.fetchConfig(podID)
+	if err != nil {
+		return PodConfig{}, err
+	}
+
+	glog.Infof("Info structure:\n%+v\n", config)
+
+	return config, nil
+}
+
+// lock locks any pod to prevent it from being accessed by other processes.
+func lockPod(podID string) (*os.File, error) {
+	podlockFile, err := podFile(podID, lockFileType)
+	if err != nil {
+		return nil, err
+	}
+
+	lockFile, err := os.Open(podlockFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return nil, err
+	}
+
+	return lockFile, nil
+}
+
+// unlock unlocks any pod to allow it being accessed by other processes.
+func unlockPod(lockFile *os.File) error {
+	err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	if err != nil {
+		return err
+	}
+
+	lockFile.Close()
+
+	return nil
+}
+
 // Pod is composed of a set of containers and a runtime environment.
 // A Pod can be created, deleted, started, stopped, listed, entered, paused and restored.
 type Pod struct {
@@ -559,40 +656,6 @@ func (p *Pod) ID() string {
 	return p.id
 }
 
-// lock locks the current pod to prevent it from being accessed
-// by other processes
-func (p *Pod) lock() error {
-	podlockFile, err := podFile(p.id, lockFileType)
-	if err != nil {
-		return err
-	}
-
-	p.lockFile, err = os.Open(podlockFile)
-	if err != nil {
-		return err
-	}
-
-	err = syscall.Flock(int(p.lockFile.Fd()), syscall.LOCK_EX)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// unlock unlocks the current pod to allow it being accessed by
-// other processes
-func (p *Pod) unlock() error {
-	err := syscall.Flock(int(p.lockFile.Fd()), syscall.LOCK_UN)
-	if err != nil {
-		return err
-	}
-
-	p.lockFile.Close()
-
-	return nil
-}
-
 func (p *Pod) createPodDirs() error {
 	err := os.MkdirAll(p.runPath, os.ModeDir)
 	if err != nil {
@@ -606,7 +669,14 @@ func (p *Pod) createPodDirs() error {
 	}
 
 	for _, container := range p.config.Containers {
-		path := filepath.Join(p.runPath, container.ID)
+		path := filepath.Join(p.configPath, container.ID)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			p.storage.delete(p.id, nil)
+			return err
+		}
+
+		path = filepath.Join(p.runPath, container.ID)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			p.storage.delete(p.id, nil)
@@ -626,6 +696,20 @@ func (p *Pod) createPodDirs() error {
 			return err
 		}
 		lockFile.Close()
+	}
+
+	return nil
+}
+
+func (p *Pod) createSetStates() error {
+	err := p.setPodState(stateReady)
+	if err != nil {
+		return err
+	}
+
+	err = p.setContainersState(stateReady)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -675,12 +759,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.lock()
-	if err != nil {
-		return nil, err
-	}
-	defer p.unlock()
-
 	err = p.hypervisor.createPod(podConfig)
 	if err != nil {
 		p.storage.delete(p.id, nil)
@@ -711,7 +789,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return p, nil
 	}
 
-	err = p.setPodState(stateReady)
+	err = p.createSetStates()
 	if err != nil {
 		p.storage.delete(p.id, nil)
 		return nil, err
@@ -722,16 +800,17 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 // storePod stores a pod config.
 func (p *Pod) storePod() error {
-	err := p.lock()
+	fs := filesystem{}
+	err := storePodConfig(*(p.config), fs)
 	if err != nil {
 		return err
 	}
-	defer p.unlock()
 
-	fs := filesystem{}
-	err = fs.storeConfig(*(p.config))
-	if err != nil {
-		return err
+	for _, container := range p.containers {
+		err = fs.storeContainerConfig(p.id, container)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -740,7 +819,7 @@ func (p *Pod) storePod() error {
 // fetchPod fetches a pod config from a pod ID and returns a pod.
 func fetchPod(podID string) (*Pod, error) {
 	fs := filesystem{}
-	config, err := fs.fetchConfig(podID)
+	config, err := fetchPodConfig(podID, fs)
 	if err != nil {
 		return nil, err
 	}
@@ -753,12 +832,6 @@ func fetchPod(podID string) (*Pod, error) {
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
 	state, err := p.storage.fetchState(p.id)
 	if err != nil {
 		return err
@@ -787,6 +860,11 @@ func (p *Pod) startCheckStates() error {
 		return err
 	}
 
+	err = p.checkContainersState(stateReady)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -796,7 +874,7 @@ func (p *Pod) startSetStates() error {
 		return err
 	}
 
-	err = p.setContainersState(stateReady)
+	err = p.setContainersState(stateRunning)
 	if err != nil {
 		return err
 	}
@@ -807,13 +885,7 @@ func (p *Pod) startSetStates() error {
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
-	err = p.startCheckStates()
+	err := p.startCheckStates()
 	if err != nil {
 		return nil
 	}
@@ -833,14 +905,12 @@ func (p *Pod) start() error {
 
 	err = p.agent.startAgent()
 	if err != nil {
-		p.unlock()
 		p.stop()
 		return err
 	}
 
 	err = p.agent.startPod(*p.config)
 	if err != nil {
-		p.unlock()
 		p.stop()
 		return err
 	}
@@ -857,8 +927,6 @@ func (p *Pod) start() error {
 	if err != nil {
 		return err
 	}
-
-	p.unlock()
 
 	if interactive == true {
 		select {
@@ -878,7 +946,7 @@ func (p *Pod) start() error {
 }
 
 func (p *Pod) stopCheckStates() error {
-	err := p.checkContainersState(stateReady)
+	err := p.checkContainersState(stateRunning)
 	if err != nil {
 		return err
 	}
@@ -897,7 +965,7 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.deleteContainersState()
+	err := p.setContainersState(stateReady)
 	if err != nil {
 		return err
 	}
@@ -913,13 +981,7 @@ func (p *Pod) stopSetStates() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
-	err = p.stopCheckStates()
+	err := p.stopCheckStates()
 	if err != nil {
 		return err
 	}
@@ -959,12 +1021,6 @@ func (p *Pod) list() ([]Pod, error) {
 
 // enter runs an executable within a pod.
 func (p *Pod) enter(args []string) error {
-	err := p.lock()
-	if err != nil {
-		return err
-	}
-	defer p.unlock()
-
 	return nil
 }
 
