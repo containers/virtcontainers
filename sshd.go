@@ -129,7 +129,7 @@ func (s *sshd) startAgent() error {
 }
 
 // exec is the agent command execution implementation for sshd.
-func (s *sshd) exec(podID string, contID string, cmd Cmd) error {
+func (s *sshd) exec(pod Pod, container Container, cmd Cmd) error {
 	session, err := s.client.NewSession()
 	if err != nil {
 		return fmt.Errorf("Failed to create session")
@@ -154,7 +154,7 @@ func (s *sshd) startPod(config PodConfig) error {
 }
 
 // stopPod is the agent Pod stopping implementation for sshd.
-func (s *sshd) stopPod(config PodConfig) error {
+func (s *sshd) stopPod(pod Pod) error {
 	return nil
 }
 
@@ -164,11 +164,11 @@ func (s *sshd) stopAgent() error {
 }
 
 // startContainer is the agent Container starting implementation for sshd.
-func (s *sshd) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+func (s *sshd) startContainer(pod Pod, contConfig ContainerConfig) error {
 	return nil
 }
 
 // stopContainer is the agent Container stopping implementation for sshd.
-func (s *sshd) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+func (s *sshd) stopContainer(pod Pod, container Container) error {
 	return nil
 }

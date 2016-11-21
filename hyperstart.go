@@ -225,14 +225,14 @@ func (h *hyper) startAgent() error {
 }
 
 // exec is the agent command execution implementation for hyperstart.
-func (h *hyper) exec(podID string, contID string, cmd Cmd) error {
+func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 	process, err := h.buildHyperContainerProcess(cmd)
 	if err != nil {
 		return err
 	}
 
 	execInfo := ExecInfo{
-		Container: contID,
+		Container: container.id,
 		Process:   process,
 	}
 
@@ -289,7 +289,7 @@ func (h *hyper) startPod(config PodConfig) error {
 }
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
-func (h *hyper) stopPod(config PodConfig) error {
+func (h *hyper) stopPod(pod Pod) error {
 	_, err := h.hyperstart.SendCtlMessage(hyperstart.DestroyPod, nil)
 	if err != nil {
 		return err
@@ -311,7 +311,7 @@ func (h *hyper) stopAgent() error {
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.
-func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 	process, err := h.buildHyperContainerProcess(contConfig.Cmd)
 	if err != nil {
 		return err
@@ -338,8 +338,8 @@ func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) 
 }
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
-func (h *hyper) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
-	payload := []byte(fmt.Sprintf("{\"container\":\"%s\",\"signal\":\"9\"}", contConfig.ID))
+func (h *hyper) stopContainer(pod Pod, container Container) error {
+	payload := []byte(fmt.Sprintf("{\"container\":\"%s\",\"signal\":\"9\"}", container.id))
 
 	_, err := h.hyperstart.SendCtlMessage(hyperstart.KillContainer, payload)
 	if err != nil {
