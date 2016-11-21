@@ -49,6 +49,12 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 // DeletePod is the virtcontainers pod deletion entry point.
 // DeletePod will stop an already running container and then delete it.
 func DeletePod(podID string) (*Pod, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
 	if err != nil {
@@ -74,6 +80,12 @@ func DeletePod(podID string) (*Pod, error) {
 // pod and all its containers.
 // It returns the pod ID.
 func StartPod(podID string) (*Pod, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
 	if err != nil {
@@ -98,6 +110,12 @@ func StartPod(podID string) (*Pod, error) {
 // StopPod is the virtcontainers pod stopping entry point.
 // StopPod will talk to the given agent to stop an existing pod and destroy all containers within that pod.
 func StopPod(podID string) (*Pod, error) {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
 	if err != nil {
@@ -133,6 +151,12 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	lockFile, err := lockPod(p.id)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
 
 	// Start it.
 	err = p.start()
@@ -255,7 +279,7 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Container,
 	// Update pod config.
 	p.config.Containers = append(p.config.Containers, containerConfig)
 	fs := filesystem{}
-	err = storePodConfigUnlocked(*(p.config), fs)
+	err = storePodConfig(*(p.config), fs)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +327,7 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 		}
 	}
 	fs := filesystem{}
-	err = storePodConfigUnlocked(*(p.config), fs)
+	err = storePodConfig(*(p.config), fs)
 	if err != nil {
 		return nil, err
 	}
