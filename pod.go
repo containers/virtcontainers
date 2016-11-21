@@ -992,7 +992,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.stopPod(*p.config)
+	err = p.agent.stopPod(*p)
 	if err != nil {
 		return err
 	}

@@ -262,7 +262,7 @@ func (c *Container) start() error {
 		return err
 	}
 
-	err = c.pod.agent.startContainer(*(c.pod.config), *(c.config))
+	err = c.pod.agent.startContainer(*c.pod, *(c.config))
 	if err != nil {
 		c.stop()
 		return err
@@ -305,7 +305,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.pod.agent.stopContainer(*(c.pod.config), *(c.config))
+	err = c.pod.agent.stopContainer(*c.pod, *c)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (c *Container) enter(cmd Cmd) error {
 		return err
 	}
 
-	err = c.pod.agent.exec(c.pod.id, c.id, cmd)
+	err = c.pod.agent.exec(*c.pod, *c, cmd)
 	if err != nil {
 		return err
 	}
