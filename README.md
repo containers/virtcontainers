@@ -1,6 +1,7 @@
 [![Build Status](https://travis-ci.org/sameo/virtcontainers.svg?branch=master)](https://travis-ci.org/sameo/virtcontainers)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sameo/virtcontainers)](https://goreportcard.com/report/github.com/sameo/virtcontainers)
 [![Coverage Status](https://coveralls.io/repos/github/sameo/virtcontainers/badge.svg?branch=sameo%2Ftopic%2Funit)](https://coveralls.io/github/sameo/virtcontainers)
+[![GoDoc](https://godoc.org/github.com/sameo/virtcontainers?status.svg)](https://godoc.org/github.com/sameo/virtcontainers)
 
 # VirtContainers
 
