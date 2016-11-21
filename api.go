@@ -444,9 +444,9 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 	return c, nil
 }
 
-// ContainerStatus is the virtcontainers container status entry point.
-// ContainerStatus returns a detailed container status.
-func ContainerStatus(podID, containerID string) error {
+// StatusContainer is the virtcontainers container status entry point.
+// StatusContainer returns a detailed container status.
+func StatusContainer(podID, containerID string) error {
 	fs := filesystem{}
 
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
