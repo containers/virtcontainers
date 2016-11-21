@@ -420,7 +420,7 @@ func createContainer(context *cli.Context) error {
 
 	c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
 	if err != nil {
-		return fmt.Errorf("Could not create pod: %s", err)
+		return fmt.Errorf("Could not create container: %s", err)
 	}
 
 	fmt.Printf("Created container %s\n", c.ID())
