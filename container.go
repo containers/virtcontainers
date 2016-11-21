@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 )
 
@@ -46,7 +47,7 @@ type ContainerConfig struct {
 // valid checks that the container configuration is valid.
 func (containerConfig *ContainerConfig) valid() bool {
 	if containerConfig.ID == "" {
-		return false
+		containerConfig.ID = uuid.Generate().String()
 	}
 
 	return true
@@ -54,10 +55,6 @@ func (containerConfig *ContainerConfig) valid() bool {
 
 // storeContainerConfig is the storage container configuration storage implementation for filesystem.
 func (fs *filesystem) storeContainerConfig(podID string, config ContainerConfig) error {
-	if config.valid() == false {
-		return fmt.Errorf("Invalid container configuration")
-	}
-
 	cPath := filepath.Join(podID, config.ID)
 	podConfigFile, err := podFile(cPath, configFileType)
 	if err != nil {
@@ -190,6 +187,10 @@ func (c *Container) createContainersDirs() error {
 }
 
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
+	if contConfig.valid() == false {
+		return nil, fmt.Errorf("Invalid container configuration")
+	}
+
 	c := &Container{
 		id:            contConfig.ID,
 		rootFs:        contConfig.RootFs,
