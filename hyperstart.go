@@ -157,11 +157,11 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 	switch c := config.(type) {
 	case HyperConfig:
 		if c.validate(pod) == false {
-			return fmt.Errorf("Invalid configuration\n")
+			return fmt.Errorf("Invalid configuration")
 		}
 		h.config = c
 	default:
-		return fmt.Errorf("Invalid config type\n")
+		return fmt.Errorf("Invalid config type")
 	}
 
 	h.pod = pod
@@ -306,6 +306,45 @@ func (h *hyper) stopAgent() error {
 	}
 
 	bindUnmountAllRootfs(h.pod)
+
+	return nil
+}
+
+// startContainer is the agent Container starting implementation for hyperstart.
+func (h *hyper) startContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	process, err := h.buildHyperContainerProcess(contConfig.Cmd)
+	if err != nil {
+		return err
+	}
+
+	container := hyperJson.Container{
+		Id:      contConfig.ID,
+		Image:   "",
+		Rootfs:  "",
+		Process: process,
+	}
+
+	payload, err := hyperstart.FormatMessage(container)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.NewContainer, payload)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// stopContainer is the agent Container stopping implementation for hyperstart.
+func (h *hyper) stopContainer(podConfig PodConfig, contConfig ContainerConfig) error {
+	payload := []byte(fmt.Sprintf("{\"container\":\"%s\",\"signal\":\"9\"}", contConfig.ID))
+
+	_, err := h.hyperstart.SendCtlMessage(hyperstart.KillContainer, payload)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

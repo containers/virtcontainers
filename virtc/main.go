@@ -240,12 +240,12 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 func runPod(context *cli.Context) error {
 	podConfig, err := buildPodConfig(context)
 	if err != nil {
-		return fmt.Errorf("Could not build pod config: %s\n", err)
+		return fmt.Errorf("Could not build pod config: %s", err)
 	}
 
 	_, err = vc.RunPod(podConfig)
 	if err != nil {
-		return fmt.Errorf("Could not run pod: %s\n", err)
+		return fmt.Errorf("Could not run pod: %s", err)
 	}
 
 	return nil
@@ -254,12 +254,12 @@ func runPod(context *cli.Context) error {
 func createPod(context *cli.Context) error {
 	podConfig, err := buildPodConfig(context)
 	if err != nil {
-		return fmt.Errorf("Could not build pod config: %s\n", err)
+		return fmt.Errorf("Could not build pod config: %s", err)
 	}
 
 	p, err := vc.CreatePod(podConfig)
 	if err != nil {
-		return fmt.Errorf("Could not create pod: %s\n", err)
+		return fmt.Errorf("Could not create pod: %s", err)
 	}
 
 	fmt.Printf("Created pod %s\n", p.ID())
@@ -270,7 +270,7 @@ func createPod(context *cli.Context) error {
 func deletePod(context *cli.Context) error {
 	_, err := vc.DeletePod(context.String("id"))
 	if err != nil {
-		return fmt.Errorf("Could not delete pod: %s\n", err)
+		return fmt.Errorf("Could not delete pod: %s", err)
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func deletePod(context *cli.Context) error {
 func startPod(context *cli.Context) error {
 	_, err := vc.StartPod(context.String("id"))
 	if err != nil {
-		return fmt.Errorf("Could not start pod: %s\n", err)
+		return fmt.Errorf("Could not start pod: %s", err)
 	}
 
 	return nil
@@ -288,7 +288,7 @@ func startPod(context *cli.Context) error {
 func stopPod(context *cli.Context) error {
 	_, err := vc.StopPod(context.String("id"))
 	if err != nil {
-		return fmt.Errorf("Could not stop pod: %s\n", err)
+		return fmt.Errorf("Could not stop pod: %s", err)
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func stopPod(context *cli.Context) error {
 func listPods(context *cli.Context) error {
 	err := vc.ListPod()
 	if err != nil {
-		return fmt.Errorf("Could not list pod: %s\n", err)
+		return fmt.Errorf("Could not list pod: %s", err)
 	}
 
 	return nil
@@ -306,7 +306,7 @@ func listPods(context *cli.Context) error {
 func statusPod(context *cli.Context) error {
 	err := vc.StatusPod(context.String("id"))
 	if err != nil {
-		return fmt.Errorf("Could not get pod status: %s\n", err)
+		return fmt.Errorf("Could not get pod status: %s", err)
 	}
 
 	return nil
@@ -398,6 +398,239 @@ var statusPodCommand = cli.Command{
 	},
 }
 
+func createContainer(context *cli.Context) error {
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
+	cmd := vc.Cmd{
+		Args:    strings.Split(context.String("cmd"), " "),
+		Envs:    envs,
+		WorkDir: "/",
+	}
+
+	containerConfig := vc.ContainerConfig{
+		ID:     context.String("id"),
+		RootFs: context.String("rootfs"),
+		Cmd:    cmd,
+	}
+
+	c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
+	if err != nil {
+		return fmt.Errorf("Could not create pod: %s", err)
+	}
+
+	fmt.Printf("Created container %s\n", c.ID())
+
+	return nil
+}
+
+func deleteContainer(context *cli.Context) error {
+	c, err := vc.DeleteContainer(context.String("pod-id"), context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not delete container: %s", err)
+	}
+
+	fmt.Printf("Container %s deleted\n", c.ID())
+
+	return nil
+}
+
+func startContainer(context *cli.Context) error {
+	c, err := vc.StartContainer(context.String("pod-id"), context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not start container: %s", err)
+	}
+
+	fmt.Printf("Container %s started\n", c.ID())
+
+	return nil
+}
+
+func stopContainer(context *cli.Context) error {
+	c, err := vc.StopContainer(context.String("pod-id"), context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not stop container: %s", err)
+	}
+
+	fmt.Printf("Container %s stopped\n", c.ID())
+
+	return nil
+}
+
+func enterContainer(context *cli.Context) error {
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
+	cmd := vc.Cmd{
+		Args:    strings.Split(context.String("cmd"), " "),
+		Envs:    envs,
+		WorkDir: "/",
+	}
+
+	c, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
+	if err != nil {
+		return fmt.Errorf("Could not enter container: %s", err)
+	}
+
+	fmt.Printf("Container %s entered\n", c.ID())
+
+	return nil
+}
+
+func statusContainer(context *cli.Context) error {
+	err := vc.ContainerStatus(context.String("pod-id"), context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not get container status: %s", err)
+	}
+
+	fmt.Printf("Container status obtained\n")
+
+	return nil
+}
+
+var createContainerCommand = cli.Command{
+	Name:  "create",
+	Usage: "create a container",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+		cli.StringFlag{
+			Name:  "rootfs",
+			Value: "",
+			Usage: "the container rootfs directory",
+		},
+		cli.StringFlag{
+			Name:  "cmd",
+			Value: "",
+			Usage: "the command executed inside the container",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return createContainer(context)
+	},
+}
+
+var deleteContainerCommand = cli.Command{
+	Name:  "delete",
+	Usage: "delete an existing container",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return deleteContainer(context)
+	},
+}
+
+var startContainerCommand = cli.Command{
+	Name:  "start",
+	Usage: "start an existing container",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return startContainer(context)
+	},
+}
+
+var stopContainerCommand = cli.Command{
+	Name:  "stop",
+	Usage: "stop an existing container",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return stopContainer(context)
+	},
+}
+
+var enterContainerCommand = cli.Command{
+	Name:  "enter",
+	Usage: "enter an existing container",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+		cli.StringFlag{
+			Name:  "cmd",
+			Value: "echo",
+			Usage: "the command executed inside the container",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return enterContainer(context)
+	},
+}
+
+var statusContainerCommand = cli.Command{
+	Name:  "status",
+	Usage: "returns detailed container status",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the container identifier",
+		},
+		cli.StringFlag{
+			Name:  "pod-id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return statusContainer(context)
+	},
+}
+
 func glogFlagShim(fakeVals map[string]string) {
 	flag.VisitAll(func(fl *flag.Flag) {
 		if val, ok := fakeVals[fl.Name]; ok {
@@ -471,6 +704,18 @@ func main() {
 				startPodCommand,
 				stopPodCommand,
 				statusPodCommand,
+			},
+		},
+		{
+			Name:  "container",
+			Usage: "container commands",
+			Subcommands: []cli.Command{
+				createContainerCommand,
+				deleteContainerCommand,
+				startContainerCommand,
+				stopContainerCommand,
+				enterContainerCommand,
+				statusContainerCommand,
 			},
 		},
 	}

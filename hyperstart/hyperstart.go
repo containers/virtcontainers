@@ -345,10 +345,10 @@ func (h *Hyperstart) expectReadingCmd(code uint32) (*hyper.DecodedMessage, error
 
 		if msg.Code != code {
 			if msg.Code == hyper.INIT_ERROR {
-				return nil, fmt.Errorf("ERROR received from Hyperstart\n")
+				return nil, fmt.Errorf("ERROR received from Hyperstart")
 			}
 
-			return nil, fmt.Errorf("CMD ID received %d not matching expected %d\n", msg.Code, code)
+			return nil, fmt.Errorf("CMD ID received %d not matching expected %d", msg.Code, code)
 		}
 	}
 
