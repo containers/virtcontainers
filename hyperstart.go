@@ -157,11 +157,11 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 	switch c := config.(type) {
 	case HyperConfig:
 		if c.validate(pod) == false {
-			return fmt.Errorf("Invalid configuration\n")
+			return fmt.Errorf("Invalid configuration")
 		}
 		h.config = c
 	default:
-		return fmt.Errorf("Invalid config type\n")
+		return fmt.Errorf("Invalid config type")
 	}
 
 	h.pod = pod
