@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/01org/cc-oci-runtime/tests/mock"
 	hyper "github.com/hyperhq/runv/hyperstart/api/json"
+	"github.com/sameo/virtcontainers/hyperstart/mock"
 )
 
 const (
