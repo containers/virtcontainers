@@ -17,9 +17,7 @@
 package virtcontainers
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -53,62 +51,6 @@ func (containerConfig *ContainerConfig) valid() bool {
 	return true
 }
 
-// storeContainerConfig is the storage container configuration storage implementation for filesystem.
-func (fs *filesystem) storeContainerConfig(podID string, config ContainerConfig) error {
-	cPath := filepath.Join(podID, config.ID)
-	podConfigFile, err := podFile(cPath, configFileType)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(podConfigFile)
-	if err == nil {
-		os.Remove(podConfigFile)
-	}
-
-	f, err := os.Create(podConfigFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	jsonOut, err := json.Marshal(config)
-	if err != nil {
-		glog.Errorf("Could not marshall pod config: %s\n", err)
-		return err
-	}
-	f.Write(jsonOut)
-
-	return nil
-}
-
-// fetchContainerConfig is the storage container configuration retrieval implementation for filesystem.
-func (fs *filesystem) fetchContainerConfig(containerPath string) (ContainerConfig, error) {
-	var config ContainerConfig
-
-	podConfigFile, err := podFile(containerPath, configFileType)
-	if err != nil {
-		return config, err
-	}
-
-	_, err = os.Stat(podConfigFile)
-	if err != nil {
-		return config, err
-	}
-
-	fileData, err := ioutil.ReadFile(podConfigFile)
-	if err != nil {
-		return config, err
-	}
-
-	err = json.Unmarshal([]byte(string(fileData)), &config)
-	if err != nil {
-		return config, err
-	}
-
-	return config, nil
-}
-
 // Container is composed of a set of containers and a runtime environment.
 // A Container can be created, deleted, started, stopped, listed, entered, paused and restored.
 type Container struct {
@@ -136,8 +78,7 @@ func (c *Container) ID() string {
 // fetchContainer fetches a container config from a pod ID and returns a Container.
 func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 	fs := filesystem{}
-	cPath := filepath.Join(pod.id, containerID)
-	config, err := fs.fetchContainerConfig(cPath)
+	config, err := fs.fetchContainerConfig(pod.id, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +91,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 // storeContainer stores a container config.
 func (c *Container) storeContainer() error {
 	fs := filesystem{}
-	err := fs.storeContainerConfig(c.pod.id, *(c.config))
+	err := fs.storeContainerResource(c.pod.id, c.id, configFileType, *(c.config))
 	if err != nil {
 		return err
 	}
@@ -163,7 +104,7 @@ func (c *Container) setContainerState(state stateString) error {
 		State: state,
 	}
 
-	err := c.pod.storage.storeState(c.containerPath, c.state)
+	err := c.pod.storage.storeContainerResource(c.podID, c.id, stateFileType, c.state)
 	if err != nil {
 		return err
 	}
@@ -179,7 +120,7 @@ func (c *Container) createContainersDirs() error {
 
 	err = os.MkdirAll(c.configPath, os.ModeDir)
 	if err != nil {
-		c.pod.storage.delete(c.containerPath, nil)
+		c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 		return err
 	}
 
@@ -207,7 +148,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
-	state, err := c.pod.storage.fetchState(c.containerPath)
+	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err == nil && state.State != "" {
 		c.state.State = state.State
 		return c, nil
@@ -226,7 +167,7 @@ func (c *Container) delete() error {
 		return fmt.Errorf("Pod not ready, impossible to delete")
 	}
 
-	err := c.pod.storage.delete(c.containerPath, nil)
+	err := c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 	if err != nil {
 		return err
 	}
@@ -235,7 +176,7 @@ func (c *Container) delete() error {
 }
 
 func (c *Container) start() error {
-	state, err := c.pod.storage.fetchState(c.pod.id)
+	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
 		return err
 	}
@@ -244,7 +185,7 @@ func (c *Container) start() error {
 		return fmt.Errorf("Pod not running, impossible to start the container")
 	}
 
-	state, err = c.pod.storage.fetchState(c.containerPath)
+	state, err = c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err != nil {
 		return err
 	}
@@ -278,7 +219,7 @@ func (c *Container) start() error {
 }
 
 func (c *Container) stop() error {
-	state, err := c.pod.storage.fetchState(c.pod.id)
+	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
 		return err
 	}
@@ -287,7 +228,7 @@ func (c *Container) stop() error {
 		return fmt.Errorf("Pod not running, impossible to stop the container")
 	}
 
-	state, err = c.pod.storage.fetchState(c.containerPath)
+	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
 	if err != nil {
 		return err
 	}
@@ -320,7 +261,7 @@ func (c *Container) stop() error {
 }
 
 func (c *Container) enter(cmd Cmd) error {
-	state, err := c.pod.storage.fetchState(c.pod.id)
+	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
 		return err
 	}
@@ -329,7 +270,7 @@ func (c *Container) enter(cmd Cmd) error {
 		return fmt.Errorf("Pod not running, impossible to enter the container")
 	}
 
-	state, err = c.pod.storage.fetchState(c.containerPath)
+	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
 	if err != nil {
 		return err
 	}

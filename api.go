@@ -19,7 +19,6 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 )
 
@@ -95,7 +94,6 @@ func StartPod(podID string) (*Pod, error) {
 	// Start it.
 	err = p.start()
 	if err != nil {
-		p.delete()
 		return nil, err
 	}
 
@@ -196,12 +194,14 @@ func ListPod() error {
 	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
 
 	for _, p := range pods {
-		config, err := fs.fetchConfig(p)
+		var config PodConfig
+
+		config, err := fs.fetchPodConfig(p)
 		if err != nil {
 			continue
 		}
 
-		state, err := fs.fetchState(p)
+		state, err := fs.fetchPodState(p)
 		if err != nil {
 			continue
 		}
@@ -221,12 +221,12 @@ func StatusPod(podID string) error {
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
 
-	config, err := fs.fetchConfig(podID)
+	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
 		return err
 	}
 
-	state, err := fs.fetchState(podID)
+	state, err := fs.fetchPodState(podID)
 	if err != nil {
 		return err
 	}
@@ -237,8 +237,7 @@ func StatusPod(podID string) error {
 	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
 
 	for _, container := range config.Containers {
-		path := fmt.Sprintf("%s/%s", podID, container.ID)
-		contState, err := fs.fetchState(path)
+		contState, err := fs.fetchContainerState(podID, container.ID)
 		if err != nil {
 			continue
 		}
@@ -279,7 +278,7 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Container,
 	// Update pod config.
 	p.config.Containers = append(p.config.Containers, containerConfig)
 	fs := filesystem{}
-	err = storePodConfig(*(p.config), fs)
+	err = fs.storePodResource(podID, configFileType, *(p.config))
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +326,7 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 		}
 	}
 	fs := filesystem{}
-	err = storePodConfig(*(p.config), fs)
+	err = fs.storePodResource(podID, configFileType, *(p.config))
 	if err != nil {
 		return nil, err
 	}
@@ -451,8 +450,7 @@ func StatusContainer(podID, containerID string) error {
 
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 
-	cPath := filepath.Join(podID, containerID)
-	state, err := fs.fetchState(cPath)
+	state, err := fs.fetchContainerState(podID, containerID)
 	if err != nil {
 		return err
 	}
