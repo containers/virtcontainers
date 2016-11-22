@@ -28,7 +28,7 @@ Implementing a container runtime tool is out of scope for this project. Any
 tools or executables in this repository are only provided for demonstration or
 testing purposes.
 
-### virt and CRI
+### virtcontainers and CRI
 
 `virtcontainers`'s API is loosely inspired by the Kubernetes [CRI][cri] because
 we believe it provides the right level of abstractions for containerized pods.
