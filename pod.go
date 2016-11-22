@@ -17,9 +17,7 @@
 package virtcontainers
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,37 +38,6 @@ const controlSocket = "ctrl.sock"
 // This is a socket that any monitoring entity will listen to in order
 // to understand if the VM is still alive or not.
 const monitorSocket = "monitor.sock"
-
-// podResource is an int representing a pod resource type
-type podResource int
-
-const (
-	// configFileType represents a configuration file type
-	configFileType podResource = iota
-
-	// stateFileType represents a state file type
-	stateFileType
-
-	// lockFileType represents a lock file type
-	lockFileType
-)
-
-// configStoragePath is the pod configuration directory.
-// It will contain one config.json file for each created pod.
-const configStoragePath = "/var/lib/virtcontainers/pods"
-
-// runStoragePath is the pod runtime directory.
-// It will contain one state.json and one lock file for each created pod.
-const runStoragePath = "/run/virtcontainers/pods"
-
-// configFile is the file name used for every JSON pod configuration.
-const configFile = "config.json"
-
-// stateFile is the file name storing a pod state.
-const stateFile = "state.json"
-
-// lockFile is the file name locking the usage of a pod.
-const lockFileName = "lock"
 
 // stateString is a string representing a pod state.
 type stateString string
@@ -305,240 +272,10 @@ func (podConfig *PodConfig) valid() bool {
 	return true
 }
 
-// PodStorage is the virtcontainers pod storage interface.
-// The default pod storage implementation is Filesystem.
-type podStorage interface {
-	storeConfig(config PodConfig) error
-	fetchConfig(podID string) (PodConfig, error)
-	storeContainerConfig(podID string, config ContainerConfig) error
-	fetchContainerConfig(containerPath string) (ContainerConfig, error)
-	storeState(podID string, state State) error
-	fetchState(podID string) (State, error)
-	delete(podID string, resources []podResource) error
-}
-
-// Filesystem is a Storage interface implementation.
-type filesystem struct {
-}
-
-func podDir(podID string, resource podResource) (string, error) {
-	var path string
-
-	if podID == "" {
-		return "", fmt.Errorf("PodID cannot be empty")
-	}
-
-	switch resource {
-	case configFileType:
-		path = configStoragePath
-		break
-	case stateFileType, lockFileType:
-		path = runStoragePath
-		break
-	default:
-		return "", fmt.Errorf("Invalid pod resource")
-	}
-
-	dirPath := filepath.Join(path, podID)
-
-	return dirPath, nil
-}
-
-func podFile(podID string, resource podResource) (string, error) {
-	var filename string
-
-	if podID == "" {
-		return "", fmt.Errorf("PodID cannot be empty")
-	}
-
-	dirPath, err := podDir(podID, resource)
-	if err != nil {
-		return "", err
-	}
-
-	switch resource {
-	case configFileType:
-		filename = configFile
-		break
-	case stateFileType:
-		filename = stateFile
-	case lockFileType:
-		filename = lockFileName
-		break
-	default:
-		return "", fmt.Errorf("Invalid pod resource")
-	}
-
-	filePath := filepath.Join(dirPath, filename)
-
-	return filePath, nil
-}
-
-// storeConfig is the storage pod configuration storage implementation for filesystem.
-func (fs *filesystem) storeConfig(config PodConfig) error {
-	if config.valid() == false {
-		return fmt.Errorf("Invalid pod configuration")
-	}
-
-	podConfigFile, err := podFile(config.ID, configFileType)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(podConfigFile)
-	if err == nil {
-		os.Remove(podConfigFile)
-	}
-
-	f, err := os.Create(podConfigFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	jsonOut, err := json.Marshal(config)
-	if err != nil {
-		glog.Errorf("Could not marshall pod config: %s\n", err)
-		return err
-	}
-	f.Write(jsonOut)
-
-	return nil
-}
-
-// fetchConfig is the storage pod configuration retrieval implementation for filesystem.
-func (fs *filesystem) fetchConfig(podID string) (PodConfig, error) {
-	var config PodConfig
-
-	podConfigFile, err := podFile(podID, configFileType)
-	if err != nil {
-		return config, err
-	}
-
-	_, err = os.Stat(podConfigFile)
-	if err != nil {
-		return config, err
-	}
-
-	fileData, err := ioutil.ReadFile(podConfigFile)
-	if err != nil {
-		return config, err
-	}
-
-	err = json.Unmarshal([]byte(string(fileData)), &config)
-	if err != nil {
-		return config, err
-	}
-
-	return config, nil
-}
-
-// storeState is the storage pod state storage implementation for filesystem.
-func (fs *filesystem) storeState(podID string, state State) error {
-	if state.valid() == false {
-		return fmt.Errorf("Invalid pod state")
-	}
-
-	stateFile, err := podFile(podID, stateFileType)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(stateFile)
-	if err == nil {
-		os.Remove(stateFile)
-	}
-
-	f, err := os.Create(stateFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	jsonOut, err := json.Marshal(state)
-	if err != nil {
-		glog.Errorf("Could not marshall pod state: %s\n", err)
-		return err
-	}
-	f.Write(jsonOut)
-
-	return nil
-}
-
-// fetchState is the storage pod state retrieval implementation for filesystem.
-func (fs *filesystem) fetchState(podID string) (State, error) {
-	var state State
-
-	stateFile, err := podFile(podID, stateFileType)
-	if err != nil {
-		return state, err
-	}
-
-	_, err = os.Stat(stateFile)
-	if err != nil {
-		return state, err
-	}
-
-	fileData, err := ioutil.ReadFile(stateFile)
-	if err != nil {
-		return state, err
-	}
-
-	err = json.Unmarshal([]byte(string(fileData)), &state)
-	if err != nil {
-		return state, err
-	}
-
-	return state, nil
-}
-
-// delete is the storage pod configuration removal implementation for filesystem.
-func (fs *filesystem) delete(podID string, resources []podResource) error {
-	if resources == nil {
-		resources = []podResource{configFileType, stateFileType}
-	}
-
-	for _, resource := range resources {
-		dir, err := podDir(podID, resource)
-		if err != nil {
-			return err
-		}
-
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// storePodConfig stores a pod config without taking any lock.
-func storePodConfig(config PodConfig, fs filesystem) error {
-	err := fs.storeConfig(config)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// fetchPodConfig fetches a pod config from a pod ID and returns a pod.
-// It does not take any lock.
-func fetchPodConfig(podID string, fs filesystem) (PodConfig, error) {
-	config, err := fs.fetchConfig(podID)
-	if err != nil {
-		return PodConfig{}, err
-	}
-
-	glog.Infof("Info structure:\n%+v\n", config)
-
-	return config, nil
-}
-
 // lock locks any pod to prevent it from being accessed by other processes.
 func lockPod(podID string) (*os.File, error) {
-	podlockFile, err := podFile(podID, lockFileType)
+	fs := filesystem{}
+	podlockFile, _, err := fs.podURI(podID, lockFileType)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +312,7 @@ type Pod struct {
 
 	hypervisor hypervisor
 	agent      agent
-	storage    podStorage
+	storage    resourceStorage
 
 	config *PodConfig
 
@@ -597,51 +334,6 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
-}
-
-func (p *Pod) createPodDirs() error {
-	err := os.MkdirAll(p.runPath, os.ModeDir)
-	if err != nil {
-		return err
-	}
-
-	err = os.MkdirAll(p.configPath, os.ModeDir)
-	if err != nil {
-		p.storage.delete(p.id, nil)
-		return err
-	}
-
-	for _, container := range p.config.Containers {
-		path := filepath.Join(p.configPath, container.ID)
-		err = os.MkdirAll(path, os.ModeDir)
-		if err != nil {
-			p.storage.delete(p.id, nil)
-			return err
-		}
-
-		path = filepath.Join(p.runPath, container.ID)
-		err = os.MkdirAll(path, os.ModeDir)
-		if err != nil {
-			p.storage.delete(p.id, nil)
-			return err
-		}
-	}
-
-	podlockFile, err := podFile(p.id, lockFileType)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(podlockFile)
-	if err != nil {
-		lockFile, err := os.Create(podlockFile)
-		if err != nil {
-			return err
-		}
-		lockFile.Close()
-	}
-
-	return nil
 }
 
 func (p *Pod) createSetStates() error {
@@ -697,14 +389,14 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		state:      State{},
 	}
 
-	err = p.createPodDirs()
+	err = p.storage.createAllResources(*p)
 	if err != nil {
 		return nil, err
 	}
 
 	err = p.hypervisor.createPod(podConfig)
 	if err != nil {
-		p.storage.delete(p.id, nil)
+		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
@@ -723,18 +415,18 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	err = p.agent.init(*p, agentConfig)
 	if err != nil {
-		p.storage.delete(p.id, nil)
+		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
-	state, err := p.storage.fetchState(p.id)
+	state, err := p.storage.fetchPodState(p.id)
 	if err == nil && state.State != "" {
 		return p, nil
 	}
 
 	err = p.createSetStates()
 	if err != nil {
-		p.storage.delete(p.id, nil)
+		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
@@ -744,13 +436,14 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 // storePod stores a pod config.
 func (p *Pod) storePod() error {
 	fs := filesystem{}
-	err := storePodConfig(*(p.config), fs)
+
+	err := fs.storePodResource(p.id, configFileType, *(p.config))
 	if err != nil {
 		return err
 	}
 
 	for _, container := range p.containers {
-		err = fs.storeContainerConfig(p.id, container)
+		err = fs.storeContainerResource(p.id, container.ID, configFileType, container)
 		if err != nil {
 			return err
 		}
@@ -762,7 +455,7 @@ func (p *Pod) storePod() error {
 // fetchPod fetches a pod config from a pod ID and returns a pod.
 func fetchPod(podID string) (*Pod, error) {
 	fs := filesystem{}
-	config, err := fetchPodConfig(podID, fs)
+	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +468,7 @@ func fetchPod(podID string) (*Pod, error) {
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {
-	state, err := p.storage.fetchState(p.id)
+	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
 		return err
 	}
@@ -784,7 +477,7 @@ func (p *Pod) delete() error {
 		return fmt.Errorf("Pod not ready, impossible to delete")
 	}
 
-	err = p.storage.delete(p.id, nil)
+	err = p.storage.deletePodResources(p.id, nil)
 	if err != nil {
 		return err
 	}
@@ -793,7 +486,7 @@ func (p *Pod) delete() error {
 }
 
 func (p *Pod) startCheckStates() error {
-	state, err := p.storage.fetchState(p.id)
+	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
 		return err
 	}
@@ -894,7 +587,7 @@ func (p *Pod) stopCheckStates() error {
 		return err
 	}
 
-	state, err := p.storage.fetchState(p.id)
+	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
 		return err
 	}
@@ -972,7 +665,7 @@ func (p *Pod) setPodState(state stateString) error {
 		State: state,
 	}
 
-	err := p.storage.storeState(p.id, p.state)
+	err := p.storage.storePodResource(p.id, stateFileType, p.state)
 	if err != nil {
 		return err
 	}
@@ -995,8 +688,7 @@ func (p *Pod) setContainerState(contID string, state stateString) error {
 		State: state,
 	}
 
-	path := fmt.Sprintf("%s/%s", p.id, contID)
-	err := p.storage.storeState(path, contState)
+	err := p.storage.storeContainerResource(p.id, contID, stateFileType, contState)
 	if err != nil {
 		return err
 	}
@@ -1016,9 +708,7 @@ func (p *Pod) setContainersState(state stateString) error {
 }
 
 func (p *Pod) deleteContainerState(contID string) error {
-	path := fmt.Sprintf("%s/%s", p.id, contID)
-
-	err := p.storage.delete(path, []podResource{stateFileType})
+	err := p.storage.deleteContainerResources(p.id, contID, []podResource{stateFileType})
 	if err != nil {
 		return err
 	}
@@ -1038,9 +728,7 @@ func (p *Pod) deleteContainersState() error {
 }
 
 func (p *Pod) checkContainerState(contID string, expectedState stateString) error {
-	path := fmt.Sprintf("%s/%s", p.id, contID)
-
-	state, err := p.storage.fetchState(path)
+	state, err := p.storage.fetchContainerState(p.id, contID)
 	if err != nil {
 		return err
 	}

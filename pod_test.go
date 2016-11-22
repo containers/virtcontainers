@@ -88,7 +88,7 @@ func TestCreateMockPod(t *testing.T) {
 
 	_, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
 	if err != nil {
-		t.Fatalf("Could not create mock pod")
+		t.Fatal(err)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestCreatePodEmtpyID(t *testing.T) {
 
 	p, err := testCreatePod(t, "", MockHypervisor, hConfig, NoopAgentType, nil, nil)
 	if err != nil {
-		t.Fatalf("Could not create mock pod")
+		t.Fatal(err)
 	}
 
 	t.Logf("Got new ID %s", p.id)
@@ -108,7 +108,7 @@ func testPodStateTransition(t *testing.T, state stateString, newState stateStrin
 
 	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
 	if err != nil {
-		return fmt.Errorf("Could not create mock pod")
+		return err
 	}
 
 	p.state = State{
@@ -161,7 +161,8 @@ func TestPodStatePausedReady(t *testing.T) {
 }
 
 func testPodDir(t *testing.T, resource podResource, expected string) error {
-	dir, err := podDir(testPodID, resource)
+	fs := filesystem{}
+	_, dir, err := fs.podURI(testPodID, resource)
 	if err != nil {
 		return err
 	}
@@ -174,7 +175,8 @@ func testPodDir(t *testing.T, resource podResource, expected string) error {
 }
 
 func testPodFile(t *testing.T, resource podResource, expected string) error {
-	file, err := podFile(testPodID, resource)
+	fs := filesystem{}
+	file, _, err := fs.podURI(testPodID, resource)
 	if err != nil {
 		return err
 	}
@@ -214,7 +216,8 @@ func TestPodDirLock(t *testing.T) {
 }
 
 func TestPodDirNegative(t *testing.T) {
-	_, err := podDir("", lockFileType)
+	fs := filesystem{}
+	_, _, err := fs.podURI("", lockFileType)
 	if err == nil {
 		t.Fatal("Empty pod IDs should not be allowed")
 	}
@@ -248,7 +251,8 @@ func TestPodFileLock(t *testing.T) {
 }
 
 func TestPodFileNegative(t *testing.T) {
-	_, err := podFile("", lockFileType)
+	fs := filesystem{}
+	_, _, err := fs.podURI("", lockFileType)
 	if err == nil {
 		t.Fatal("Empty pod IDs should not be allowed")
 	}
