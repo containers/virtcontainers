@@ -33,6 +33,8 @@ func (m *mockHypervisor) createPod(podConfig PodConfig) error {
 }
 
 func (m *mockHypervisor) startPod(startCh, stopCh chan struct{}) error {
+	var msg struct{}
+	startCh <- msg
 	return nil
 }
 
