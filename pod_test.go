@@ -29,6 +29,7 @@ const testDir = "/tmp/virtcontainers/"
 const testKernel = "kernel"
 const testImage = "image"
 const testHypervisor = "hypervisor"
+const testBundle = "bundle"
 
 func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig {
 	return HypervisorConfig{
