@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestMockHypervisorInit(t *testing.T) {
@@ -64,8 +65,12 @@ func TestMockHypervisorStartPod(t *testing.T) {
 	startCh := make(chan struct{})
 	stopCh := make(chan struct{})
 
-	err := m.startPod(startCh, stopCh)
-	if err != nil {
+	go m.startPod(startCh, stopCh)
+
+	select {
+	case <-startCh:
+		break
+	case <-time.After(time.Second):
 		t.Fatal()
 	}
 }
