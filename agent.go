@@ -30,10 +30,10 @@ const (
 	NoopAgentType AgentType = "noop"
 
 	// SSHdAgent is the SSH daemon agent.
-	SSHdAgent = "sshd"
+	SSHdAgent AgentType = "sshd"
 
 	// HyperstartAgent is the Hyper hyperstart agent.
-	HyperstartAgent = "hyperstart"
+	HyperstartAgent AgentType = "hyperstart"
 )
 
 // Set sets an agent type based on the input string.
