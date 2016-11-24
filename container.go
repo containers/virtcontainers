@@ -134,6 +134,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 
 	c := &Container{
 		id:            contConfig.ID,
+		podID:         pod.id,
 		rootFs:        contConfig.RootFs,
 		config:        &contConfig,
 		pod:           pod,
@@ -163,11 +164,16 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 }
 
 func (c *Container) delete() error {
-	if c.state.State != stateReady {
-		return fmt.Errorf("Pod not ready, impossible to delete")
+	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err != nil {
+		return err
 	}
 
-	err := c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
+	if state.State != stateReady {
+		return fmt.Errorf("Container not ready, impossible to delete")
+	}
+
+	err = c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 	if err != nil {
 		return err
 	}

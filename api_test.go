@@ -23,7 +23,7 @@ import (
 	"testing"
 )
 
-func newTestPodConfigNoop() PodConfig {
+func newBasicTestCmd() Cmd {
 	envs := []EnvVar{
 		{
 			Var:   "PATH",
@@ -37,11 +37,15 @@ func newTestPodConfigNoop() PodConfig {
 		WorkDir: "/",
 	}
 
+	return cmd
+}
+
+func newTestPodConfigNoop() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
 		ID:     "1",
 		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    cmd,
+		Cmd:    newBasicTestCmd(),
 	}
 
 	// Sets the hypervisor configuration.
@@ -279,6 +283,543 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 	os.RemoveAll(path)
 
 	err = StatusPod(p.id)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func newTestContainerConfigNoop(contID string) ContainerConfig {
+	// Define the container command and bundle.
+	container := ContainerConfig{
+		ID:     contID,
+		RootFs: filepath.Join(testDir, testBundle),
+		Cmd:    newBasicTestCmd(),
+	}
+
+	return container
+}
+
+func TestCreateContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+}
+
+func TestCreateContainerFailingNoPod(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	p, err = DeletePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err == nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestDeleteContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = DeleteContainer(p.id, contID)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	_, err = os.Stat(contDir)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestDeleteContainerFailingNoPod(t *testing.T) {
+	podDir := filepath.Join(configStoragePath, testPodID)
+	contID := "100"
+	os.RemoveAll(podDir)
+
+	c, err := DeleteContainer(testPodID, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestDeleteContainerFailingNoContainer(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err := DeleteContainer(p.id, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStartContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = StartContainer(p.id, contID)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+}
+
+func TestStartContainerFailingNoPod(t *testing.T) {
+	podDir := filepath.Join(configStoragePath, testPodID)
+	contID := "100"
+	os.RemoveAll(podDir)
+
+	c, err := StartContainer(testPodID, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStartContainerFailingNoContainer(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err := StartContainer(p.id, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStartContainerFailingPodNotStarted(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = StartContainer(p.id, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStopContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = StartContainer(p.id, contID)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	c, err = StopContainer(p.id, contID)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+}
+
+func TestStopContainerFailingNoPod(t *testing.T) {
+	podDir := filepath.Join(configStoragePath, testPodID)
+	contID := "100"
+	os.RemoveAll(podDir)
+
+	c, err := StopContainer(testPodID, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStopContainerFailingNoContainer(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err := StopContainer(p.id, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStopContainerFailingContNotStarted(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = StopContainer(p.id, contID)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestEnterContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	c, err = StartContainer(p.id, contID)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	cmd := newBasicTestCmd()
+
+	c, err = EnterContainer(p.id, contID, cmd)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+}
+
+func TestEnterContainerFailingNoPod(t *testing.T) {
+	podDir := filepath.Join(configStoragePath, testPodID)
+	contID := "100"
+	os.RemoveAll(podDir)
+
+	cmd := newBasicTestCmd()
+
+	c, err := EnterContainer(testPodID, contID, cmd)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestEnterContainerFailingNoContainer(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	cmd := newBasicTestCmd()
+
+	c, err := EnterContainer(p.id, contID, cmd)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestEnterContainerFailingContNotStarted(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	cmd := newBasicTestCmd()
+
+	c, err = EnterContainer(p.id, contID, cmd)
+	if c != nil || err == nil {
+		t.Fatal()
+	}
+}
+
+func TestStatusContainerSuccessful(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal()
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	err = StatusContainer(p.id, contID)
+	if err != nil {
+		t.Fatal()
+	}
+}
+
+func TestStatusContainerFailing(t *testing.T) {
+	contID := "100"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal()
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	err = StatusContainer(p.id, contID)
 	if err == nil {
 		t.Fatal()
 	}
