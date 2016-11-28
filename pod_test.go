@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -256,6 +257,473 @@ func TestPodFileNegative(t *testing.T) {
 	_, _, err := fs.podURI("", lockFileType)
 	if err == nil {
 		t.Fatal("Empty pod IDs should not be allowed")
+	}
+}
+
+func testStateValid(t *testing.T, stateStr stateString, expected bool) {
+	state := &State{
+		State: stateStr,
+	}
+
+	ok := state.valid()
+	if ok != expected {
+		t.Fatal()
+	}
+}
+
+func TestStateValidSuccessful(t *testing.T) {
+	testStateValid(t, stateReady, true)
+	testStateValid(t, stateRunning, true)
+	testStateValid(t, statePaused, true)
+}
+
+func TestStateValidFailing(t *testing.T) {
+	testStateValid(t, "", false)
+}
+
+func TestValidTransitionFailingOldStateMismatch(t *testing.T) {
+	state := &State{
+		State: stateReady,
+	}
+
+	err := state.validTransition(stateRunning, statePaused)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestVolumesSetSuccessful(t *testing.T) {
+	volumes := &Volumes{}
+
+	volStr := "mountTag1:hostPath1 mountTag2:hostPath2"
+
+	expected := Volumes{
+		{
+			MountTag: "mountTag1",
+			HostPath: "hostPath1",
+		},
+		{
+			MountTag: "mountTag2",
+			HostPath: "hostPath2",
+		},
+	}
+
+	err := volumes.Set(volStr)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if reflect.DeepEqual(*volumes, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestVolumesSetFailingTooFewArguments(t *testing.T) {
+	volumes := &Volumes{}
+
+	volStr := "mountTag1 mountTag2"
+
+	err := volumes.Set(volStr)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestVolumesSetFailingTooManyArguments(t *testing.T) {
+	volumes := &Volumes{}
+
+	volStr := "mountTag1:hostPath1:Foo1 mountTag2:hostPath2:Foo2"
+
+	err := volumes.Set(volStr)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestVolumesSetFailingVoidArguments(t *testing.T) {
+	volumes := &Volumes{}
+
+	volStr := ": : :"
+
+	err := volumes.Set(volStr)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestVolumesStringSuccessful(t *testing.T) {
+	volumes := &Volumes{
+		{
+			MountTag: "mountTag1",
+			HostPath: "hostPath1",
+		},
+		{
+			MountTag: "mountTag2",
+			HostPath: "hostPath2",
+		},
+	}
+
+	expected := "mountTag1:hostPath1 mountTag2:hostPath2"
+
+	result := volumes.String()
+	if result != expected {
+		t.Fatal()
+	}
+}
+
+func TestSocketsSetSuccessful(t *testing.T) {
+	sockets := &Sockets{}
+
+	sockStr := "devID1:id1:hostPath1:Name1 devID2:id2:hostPath2:Name2"
+
+	expected := Sockets{
+		{
+			DeviceID: "devID1",
+			ID:       "id1",
+			HostPath: "hostPath1",
+			Name:     "Name1",
+		},
+		{
+			DeviceID: "devID2",
+			ID:       "id2",
+			HostPath: "hostPath2",
+			Name:     "Name2",
+		},
+	}
+
+	err := sockets.Set(sockStr)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if reflect.DeepEqual(*sockets, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestSocketsSetFailingWrongArgsAmount(t *testing.T) {
+	sockets := &Sockets{}
+
+	sockStr := "devID1:id1:hostPath1"
+
+	err := sockets.Set(sockStr)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestSocketsSetFailingVoidArguments(t *testing.T) {
+	sockets := &Sockets{}
+
+	sockStr := ":::"
+
+	err := sockets.Set(sockStr)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestSocketsStringSuccessful(t *testing.T) {
+	sockets := &Sockets{
+		{
+			DeviceID: "devID1",
+			ID:       "id1",
+			HostPath: "hostPath1",
+			Name:     "Name1",
+		},
+		{
+			DeviceID: "devID2",
+			ID:       "id2",
+			HostPath: "hostPath2",
+			Name:     "Name2",
+		},
+	}
+
+	expected := "devID1:id1:hostPath1:Name1 devID2:id2:hostPath2:Name2"
+
+	result := sockets.String()
+	if result != expected {
+		t.Fatal()
+	}
+}
+
+func TestPodListSuccessful(t *testing.T) {
+	pod := &Pod{}
+
+	podList, err := pod.list()
+	if podList != nil || err != nil {
+		t.Fatal()
+	}
+}
+
+func TestPodEnterSuccessful(t *testing.T) {
+	pod := &Pod{}
+
+	err := pod.enter([]string{})
+	if err != nil {
+		t.Fatal()
+	}
+}
+
+func TestPodSetPodStateFailingStorePodResource(t *testing.T) {
+	fs := &filesystem{}
+	pod := &Pod{
+		storage: fs,
+	}
+
+	err := pod.setPodState(stateReady)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodSetContainerStateFailingStoreContainerResource(t *testing.T) {
+	fs := &filesystem{}
+	pod := &Pod{
+		storage: fs,
+	}
+
+	err := pod.setContainerState("100", stateReady)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodSetContainersStateFailingEmptyPodID(t *testing.T) {
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+	}
+
+	podConfig := &PodConfig{
+		Containers: containers,
+	}
+
+	fs := &filesystem{}
+	pod := &Pod{
+		config:  podConfig,
+		storage: fs,
+	}
+
+	err := pod.setContainersState(stateReady)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodDeleteContainerStateSuccessful(t *testing.T) {
+	contID := "100"
+
+	fs := &filesystem{}
+	pod := &Pod{
+		id:      testPodID,
+		storage: fs,
+	}
+
+	path := filepath.Join(runStoragePath, testPodID, contID)
+	err := os.MkdirAll(path, os.ModeDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	stateFilePath := filepath.Join(path, stateFile)
+
+	os.Remove(stateFilePath)
+
+	_, err = os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	_, err = os.Stat(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	err = pod.deleteContainerState(contID)
+	if err != nil {
+		t.Fatal()
+	}
+
+	_, err = os.Stat(stateFilePath)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodDeleteContainerStateFailingEmptyPodID(t *testing.T) {
+	contID := "100"
+
+	fs := &filesystem{}
+	pod := &Pod{
+		storage: fs,
+	}
+
+	err := pod.deleteContainerState(contID)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodDeleteContainersStateSuccessful(t *testing.T) {
+	var err error
+
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+		{
+			ID: "200",
+		},
+	}
+
+	podConfig := &PodConfig{
+		Containers: containers,
+	}
+
+	fs := &filesystem{}
+	pod := &Pod{
+		id:      testPodID,
+		config:  podConfig,
+		storage: fs,
+	}
+
+	for _, c := range containers {
+		path := filepath.Join(runStoragePath, testPodID, c.ID)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			t.Fatal()
+		}
+
+		stateFilePath := filepath.Join(path, stateFile)
+
+		os.Remove(stateFilePath)
+
+		_, err = os.Create(stateFilePath)
+		if err != nil {
+			t.Fatal()
+		}
+
+		_, err = os.Stat(stateFilePath)
+		if err != nil {
+			t.Fatal()
+		}
+	}
+
+	err = pod.deleteContainersState()
+	if err != nil {
+		t.Fatal()
+	}
+
+	for _, c := range containers {
+		stateFilePath := filepath.Join(runStoragePath, testPodID, c.ID, stateFile)
+		_, err = os.Stat(stateFilePath)
+		if err == nil {
+			t.Fatal()
+		}
+	}
+}
+
+func TestPodDeleteContainersStateFailingEmptyPodID(t *testing.T) {
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+	}
+
+	podConfig := &PodConfig{
+		Containers: containers,
+	}
+
+	fs := &filesystem{}
+	pod := &Pod{
+		config:  podConfig,
+		storage: fs,
+	}
+
+	err := pod.deleteContainersState()
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodCheckContainerStateFailingEmptyPodID(t *testing.T) {
+	contID := "100"
+	fs := &filesystem{}
+	pod := &Pod{
+		storage: fs,
+	}
+
+	err := pod.checkContainerState(contID, stateReady)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
+	contID := "100"
+
+	fs := &filesystem{}
+	pod := &Pod{
+		id:      testPodID,
+		storage: fs,
+	}
+
+	path := filepath.Join(runStoragePath, testPodID, contID)
+	err := os.MkdirAll(path, os.ModeDir)
+	if err != nil {
+		t.Fatal()
+	}
+
+	stateFilePath := filepath.Join(path, stateFile)
+
+	os.Remove(stateFilePath)
+
+	f, err := os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	stateData := "{\"state\":\"ready\"}"
+	n, err := f.WriteString(stateData)
+	if err != nil || n != len(stateData) {
+		f.Close()
+		t.Fatal()
+	}
+	f.Close()
+
+	_, err = os.Stat(stateFilePath)
+	if err != nil {
+		t.Fatal()
+	}
+
+	err = pod.checkContainerState(contID, statePaused)
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestPodCheckContainersStateFailingEmptyPodID(t *testing.T) {
+	containers := []ContainerConfig{
+		{
+			ID: "100",
+		},
+	}
+
+	podConfig := &PodConfig{
+		Containers: containers,
+	}
+
+	fs := &filesystem{}
+	pod := &Pod{
+		config:  podConfig,
+		storage: fs,
+	}
+
+	err := pod.checkContainersState(stateReady)
+	if err == nil {
+		t.Fatal()
 	}
 }
 
