@@ -15,3 +15,55 @@
 //
 
 package virtcontainers
+
+import (
+	"testing"
+)
+
+func TestHyperstartValidateNoSocketsSuccessful(t *testing.T) {
+	config := &HyperConfig{
+		SockCtlName: "ctlSock",
+		SockTtyName: "ttySock",
+	}
+
+	pod := Pod{
+		id: testPodID,
+	}
+
+	ok := config.validate(pod)
+	if ok != true {
+		t.Fatal()
+	}
+}
+
+func testHyperstartValidateNSocket(t *testing.T, socketAmount int, expected bool) {
+	sockets := make([]Socket, socketAmount)
+
+	config := &HyperConfig{
+		SockCtlName: "ctlSock",
+		SockTtyName: "ttySock",
+		Sockets:     sockets,
+	}
+
+	pod := Pod{
+		id: testPodID,
+	}
+
+	ok := config.validate(pod)
+	if ok != expected {
+		t.Fatal()
+	}
+}
+
+func TestHyperstartValidateOneSocketFailing(t *testing.T) {
+	testHyperstartValidateNSocket(t, 1, false)
+
+	for i := 3; i < 1000; i++ {
+		testHyperstartValidateNSocket(t, i, false)
+	}
+}
+
+func TestHyperstartValidateNSocketSuccessful(t *testing.T) {
+	testHyperstartValidateNSocket(t, 0, true)
+	testHyperstartValidateNSocket(t, 2, true)
+}
