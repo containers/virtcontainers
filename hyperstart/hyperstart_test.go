@@ -311,6 +311,26 @@ func TestReadIoMessage(t *testing.T) {
 	}
 }
 
+func TestReadIoMessageWithConn(t *testing.T) {
+	mockHyper, h, err := connectMockHyperstart(t)
+	if err != nil {
+		t.Fatal()
+	}
+	defer mockHyper.Stop()
+	defer disconnectHyperstart(h.ctl, h.io)
+
+	mockHyper.SendIo(testSequence, []byte(testMessage))
+
+	msg, err := ReadIoMessageWithConn(h.io)
+	if err != nil {
+		t.Fatal()
+	}
+
+	if msg.Session != testSequence || string(msg.Message) != testMessage {
+		t.Fatal()
+	}
+}
+
 func TestSendIoMessage(t *testing.T) {
 	mockHyper, h, err := connectMockHyperstart(t)
 	if err != nil {
@@ -319,7 +339,41 @@ func TestSendIoMessage(t *testing.T) {
 	defer mockHyper.Stop()
 	defer disconnectHyperstart(h.ctl, h.io)
 
-	h.SendIoMessage(testSequence, []byte(testMessage))
+	msg := &hyper.TtyMessage{
+		Session: testSequence,
+		Message: []byte(testMessage),
+	}
+
+	err = h.SendIoMessage(msg)
+	if err != nil {
+		t.Fatal()
+	}
+
+	buf := make([]byte, 512)
+	n, seqRecv := mockHyper.ReadIo(buf)
+
+	if seqRecv != testSequence || string(buf[ttyHdrSize:n]) != testMessage {
+		t.Fatal()
+	}
+}
+
+func TestSendIoMessageWithConn(t *testing.T) {
+	mockHyper, h, err := connectMockHyperstart(t)
+	if err != nil {
+		t.Fatal()
+	}
+	defer mockHyper.Stop()
+	defer disconnectHyperstart(h.ctl, h.io)
+
+	msg := &hyper.TtyMessage{
+		Session: testSequence,
+		Message: []byte(testMessage),
+	}
+
+	err = SendIoMessageWithConn(h.io, msg)
+	if err != nil {
+		t.Fatal()
+	}
 
 	buf := make([]byte, 512)
 	n, seqRecv := mockHyper.ReadIo(buf)
