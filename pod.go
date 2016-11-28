@@ -256,10 +256,7 @@ type PodConfig struct {
 
 // valid checks that the pod configuration is valid.
 func (podConfig *PodConfig) valid() bool {
-	if _, err := newAgent(podConfig.AgentType); err != nil {
-		glog.Error(err)
-		return false
-	}
+	newAgent(podConfig.AgentType)
 
 	if _, err := newHypervisor(podConfig.HypervisorType); err != nil {
 		podConfig.HypervisorType = QemuHypervisor
@@ -360,10 +357,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, fmt.Errorf("Invalid pod configuration")
 	}
 
-	agent, err := newAgent(podConfig.AgentType)
-	if err != nil {
-		return nil, err
-	}
+	agent := newAgent(podConfig.AgentType)
 
 	hypervisor, err := newHypervisor(podConfig.HypervisorType)
 	if err != nil {
