@@ -86,10 +86,7 @@ func TestStringFromUnknownAgentType(t *testing.T) {
 }
 
 func testNewAgentFromAgentType(t *testing.T, agentType AgentType, expected agent) {
-	ag, err := newAgent(agentType)
-	if err != nil {
-		t.Fatal()
-	}
+	ag := newAgent(agentType)
 
 	if reflect.DeepEqual(ag, expected) == false {
 		t.Fatal()

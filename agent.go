@@ -68,16 +68,16 @@ func (agentType *AgentType) String() string {
 }
 
 // newAgent returns an agent from an agent type.
-func newAgent(agentType AgentType) (agent, error) {
+func newAgent(agentType AgentType) agent {
 	switch agentType {
 	case NoopAgentType:
-		return &noopAgent{}, nil
+		return &noopAgent{}
 	case SSHdAgent:
-		return &sshd{}, nil
+		return &sshd{}
 	case HyperstartAgent:
-		return &hyper{}, nil
+		return &hyper{}
 	default:
-		return &noopAgent{}, nil
+		return &noopAgent{}
 	}
 }
 
