@@ -268,25 +268,37 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	defer os.RemoveAll(testDir)
-
 	_, err = os.Create(filepath.Join(testDir, testKernel))
 	if err != nil {
 		fmt.Printf("Could not create test kernel\n")
+		os.RemoveAll(testDir)
 		os.Exit(1)
 	}
 
 	_, err = os.Create(filepath.Join(testDir, testImage))
 	if err != nil {
 		fmt.Printf("Could not create test image\n")
+		os.RemoveAll(testDir)
 		os.Exit(1)
 	}
 
 	_, err = os.Create(filepath.Join(testDir, testHypervisor))
 	if err != nil {
 		fmt.Printf("Could not create test hypervisor\n")
+		os.RemoveAll(testDir)
 		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	err = os.Mkdir(filepath.Join(testDir, testBundle), os.ModeDir)
+	if err != nil {
+		fmt.Printf("Could not create test bundle directory\n")
+		os.RemoveAll(testDir)
+		os.Exit(1)
+	}
+
+	ret := m.Run()
+
+	os.RemoveAll(testDir)
+
+	os.Exit(ret)
 }

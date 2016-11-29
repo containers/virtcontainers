@@ -602,14 +602,7 @@ func testSendCtlMessage(t *testing.T, cmd string) {
 		t.Fatal()
 	}
 
-	if cmd == DestroyPod {
-		msg, err = h.expectReadingCmd(hyper.INIT_ACK)
-		if err != nil {
-			t.Fatal()
-		}
-	}
-
-	if msg.Code != hyper.INIT_ACK {
+	if cmd != DestroyPod && msg.Code != hyper.INIT_ACK {
 		t.Fatal()
 	}
 }
