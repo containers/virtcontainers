@@ -26,7 +26,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
 
-	vc "github.com/sameo/virtcontainers"
+	vc "github.com/containers/virtcontainers"
 )
 
 var podConfigFlags = []cli.Flag{

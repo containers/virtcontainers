@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sameo/virtcontainers/hyperstart/mock"
+	"github.com/containers/virtcontainers/hyperstart/mock"
 )
 
 const (

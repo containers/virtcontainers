@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/virtcontainers/hyperstart/mock"
 	hyper "github.com/hyperhq/runv/hyperstart/api/json"
-	"github.com/sameo/virtcontainers/hyperstart/mock"
 )
 
 const (

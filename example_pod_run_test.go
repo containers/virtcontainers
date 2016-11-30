@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	vc "github.com/sameo/virtcontainers"
+	vc "github.com/containers/virtcontainers"
 )
 
 const containerRootfs = "/var/lib/container/bundle/"
