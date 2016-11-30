@@ -25,8 +25,8 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/containers/virtcontainers/hyperstart"
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
-	"github.com/sameo/virtcontainers/hyperstart"
 )
 
 var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}

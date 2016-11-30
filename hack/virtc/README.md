@@ -38,12 +38,12 @@ $ sudo cp clear-11130-containers.img /usr/share/clear-containers/clear-container
 
 _Download virtc_
 ```
-$ go get github.com/sameo/virtcontainers
+$ go get github.com/containers/virtcontainers
 ```
 
 _Build virtc_
 ```
-$ cd $GOPATH/src/github.com/sameo/virtcontainers
+$ cd $GOPATH/src/github.com/containers/virtcontainers
 $ cd virtc && go build
 ```
 
