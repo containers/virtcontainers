@@ -36,6 +36,9 @@ const (
 	// stateFileType represents a state file type
 	stateFileType
 
+	// networkFileType represents a network file type
+	networkFileType
+
 	// lockFileType represents a lock file type
 	lockFileType
 )
@@ -53,6 +56,9 @@ const configFile = "config.json"
 
 // stateFile is the file name storing a pod state.
 const stateFile = "state.json"
+
+// networkFile is the file name storing a pod network.
+const networkFile = "network.json"
 
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
@@ -74,6 +80,7 @@ type resourceStorage interface {
 	deletePodResources(podID string, resources []podResource) error
 	fetchPodConfig(podID string) (PodConfig, error)
 	fetchPodState(podID string) (State, error)
+	fetchPodNetwork(podID string) (NetworkNamespace, error)
 
 	// Container resources
 	storeContainerResource(podID, containerID string, resource podResource, data interface{}) error
@@ -185,7 +192,7 @@ func resourceDir(podID, containerID string, resource podResource) (string, error
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, lockFileType:
+	case stateFileType, networkFileType, lockFileType:
 		path = runStoragePath
 		break
 	default:
@@ -215,6 +222,8 @@ func (fs *filesystem) resourceURI(podID, containerID string, resource podResourc
 		break
 	case stateFileType:
 		filename = stateFile
+	case networkFileType:
+		filename = networkFile
 	case lockFileType:
 		filename = lockFileName
 		break
@@ -265,6 +274,18 @@ func (fs *filesystem) storeResource(podID, containerID string, resource podResou
 
 		return fs.storeFile(stateFile, file)
 
+	case NetworkNamespace:
+		if resource != networkFileType {
+			return fmt.Errorf("Invalid pod resource")
+		}
+
+		networkFile, _, err := fs.resourceURI(podID, containerID, networkFileType)
+		if err != nil {
+			return err
+		}
+
+		return fs.storeFile(networkFile, file)
+
 	default:
 		return fmt.Errorf("Invalid resource data type")
 	}
@@ -304,6 +325,15 @@ func (fs *filesystem) fetchResource(podID, containerID string, resource podResou
 		}
 
 		return state, nil
+
+	case networkFileType:
+		networkNS := NetworkNamespace{}
+		err = fs.fetchFile(path, &networkNS)
+		if err != nil {
+			return nil, err
+		}
+
+		return networkNS, nil
 	}
 
 	return nil, fmt.Errorf("Invalid pod resource")
@@ -339,6 +369,20 @@ func (fs *filesystem) fetchPodState(podID string) (State, error) {
 	}
 
 	return State{}, fmt.Errorf("Unknown state type")
+}
+
+func (fs *filesystem) fetchPodNetwork(podID string) (NetworkNamespace, error) {
+	data, err := fs.fetchResource(podID, "", networkFileType)
+	if err != nil {
+		return NetworkNamespace{}, err
+	}
+
+	switch networkNS := data.(type) {
+	case NetworkNamespace:
+		return networkNS, nil
+	}
+
+	return NetworkNamespace{}, fmt.Errorf("Unknown network type")
 }
 
 func (fs *filesystem) deletePodResources(podID string, resources []podResource) error {
