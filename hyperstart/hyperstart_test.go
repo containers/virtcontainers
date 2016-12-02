@@ -602,7 +602,7 @@ func testSendCtlMessage(t *testing.T, cmd string) {
 		t.Fatal()
 	}
 
-	if cmd != DestroyPod && msg.Code != hyper.INIT_ACK {
+	if msg.Code != hyper.INIT_ACK {
 		t.Fatal()
 	}
 }
