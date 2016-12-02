@@ -260,9 +260,7 @@ func (h *Hyperstart) handleCtl() {
 		// hyperstart to fail and test the reaction of proxy/clients
 		h.logf("ctl: <-- command %s executed successfully\n", cmdName)
 
-		if cmdName != DestroyPod {
-			h.SendMessage(hyper.INIT_ACK, nil)
-		}
+		h.SendMessage(hyper.INIT_ACK, nil)
 
 	}
 
