@@ -66,7 +66,6 @@ var codeList = map[int]string{
 	hyper.INIT_ERROR:            Error,
 	hyper.INIT_WINSIZE:          WinSize,
 	hyper.INIT_PING:             Ping,
-	hyper.INIT_FINISHPOD:        FinishPod,
 	hyper.INIT_NEXT:             Next,
 	hyper.INIT_WRITEFILE:        WriteFile,
 	hyper.INIT_READFILE:         ReadFile,
