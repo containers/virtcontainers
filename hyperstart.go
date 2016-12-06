@@ -263,16 +263,16 @@ func (h *hyper) startPod(config PodConfig) error {
 			Id:      c.ID,
 			Image:   c.ID,
 			Rootfs:  "rootfs",
-			Process: process,
+			Process: *process,
 		}
 
 		containers = append(containers, container)
 	}
 
 	hyperPod := hyperJson.Pod{
-		Hostname:             config.ID,
-		DeprecatedContainers: containers,
-		ShareDir:             mountTag,
+		Hostname:   config.ID,
+		Containers: containers,
+		ShareDir:   mountTag,
 	}
 
 	payload, err := hyperstart.FormatMessage(hyperPod)
@@ -321,7 +321,7 @@ func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 		Id:      contConfig.ID,
 		Image:   "",
 		Rootfs:  "",
-		Process: process,
+		Process: *process,
 	}
 
 	payload, err := hyperstart.FormatMessage(container)
