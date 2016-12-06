@@ -134,8 +134,6 @@ func (h *Hyperstart) CloseSockets() error {
 		if err != nil {
 			return err
 		}
-
-		h.ctl = nil
 	}
 
 	if h.io != nil {
@@ -143,8 +141,6 @@ func (h *Hyperstart) CloseSockets() error {
 		if err != nil {
 			return err
 		}
-
-		h.io = nil
 	}
 
 	return nil
