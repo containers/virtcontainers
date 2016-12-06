@@ -114,7 +114,7 @@ func (h *hyper) retryConnectSocket(retry int) error {
 	return err
 }
 
-func (h *hyper) buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
+func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperJson.Process, error) {
 	var envVars []hyperJson.EnvironmentVar
 
 	for _, e := range cmd.Envs {
@@ -126,7 +126,7 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (hyperJson.Process, error) {
 		envVars = append(envVars, envVar)
 	}
 
-	process := hyperJson.Process{
+	process := &hyperJson.Process{
 		User:    cmd.User,
 		Group:   cmd.Group,
 		Stdio:   uint64(rand.Int63()),
@@ -233,7 +233,7 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 
 	execInfo := ExecInfo{
 		Container: container.id,
-		Process:   process,
+		Process:   *process,
 	}
 
 	payload, err := hyperstart.FormatMessage(execInfo)
@@ -270,9 +270,9 @@ func (h *hyper) startPod(config PodConfig) error {
 	}
 
 	hyperPod := hyperJson.Pod{
-		Hostname:   config.ID,
-		Containers: containers,
-		ShareDir:   mountTag,
+		Hostname:             config.ID,
+		DeprecatedContainers: containers,
+		ShareDir:             mountTag,
 	}
 
 	payload, err := hyperstart.FormatMessage(hyperPod)

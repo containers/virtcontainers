@@ -438,10 +438,6 @@ func TestCodeFromCmdPing(t *testing.T) {
 	testCodeFromCmd(t, Ping, hyper.INIT_PING)
 }
 
-func TestCodeFromCmdFinishPod(t *testing.T) {
-	testCodeFromCmd(t, FinishPod, hyper.INIT_FINISHPOD)
-}
-
 func TestCodeFromCmdNext(t *testing.T) {
 	testCodeFromCmd(t, Next, hyper.INIT_NEXT)
 }
@@ -580,7 +576,6 @@ var cmdList = []string{
 	Error,
 	WinSize,
 	Ping,
-	FinishPod,
 	Next,
 	NewContainer,
 	KillContainer,
