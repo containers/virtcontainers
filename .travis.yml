@@ -28,7 +28,7 @@ script:
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs -I % bash -c "test % -eq 0"
    - go build ./...
-   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/containers/virtcontainers
+   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/containers/virtcontainers/...
 
 after_success:
    - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out
