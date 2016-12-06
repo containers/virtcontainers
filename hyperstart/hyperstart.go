@@ -43,7 +43,6 @@ const (
 	Error            = "error"
 	WinSize          = "winsize"
 	Ping             = "ping"
-	FinishPod        = "finishpod"
 	Next             = "next"
 	WriteFile        = "writefile"
 	ReadFile         = "readfile"
