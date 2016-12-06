@@ -21,6 +21,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/01org/ciao/networking/libsnnet"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
 	"github.com/containernetworking/cni/pkg/types"
@@ -116,6 +117,170 @@ func newNetwork(networkType NetworkModel) network {
 	default:
 		return &noopNetwork{}
 	}
+}
+
+func bridgeNetworkPair(netPair NetworkInterfacePair) error {
+	// new tap
+	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
+	if err != nil {
+		return err
+	}
+	tapVnic.LinkName = netPair.TAPIface.Name
+
+	// create tap
+	err = tapVnic.Create()
+	if err != nil {
+		return err
+	}
+
+	// new veth
+	virtVnic, err := libsnnet.NewContainerVnic(netPair.VirtIface.Name)
+	if err != nil {
+		return err
+	}
+
+	// create veth
+	err = virtVnic.GetDeviceByName(netPair.VirtIface.Name)
+	if err != nil {
+		return err
+	}
+
+	// set veth MAC address
+	hardAddr, err := net.ParseMAC(netPair.VirtIface.HardAddr)
+	if err != nil {
+		return err
+	}
+	err = virtVnic.SetHardwareAddr(hardAddr)
+	if err != nil {
+		return err
+	}
+
+	// new bridge
+	bridge, err := libsnnet.NewBridge(netPair.Name)
+	if err != nil {
+		return err
+	}
+	bridge.LinkName = netPair.Name
+
+	// create bridge
+	err = bridge.Create()
+	if err != nil {
+		return err
+	}
+
+	// attach tap to bridge
+	err = tapVnic.Attach(bridge)
+	if err != nil {
+		return err
+	}
+
+	// enable tap
+	err = tapVnic.Enable()
+	if err != nil {
+		return err
+	}
+
+	// attach veth to bridge
+	err = virtVnic.Attach(bridge)
+	if err != nil {
+		return err
+	}
+
+	// enable veth
+	err = virtVnic.Enable()
+	if err != nil {
+		return err
+	}
+
+	// enable bridge
+	err = bridge.Enable()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
+	// new tap
+	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
+	if err != nil {
+		return err
+	}
+
+	// get tap
+	err = tapVnic.GetDevice()
+	if err != nil {
+		return err
+	}
+
+	// new veth
+	virtVnic, err := libsnnet.NewContainerVnic(netPair.VirtIface.Name)
+	if err != nil {
+		return err
+	}
+
+	// get veth
+	err = virtVnic.GetDeviceByName(netPair.VirtIface.Name)
+	if err != nil {
+		return err
+	}
+
+	// new bridge
+	bridge, err := libsnnet.NewBridge(netPair.Name)
+	if err != nil {
+		return err
+	}
+
+	// get bridge
+	err = bridge.GetDevice()
+	if err != nil {
+		return err
+	}
+
+	// disable bridge
+	err = bridge.Disable()
+	if err != nil {
+		return err
+	}
+
+	// disable veth
+	err = virtVnic.Disable()
+	if err != nil {
+		return err
+	}
+
+	// detach veth from bridge
+	err = virtVnic.Detach(bridge)
+	if err != nil {
+		return err
+	}
+
+	// disable tap
+	err = tapVnic.Disable()
+	if err != nil {
+		return err
+	}
+
+	// detach tap from bridge
+	err = tapVnic.Detach(bridge)
+	if err != nil {
+		return err
+	}
+
+	// destroy bridge
+	err = bridge.Destroy()
+	if err != nil {
+		return err
+	}
+
+	// destroy tap
+	err = tapVnic.Destroy()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func createNetNS() (string, error) {
