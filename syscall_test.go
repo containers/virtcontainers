@@ -42,12 +42,12 @@ func TestBindMountFailingMount(t *testing.T) {
 
 	_, err := os.OpenFile(fakeSource, os.O_CREATE, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = os.Symlink(fakeSource, source)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = bindMount(source, "")
@@ -65,17 +65,17 @@ func TestBindMountSuccessful(t *testing.T) {
 
 	err := os.MkdirAll(source, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = os.MkdirAll(dest, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = bindMount(source, dest)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	syscall.Unmount(dest, 0)
@@ -96,7 +96,7 @@ func TestEnsureDestinationExistsWrongParentDir(t *testing.T) {
 
 	_, err := os.OpenFile(source, os.O_CREATE, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = ensureDestinationExists(source, dest)
@@ -113,12 +113,12 @@ func TestEnsureDestinationExistsSuccessfulSrcDir(t *testing.T) {
 
 	err := os.MkdirAll(source, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = ensureDestinationExists(source, dest)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -130,11 +130,11 @@ func TestEnsureDestinationExistsSuccessfulSrcFile(t *testing.T) {
 
 	_, err := os.OpenFile(source, os.O_CREATE, mountPerm)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = ensureDestinationExists(source, dest)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }

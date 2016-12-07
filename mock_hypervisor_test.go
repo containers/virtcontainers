@@ -44,7 +44,7 @@ func TestMockHypervisorInit(t *testing.T) {
 
 	err = m.init(rightConfig)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -55,7 +55,7 @@ func TestMockHypervisorCreatePod(t *testing.T) {
 
 	err := m.createPod(config)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestMockHypervisorStartPod(t *testing.T) {
 	case <-startCh:
 		break
 	case <-time.After(time.Second):
-		t.Fatal()
+		t.Fatal("Timeout waiting for start notification")
 	}
 }
 
@@ -80,7 +80,7 @@ func TestMockHypervisorStopPod(t *testing.T) {
 
 	err := m.stopPod()
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -89,6 +89,6 @@ func TestMockHypervisorAddDevice(t *testing.T) {
 
 	err := m.addDevice(nil, imgDev)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
