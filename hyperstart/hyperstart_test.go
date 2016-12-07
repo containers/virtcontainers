@@ -33,23 +33,12 @@ const (
 	testMessage  = "test_message"
 )
 
-func connectHyperstart(ctlSock, ioSock, sockType string) (net.Conn, net.Conn, error) {
-	var err error
-	var cCtl net.Conn
-	var cIo net.Conn
+func connectHyperstart(h *Hyperstart) error {
+	return h.OpenSockets()
+}
 
-	cCtl, err = net.Dial(sockType, ctlSock)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cIo, err = net.Dial(sockType, ioSock)
-	if err != nil {
-		cCtl.Close()
-		return nil, nil, err
-	}
-
-	return cCtl, cIo, nil
+func disconnectHyperstart(h *Hyperstart) {
+	h.CloseSockets()
 }
 
 func connectMockHyperstart(t *testing.T) (*mock.Hyperstart, *Hyperstart, error) {
@@ -59,33 +48,19 @@ func connectMockHyperstart(t *testing.T) (*mock.Hyperstart, *Hyperstart, error) 
 
 	ctlSock, ioSock := mockHyper.GetSocketPaths()
 
-	cCtl, cIo, err := connectHyperstart(ctlSock, ioSock, testSockType)
+	h := &Hyperstart{
+		ctlSerial: ctlSock,
+		ioSerial:  ioSock,
+		sockType:  testSockType,
+	}
+
+	err := connectHyperstart(h)
 	if err != nil {
 		mockHyper.Stop()
 		return nil, nil, err
 	}
 
-	h := &Hyperstart{
-		ctlSerial: ctlSock,
-		ioSerial:  ioSock,
-		sockType:  testSockType,
-		ctl:       cCtl,
-		io:        cIo,
-	}
-
 	return mockHyper, h, nil
-}
-
-func disconnectHyperstart(cCtl, cIo net.Conn) {
-	if cCtl != nil {
-		cCtl.Close()
-		cCtl = nil
-	}
-
-	if cIo != nil {
-		cIo.Close()
-		cIo = nil
-	}
 }
 
 func TestNewHyperstart(t *testing.T) {
@@ -125,7 +100,7 @@ func TestOpenSockets(t *testing.T) {
 		t.Fatal()
 	}
 
-	disconnectHyperstart(h.ctl, h.io)
+	disconnectHyperstart(h)
 }
 
 func TestCloseSockets(t *testing.T) {
@@ -147,7 +122,7 @@ func TestSetDeadline(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	timeoutDuration := 1 * time.Second
 
@@ -192,7 +167,7 @@ func TestIsStartedTrue(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	if h.IsStarted() == false {
 		t.Fatal()
@@ -239,7 +214,7 @@ func TestReadCtlMessage(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	expected := &hyper.DecodedMessage{
 		Code:    hyper.INIT_READY,
@@ -264,7 +239,7 @@ func TestWriteCtlMessage(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	msg := hyper.DecodedMessage{
 		Code:    hyper.INIT_PING,
@@ -297,7 +272,7 @@ func TestReadIoMessage(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	mockHyper.SendIo(testSequence, []byte(testMessage))
 
@@ -317,7 +292,7 @@ func TestReadIoMessageWithConn(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	mockHyper.SendIo(testSequence, []byte(testMessage))
 
@@ -337,7 +312,7 @@ func TestSendIoMessage(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	msg := &hyper.TtyMessage{
 		Session: testSequence,
@@ -363,7 +338,7 @@ func TestSendIoMessageWithConn(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	msg := &hyper.TtyMessage{
 		Session: testSequence,
@@ -483,7 +458,7 @@ func testExpectReadingCmd(t *testing.T, code uint32) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	mockHyper.SendMessage(int(hyper.INIT_READY), []byte{})
 
@@ -511,7 +486,7 @@ func testExpectReadingCmdWrong(t *testing.T, code uint32) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	if code == hyper.INIT_ERROR {
 		mockHyper.SendMessage(int(hyper.INIT_ACK), []byte{})
@@ -537,7 +512,7 @@ func TestWaitForReady(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	mockHyper.SendMessage(int(hyper.INIT_READY), []byte{})
 
@@ -553,7 +528,7 @@ func TestWaitForReadyError(t *testing.T) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	mockHyper.SendMessage(int(hyper.INIT_ERROR), []byte{})
 
@@ -590,7 +565,7 @@ func testSendCtlMessage(t *testing.T, cmd string) {
 		t.Fatal()
 	}
 	defer mockHyper.Stop()
-	defer disconnectHyperstart(h.ctl, h.io)
+	defer disconnectHyperstart(h)
 
 	msg, err := h.SendCtlMessage(cmd, []byte{})
 	if err != nil {
