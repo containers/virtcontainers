@@ -32,7 +32,7 @@ func TestSpawnerTypeSet(t *testing.T) {
 	for _, sType := range testSpawnerTypeList {
 		err = (&s).Set(string(sType))
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 
 		if s != sType {

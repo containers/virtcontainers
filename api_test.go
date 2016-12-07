@@ -115,13 +115,13 @@ func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -130,13 +130,13 @@ func TestCreatePodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatalf("%s", err)
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -154,18 +154,18 @@ func TestDeletePodNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = DeletePod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(podDir)
@@ -179,23 +179,23 @@ func TestDeletePodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = DeletePod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(podDir)
 	if err == nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -214,18 +214,18 @@ func TestStartPodNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -252,18 +252,18 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -282,23 +282,23 @@ func TestStopPodNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StopPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -315,20 +315,20 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -337,7 +337,7 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err = StopPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -356,13 +356,13 @@ func TestRunPodNoopAgentSuccessful(t *testing.T) {
 
 	p, err := RunPod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -379,13 +379,13 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err := RunPod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -405,12 +405,12 @@ func TestListPodSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = ListPod()
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -428,12 +428,12 @@ func TestStatusPodSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = StatusPod(p.id)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -442,7 +442,7 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	path := filepath.Join(configStoragePath, p.id)
@@ -459,7 +459,7 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	path := filepath.Join(runStoragePath, p.id)
@@ -488,26 +488,26 @@ func TestCreateContainerSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -517,12 +517,12 @@ func TestCreateContainerFailingNoPod(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = DeletePod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
@@ -535,7 +535,7 @@ func TestCreateContainerFailingNoPod(t *testing.T) {
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c != nil || err == nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -545,31 +545,31 @@ func TestDeleteContainerSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = DeleteContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(contDir)
@@ -595,13 +595,13 @@ func TestDeleteContainerFailingNoContainer(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err := DeleteContainer(p.id, contID)
@@ -616,36 +616,36 @@ func TestStartContainerNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -663,20 +663,20 @@ func TestStartContainerHyperstartAgentSuccessful(t *testing.T) {
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -685,13 +685,13 @@ func TestStartContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Start()
@@ -699,7 +699,7 @@ func TestStartContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -720,13 +720,13 @@ func TestStartContainerFailingNoContainer(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err := StartContainer(p.id, contID)
@@ -741,26 +741,26 @@ func TestStartContainerFailingPodNotStarted(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StartContainer(p.id, contID)
@@ -775,41 +775,41 @@ func TestStopContainerNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StopContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -827,20 +827,20 @@ func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -849,13 +849,13 @@ func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Start()
@@ -863,7 +863,7 @@ func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -872,7 +872,7 @@ func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err = StopContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -893,13 +893,13 @@ func TestStopContainerFailingNoContainer(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err := StopContainer(p.id, contID)
@@ -914,31 +914,31 @@ func TestStopContainerFailingContNotStarted(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StopContainer(p.id, contID)
@@ -953,43 +953,43 @@ func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	cmd := newBasicTestCmd()
 
 	c, err = EnterContainer(p.id, contID, cmd)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -1007,20 +1007,20 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -1029,13 +1029,13 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Start()
@@ -1043,7 +1043,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	c, err = StartContainer(p.id, contID)
 	if c == nil || err != nil {
 		mock.Stop()
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	mock.Stop()
@@ -1055,7 +1055,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err = EnterContainer(p.id, contID, cmd)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -1078,13 +1078,13 @@ func TestEnterContainerFailingNoContainer(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	cmd := newBasicTestCmd()
@@ -1101,31 +1101,31 @@ func TestEnterContainerFailingContNotStarted(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	cmd := newBasicTestCmd()
@@ -1142,31 +1142,31 @@ func TestStatusContainerSuccessful(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contConfig := newTestContainerConfigNoop(contID)
 
 	c, err := CreateContainer(p.id, contConfig)
 	if c == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	contDir := filepath.Join(podDir, contID)
 	_, err = os.Stat(contDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = StatusContainer(p.id, contID)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -1176,13 +1176,13 @@ func TestStatusContainerFailing(t *testing.T) {
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = StatusContainer(p.id, contID)

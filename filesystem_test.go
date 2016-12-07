@@ -55,31 +55,31 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 
 	err := fs.createAllResources(pod)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	// Check resources
 	_, err = os.Stat(podConfigPath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(podRunPath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	for _, container := range containers {
 		configPath := filepath.Join(configStoragePath, testPodID, container.ID)
 		_, err = os.Stat(configPath)
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 
 		runPath := filepath.Join(runStoragePath, testPodID, container.ID)
 		_, err = os.Stat(runPath)
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 	}
 }
@@ -133,12 +133,12 @@ func TestFilesystemStoreFileSuccessfulNotExisting(t *testing.T) {
 
 	err := fs.storeFile(path, data)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	fileData, err := ioutil.ReadFile(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if string(fileData) != expected {
@@ -154,7 +154,7 @@ func TestFilesystemStoreFileSuccessfulExisting(t *testing.T) {
 
 	f, err := os.Create(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 	f.Close()
 
@@ -167,12 +167,12 @@ func TestFilesystemStoreFileSuccessfulExisting(t *testing.T) {
 
 	err = fs.storeFile(path, data)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	fileData, err := ioutil.ReadFile(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if string(fileData) != expected {
@@ -203,20 +203,20 @@ func TestFilesystemFetchFileSuccessful(t *testing.T) {
 
 	f, err := os.Create(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	dataToWrite := "{\"Field1\":\"value1\",\"Field2\":\"value2\"}"
 	n, err := f.WriteString(dataToWrite)
 	if err != nil || n != len(dataToWrite) {
 		f.Close()
-		t.Fatal()
+		t.Fatal(err)
 	}
 	f.Close()
 
 	err = fs.fetchFile(path, &data)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	expected := TestNoopStructure{
@@ -251,7 +251,7 @@ func TestFilesystemFetchFileFailingUnMarshalling(t *testing.T) {
 
 	f, err := os.Create(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 	f.Close()
 
@@ -274,20 +274,20 @@ func TestFilesystemFetchContainerConfigSuccessful(t *testing.T) {
 
 	f, err := os.Create(path)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	configData := fmt.Sprintf("{\"ID\":\"%s\",\"RootFs\":\"%s\"}", contID, rootFs)
 	n, err := f.WriteString(configData)
 	if err != nil || n != len(configData) {
 		f.Close()
-		t.Fatal()
+		t.Fatal(err)
 	}
 	f.Close()
 
 	data, err := fs.fetchContainerConfig(testPodID, contID)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	expected := ContainerConfig{

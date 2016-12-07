@@ -310,7 +310,7 @@ func TestVolumesSetSuccessful(t *testing.T) {
 
 	err := volumes.Set(volStr)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(*volumes, expected) == false {
@@ -393,7 +393,7 @@ func TestSocketsSetSuccessful(t *testing.T) {
 
 	err := sockets.Set(sockStr)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(*sockets, expected) == false {
@@ -461,7 +461,7 @@ func TestPodEnterSuccessful(t *testing.T) {
 
 	err := pod.enter([]string{})
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 
@@ -524,7 +524,7 @@ func TestPodDeleteContainerStateSuccessful(t *testing.T) {
 	path := filepath.Join(runStoragePath, testPodID, contID)
 	err := os.MkdirAll(path, os.ModeDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	stateFilePath := filepath.Join(path, stateFile)
@@ -533,17 +533,17 @@ func TestPodDeleteContainerStateSuccessful(t *testing.T) {
 
 	_, err = os.Create(stateFilePath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(stateFilePath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = pod.deleteContainerState(contID)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	_, err = os.Stat(stateFilePath)
@@ -593,7 +593,7 @@ func TestPodDeleteContainersStateSuccessful(t *testing.T) {
 		path := filepath.Join(runStoragePath, testPodID, c.ID)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 
 		stateFilePath := filepath.Join(path, stateFile)
@@ -602,18 +602,18 @@ func TestPodDeleteContainersStateSuccessful(t *testing.T) {
 
 		_, err = os.Create(stateFilePath)
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 
 		_, err = os.Stat(stateFilePath)
 		if err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 	}
 
 	err = pod.deleteContainersState()
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	for _, c := range containers {
@@ -673,7 +673,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 	path := filepath.Join(runStoragePath, testPodID, contID)
 	err := os.MkdirAll(path, os.ModeDir)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	stateFilePath := filepath.Join(path, stateFile)
@@ -682,7 +682,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 
 	f, err := os.Create(stateFilePath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	stateData := "{\"state\":\"ready\"}"
@@ -695,7 +695,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 
 	_, err = os.Stat(stateFilePath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	err = pod.checkContainerState(contID, statePaused)

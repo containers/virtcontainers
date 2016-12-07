@@ -48,7 +48,7 @@ func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected stri
 
 	err := q.buildKernelParams(qemuConfig)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if strings.Join(q.kernelParams, " ") != expected {
@@ -285,13 +285,13 @@ func TestQemuAppendImage(t *testing.T) {
 
 	imageFile, err := os.Open(q.config.ImagePath)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 	defer imageFile.Close()
 
 	imageStat, err := imageFile.Stat()
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	expectedOut := []ciaoQemu.Device{
@@ -309,7 +309,7 @@ func TestQemuAppendImage(t *testing.T) {
 
 	devices, err = q.appendImage(devices, podConfig)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(devices, expectedOut) == false {
@@ -323,7 +323,7 @@ func TestQemuInit(t *testing.T) {
 
 	err := q.init(qemuConfig)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(qemuConfig, q.config) == false {
@@ -397,7 +397,7 @@ func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, ex
 
 	err := q.addDevice(devInfo, devType)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(q.qemuConfig.Devices, expected) == false {

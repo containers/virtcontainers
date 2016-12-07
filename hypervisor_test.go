@@ -27,7 +27,7 @@ func testSetHypervisorType(t *testing.T, value string, expected HypervisorType) 
 
 	err := (&hypervisorType).Set(value)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if hypervisorType != expected {
@@ -82,7 +82,7 @@ func TestStringFromUnknownHypervisorType(t *testing.T) {
 func testNewHypervisorFromHypervisorType(t *testing.T, hypervisorType HypervisorType, expected hypervisor) {
 	hy, err := newHypervisor(hypervisorType)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if reflect.DeepEqual(hy, expected) == false {

@@ -26,11 +26,11 @@ func testSetAgentType(t *testing.T, value string, expected AgentType) {
 
 	err := (&agentType).Set(value)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if agentType != expected {
-		t.Fatal()
+		t.Fatal(err)
 	}
 }
 

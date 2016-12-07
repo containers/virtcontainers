@@ -26,7 +26,7 @@ func testNsEnterFormatArgs(t *testing.T, args []string, expected string) {
 
 	cmd, err := nsenter.formatArgs(args)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	if strings.Join(cmd, " ") != expected {
