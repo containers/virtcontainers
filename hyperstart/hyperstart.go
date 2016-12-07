@@ -89,11 +89,38 @@ const (
 	ttyHdrLenOffset = 8
 )
 
+type connState struct {
+	sync.Mutex
+	opened bool
+}
+
+func (c *connState) close() {
+	c.Lock()
+	defer c.Unlock()
+
+	c.opened = false
+}
+
+func (c *connState) open() {
+	c.Lock()
+	defer c.Unlock()
+
+	c.opened = true
+}
+
+func (c *connState) closed() bool {
+	c.Lock()
+	defer c.Unlock()
+
+	return !c.opened
+}
+
 // Hyperstart is the base structure for hyperstart.
 type Hyperstart struct {
 	ctlSerial, ioSerial string
 	sockType            string
 	ctl, io             net.Conn
+	ctlState, ioState   connState
 
 	// ctl access is arbitrated by ctlMutex. We can only allow a single
 	// "transaction" (write command + read answer) at a time
@@ -117,30 +144,36 @@ func (h *Hyperstart) OpenSockets() error {
 	if err != nil {
 		return err
 	}
+	h.ctlState.open()
 
 	h.io, err = net.Dial(h.sockType, h.ioSerial)
 	if err != nil {
 		h.ctl.Close()
 		return err
 	}
+	h.ioState.open()
 
 	return nil
 }
 
 // CloseSockets closes both CTL and IO sockets.
 func (h *Hyperstart) CloseSockets() error {
-	if h.ctl != nil {
+	if !h.ctlState.closed() {
 		err := h.ctl.Close()
 		if err != nil {
 			return err
 		}
+
+		h.ctlState.close()
 	}
 
-	if h.io != nil {
+	if !h.ioState.closed() {
 		err := h.io.Close()
 		if err != nil {
 			return err
 		}
+
+		h.ioState.close()
 	}
 
 	return nil
@@ -161,7 +194,7 @@ func (h *Hyperstart) IsStarted() bool {
 	ret := false
 	timeoutDuration := 1 * time.Second
 
-	if h.ctl == nil {
+	if h.ctlState.closed() {
 		return ret
 	}
 
