@@ -25,6 +25,7 @@ import (
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
 	"github.com/containernetworking/cni/pkg/types"
+	"github.com/containers/virtcontainers/logger/gloginterface"
 	"golang.org/x/sys/unix"
 )
 
@@ -120,6 +121,8 @@ func newNetwork(networkType NetworkModel) network {
 }
 
 func bridgeNetworkPair(netPair NetworkInterfacePair) error {
+	libsnnet.Logger = gloginterface.CiaoGlogLogger{}
+
 	// new tap
 	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
 	if err != nil {
@@ -202,6 +205,8 @@ func bridgeNetworkPair(netPair NetworkInterfacePair) error {
 }
 
 func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
+	libsnnet.Logger = gloginterface.CiaoGlogLogger{}
+
 	// new tap
 	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
 	if err != nil {
