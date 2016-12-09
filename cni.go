@@ -18,17 +18,46 @@ package virtcontainers
 
 import (
 	"github.com/containernetworking/cni/pkg/ns"
+	cniPlugin "github.com/containers/virtcontainers/network/cni"
+	"github.com/golang/glog"
 )
 
 // cni is a network implementation for the CNI plugin.
-type cni struct {
-}
+type cni struct{}
 
-func (n *cni) addVirtInterfaces(networkNS NetworkNamespace) error {
+func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
+	netPlugin, err := cniPlugin.NewNetworkPlugin()
+	if err != nil {
+		return err
+	}
+
+	for idx, endpoint := range networkNS.Endpoints {
+		result, err := netPlugin.AddNetwork(endpoint.NetPair.ID, networkNS.NetNsPath, endpoint.NetPair.VirtIface.Name)
+		if err != nil {
+			return err
+		}
+
+		networkNS.Endpoints[idx].Properties = *result
+
+		glog.Infof("AddNetwork results %v\n", *result)
+	}
+
 	return nil
 }
 
 func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
+	netPlugin, err := cniPlugin.NewNetworkPlugin()
+	if err != nil {
+		return err
+	}
+
+	for _, endpoint := range networkNS.Endpoints {
+		err := netPlugin.RemoveNetwork(endpoint.NetPair.ID, networkNS.NetNsPath, endpoint.NetPair.VirtIface.Name)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -56,7 +85,7 @@ func (n *cni) add(config *NetworkConfig) (NetworkNamespace, error) {
 		Endpoints: endpoints,
 	}
 
-	err = n.addVirtInterfaces(networkNS)
+	err = n.addVirtInterfaces(&networkNS)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}
