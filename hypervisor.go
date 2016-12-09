@@ -164,7 +164,7 @@ func serializeParams(params []Param, delim string) []string {
 // The default hypervisor implementation is Qemu.
 type hypervisor interface {
 	init(config HypervisorConfig) error
-	createPod(podConfig PodConfig) error
+	createPod(podConfig PodConfig, endpoints []Endpoint) error
 	startPod(startCh, stopCh chan struct{}) error
 	stopPod() error
 	addDevice(devInfo interface{}, devType deviceType) error
