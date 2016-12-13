@@ -54,6 +54,12 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the guest spawner",
 	},
 
+	cli.GenericFlag{
+		Name:  "network",
+		Value: new(vc.NetworkModel),
+		Usage: "the network model",
+	},
+
 	cli.StringFlag{
 		Name:  "sshd-user",
 		Value: "",
@@ -145,6 +151,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert spawner type")
 	}
 
+	networkModel, ok := context.Generic("network").(*vc.NetworkModel)
+	if ok != true {
+		return vc.PodConfig{}, fmt.Errorf("Could not convert network model")
+	}
+
 	volumes, ok := context.Generic("volume").(*vc.Volumes)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
@@ -196,6 +207,10 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		HypervisorPath: "/usr/bin/qemu-lite-system-x86_64",
 	}
 
+	netConfig := vc.NetworkConfig{
+		NumInterfaces: 1,
+	}
+
 	switch *agentType {
 	case vc.SSHdAgent:
 		agConfig = vc.SshdConfig{
@@ -230,6 +245,9 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 
 		AgentType:   *agentType,
 		AgentConfig: agConfig,
+
+		NetworkModel:  *networkModel,
+		NetworkConfig: netConfig,
 
 		Containers: containers,
 	}
