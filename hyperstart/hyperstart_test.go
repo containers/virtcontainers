@@ -373,24 +373,12 @@ func TestCodeFromCmdStartPod(t *testing.T) {
 	testCodeFromCmd(t, StartPod, hyper.INIT_STARTPOD)
 }
 
-func TestCodeFromCmdGetPod(t *testing.T) {
-	testCodeFromCmd(t, GetPod, hyper.INIT_GETPOD)
-}
-
 func TestCodeFromCmdDestroyPod(t *testing.T) {
 	testCodeFromCmd(t, DestroyPod, hyper.INIT_DESTROYPOD)
 }
 
-func TestCodeFromCmdRestartContainer(t *testing.T) {
-	testCodeFromCmd(t, RestartContainer, hyper.INIT_RESTARTCONTAINER)
-}
-
 func TestCodeFromCmdExecCmd(t *testing.T) {
 	testCodeFromCmd(t, ExecCmd, hyper.INIT_EXECCMD)
-}
-
-func TestCodeFromCmdFinishCmd(t *testing.T) {
-	testCodeFromCmd(t, FinishCmd, hyper.INIT_FINISHCMD)
 }
 
 func TestCodeFromCmdReady(t *testing.T) {
@@ -541,11 +529,8 @@ func TestWaitForReadyError(t *testing.T) {
 var cmdList = []string{
 	Version,
 	StartPod,
-	GetPod,
 	DestroyPod,
-	RestartContainer,
 	ExecCmd,
-	FinishCmd,
 	Ready,
 	Ack,
 	Error,
