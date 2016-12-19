@@ -534,7 +534,7 @@ func (p *Pod) startSetStates() error {
 func (p *Pod) start() error {
 	err := p.startCheckStates()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	podStartedCh := make(chan struct{})
