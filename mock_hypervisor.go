@@ -28,7 +28,7 @@ func (m *mockHypervisor) init(config HypervisorConfig) error {
 	return nil
 }
 
-func (m *mockHypervisor) createPod(podConfig PodConfig) error {
+func (m *mockHypervisor) createPod(podConfig PodConfig, endpoints []Endpoint) error {
 	return nil
 }
 

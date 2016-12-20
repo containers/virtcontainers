@@ -45,17 +45,27 @@ func newHypervisorConfig(kernelParams []Param, hParams []Param) HypervisorConfig
 
 func testCreatePod(t *testing.T, id string,
 	htype HypervisorType, hconfig HypervisorConfig, atype AgentType,
-	containers []ContainerConfig, volumes []Volume) (*Pod, error) {
+	nmodel NetworkModel, nconfig NetworkConfig, containers []ContainerConfig,
+	volumes []Volume) (*Pod, error) {
+
 	config := PodConfig{
 		ID:               id,
 		HypervisorType:   htype,
 		HypervisorConfig: hconfig,
 		AgentType:        atype,
+		NetworkModel:     nmodel,
+		NetworkConfig:    nconfig,
 		Volumes:          volumes,
 		Containers:       containers,
 	}
 
-	pod, err := createPod(config)
+	n := newNetwork(config.NetworkModel)
+	networkNS, err := n.add(&(config.NetworkConfig))
+	if err != nil {
+		return nil, fmt.Errorf("Could not add network: %s", err)
+	}
+
+	pod, err := createPod(config, networkNS)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}
@@ -72,14 +82,14 @@ func testCreatePod(t *testing.T, id string,
 }
 
 func TestCreateEmtpyPod(t *testing.T) {
-	_, err := testCreatePod(t, testPodID, MockHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, MockHypervisor, HypervisorConfig{}, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
 	if err == nil {
 		t.Fatalf("VirtContainers should not allow empty pods")
 	}
 }
 
 func TestCreateEmtpyHypervisorPod(t *testing.T) {
-	_, err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, QemuHypervisor, HypervisorConfig{}, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
 	if err == nil {
 		t.Fatalf("VirtContainers should not allow pods with empty hypervisors")
 	}
@@ -88,7 +98,7 @@ func TestCreateEmtpyHypervisorPod(t *testing.T) {
 func TestCreateMockPod(t *testing.T) {
 	hConfig := newHypervisorConfig(nil, nil)
 
-	_, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	_, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +107,7 @@ func TestCreateMockPod(t *testing.T) {
 func TestCreatePodEmtpyID(t *testing.T) {
 	hConfig := newHypervisorConfig(nil, nil)
 
-	p, err := testCreatePod(t, "", MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	p, err := testCreatePod(t, "", MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +118,7 @@ func TestCreatePodEmtpyID(t *testing.T) {
 func testPodStateTransition(t *testing.T, state stateString, newState stateString) error {
 	hConfig := newHypervisorConfig(nil, nil)
 
-	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, nil, nil)
+	p, err := testCreatePod(t, testPodID, MockHypervisor, hConfig, NoopAgentType, NoopNetworkModel, NetworkConfig{}, nil, nil)
 	if err != nil {
 		return err
 	}
