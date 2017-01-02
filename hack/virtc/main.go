@@ -30,18 +30,6 @@ import (
 )
 
 var podConfigFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "console",
-		Value: "",
-		Usage: "the container console",
-	},
-
-	cli.StringFlag{
-		Name:  "bundle",
-		Value: "",
-		Usage: "the container bundle",
-	},
-
 	cli.GenericFlag{
 		Name:  "agent",
 		Value: new(vc.AgentType),
@@ -96,6 +84,12 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the hyperstart tty socket name",
 	},
 
+	cli.StringFlag{
+		Name:  "pause-path",
+		Value: "",
+		Usage: "the hyperstart path to pause binary",
+	},
+
 	cli.GenericFlag{
 		Name:  "volume",
 		Value: new(vc.Volumes),
@@ -106,12 +100,6 @@ var podConfigFlags = []cli.Flag{
 		Name:  "socket",
 		Value: new(vc.Sockets),
 		Usage: "the socket list to be shared with VM",
-	},
-
-	cli.StringFlag{
-		Name:  "init-cmd",
-		Value: "echo",
-		Usage: "the initial command to run on pod containers",
 	},
 
 	cli.UintFlag{
@@ -130,15 +118,13 @@ var podConfigFlags = []cli.Flag{
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	var agConfig interface{}
 
-	console := context.String("console")
-	bundle := context.String("bundle")
 	sshdUser := context.String("sshd-user")
 	sshdServer := context.String("sshd-server")
 	sshdPort := context.String("sshd-port")
 	sshdKey := context.String("sshd-auth-file")
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
-	initCmd := context.String("init-cmd")
+	hyperPauseBinPath := context.String("pause-path")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
@@ -171,36 +157,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		sshdUser = u.Username
 	}
 
-	interactive := false
-	if console != "" {
-		interactive = true
-	}
-
-	envs := []vc.EnvVar{
-		{
-			Var:   "PATH",
-			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
-		},
-	}
-
-	cmd := vc.Cmd{
-		Args:    strings.Split(initCmd, " "),
-		Envs:    envs,
-		WorkDir: "/",
-	}
-
-	container := vc.ContainerConfig{
-		ID:          "1",
-		RootFs:      bundle,
-		Interactive: interactive,
-		Console:     console,
-		Cmd:         cmd,
-	}
-
-	containers := []vc.ContainerConfig{
-		container,
-	}
-
 	hypervisorConfig := vc.HypervisorConfig{
 		KernelPath:     "/usr/share/clear-containers/vmlinux.container",
 		ImagePath:      "/usr/share/clear-containers/clear-containers.img",
@@ -223,10 +179,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		}
 	case vc.HyperstartAgent:
 		agConfig = vc.HyperConfig{
-			SockCtlName: hyperCtlSockName,
-			SockTtyName: hyperTtySockName,
-			Volumes:     *volumes,
-			Sockets:     *sockets,
+			SockCtlName:  hyperCtlSockName,
+			SockTtyName:  hyperTtySockName,
+			Volumes:      *volumes,
+			Sockets:      *sockets,
+			PauseBinPath: hyperPauseBinPath,
 		}
 	default:
 		agConfig = nil
@@ -249,7 +206,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		NetworkModel:  *networkModel,
 		NetworkConfig: netConfig,
 
-		Containers: containers,
+		Containers: []vc.ContainerConfig{},
 	}
 
 	return podConfig, nil
@@ -417,6 +374,8 @@ var statusPodCommand = cli.Command{
 }
 
 func createContainer(context *cli.Context) error {
+	console := context.String("console")
+
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -430,10 +389,17 @@ func createContainer(context *cli.Context) error {
 		WorkDir: "/",
 	}
 
+	interactive := false
+	if console != "" {
+		interactive = true
+	}
+
 	containerConfig := vc.ContainerConfig{
-		ID:     context.String("id"),
-		RootFs: context.String("rootfs"),
-		Cmd:    cmd,
+		ID:          context.String("id"),
+		RootFs:      context.String("rootfs"),
+		Interactive: interactive,
+		Console:     console,
+		Cmd:         cmd,
 	}
 
 	c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
@@ -537,6 +503,11 @@ var createContainerCommand = cli.Command{
 			Name:  "cmd",
 			Value: "",
 			Usage: "the command executed inside the container",
+		},
+		cli.StringFlag{
+			Name:  "console",
+			Value: "",
+			Usage: "the container console",
 		},
 	},
 	Action: func(context *cli.Context) error {
