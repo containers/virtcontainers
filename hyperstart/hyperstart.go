@@ -31,44 +31,46 @@ import (
 // Control command IDs
 // Need to be in sync with hyperstart/src/api.h
 const (
-	Version        = "version"
-	StartPod       = "startpod"
-	DestroyPod     = "destroypod"
-	ExecCmd        = "execcmd"
-	Ready          = "ready"
-	Ack            = "ack"
-	Error          = "error"
-	WinSize        = "winsize"
-	Ping           = "ping"
-	FinishPod      = "finishpod"
-	Next           = "next"
-	WriteFile      = "writefile"
-	ReadFile       = "readfile"
-	NewContainer   = "newcontainer"
-	KillContainer  = "killcontainer"
-	OnlineCPUMem   = "onlinecpumem"
-	SetupInterface = "setupinterface"
-	SetupRoute     = "setuproute"
+	Version         = "version"
+	StartPod        = "startpod"
+	DestroyPod      = "destroypod"
+	ExecCmd         = "execcmd"
+	Ready           = "ready"
+	Ack             = "ack"
+	Error           = "error"
+	WinSize         = "winsize"
+	Ping            = "ping"
+	FinishPod       = "finishpod"
+	Next            = "next"
+	WriteFile       = "writefile"
+	ReadFile        = "readfile"
+	NewContainer    = "newcontainer"
+	KillContainer   = "killcontainer"
+	RemoveContainer = "removecontainer"
+	OnlineCPUMem    = "onlinecpumem"
+	SetupInterface  = "setupinterface"
+	SetupRoute      = "setuproute"
 )
 
 var codeList = map[string]uint32{
-	Version:        hyper.INIT_VERSION,
-	StartPod:       hyper.INIT_STARTPOD,
-	DestroyPod:     hyper.INIT_DESTROYPOD,
-	ExecCmd:        hyper.INIT_EXECCMD,
-	Ready:          hyper.INIT_READY,
-	Ack:            hyper.INIT_ACK,
-	Error:          hyper.INIT_ERROR,
-	WinSize:        hyper.INIT_WINSIZE,
-	Ping:           hyper.INIT_PING,
-	Next:           hyper.INIT_NEXT,
-	WriteFile:      hyper.INIT_WRITEFILE,
-	ReadFile:       hyper.INIT_READFILE,
-	NewContainer:   hyper.INIT_NEWCONTAINER,
-	KillContainer:  hyper.INIT_KILLCONTAINER,
-	OnlineCPUMem:   hyper.INIT_ONLINECPUMEM,
-	SetupInterface: hyper.INIT_SETUPINTERFACE,
-	SetupRoute:     hyper.INIT_SETUPROUTE,
+	Version:         hyper.INIT_VERSION,
+	StartPod:        hyper.INIT_STARTPOD,
+	DestroyPod:      hyper.INIT_DESTROYPOD,
+	ExecCmd:         hyper.INIT_EXECCMD,
+	Ready:           hyper.INIT_READY,
+	Ack:             hyper.INIT_ACK,
+	Error:           hyper.INIT_ERROR,
+	WinSize:         hyper.INIT_WINSIZE,
+	Ping:            hyper.INIT_PING,
+	Next:            hyper.INIT_NEXT,
+	WriteFile:       hyper.INIT_WRITEFILE,
+	ReadFile:        hyper.INIT_READFILE,
+	NewContainer:    hyper.INIT_NEWCONTAINER,
+	KillContainer:   hyper.INIT_KILLCONTAINER,
+	RemoveContainer: hyper.INIT_REMOVECONTAINER,
+	OnlineCPUMem:    hyper.INIT_ONLINECPUMEM,
+	SetupInterface:  hyper.INIT_SETUPINTERFACE,
+	SetupRoute:      hyper.INIT_SETUPROUTE,
 }
 
 // Values related to the communication on control channel.
