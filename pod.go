@@ -593,11 +593,6 @@ func (p *Pod) start() error {
 }
 
 func (p *Pod) stopCheckStates() error {
-	err := p.checkContainersState(stateRunning)
-	if err != nil {
-		return err
-	}
-
 	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
 		return err
