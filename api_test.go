@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	TestHyperstartCtlSocket = "/tmp/test_hyper.sock"
-	TestHyperstartTtySocket = "/tmp/test_tty.sock"
+	TestHyperstartCtlSocket    = "/tmp/test_hyper.sock"
+	TestHyperstartTtySocket    = "/tmp/test_tty.sock"
+	TestHyperstartPauseBinName = "pause"
 )
 
 func newBasicTestCmd() Cmd {
@@ -245,9 +246,16 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
 	defer mock.Stop()
 
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	hyperConfig.SockCtlName = ctlSockPath
 	hyperConfig.SockTtyName = ioSockPath
+	hyperConfig.PauseBinPath = pauseBinPath
 	config.AgentConfig = hyperConfig
 
 	p, err := CreatePod(config)
@@ -263,6 +271,13 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err = StartPod(p.id)
 	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p.agent.(*hyper).bindUnmountAllRootfs()
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -307,9 +322,16 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 
 	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
 
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	hyperConfig.SockCtlName = ctlSockPath
 	hyperConfig.SockTtyName = ioSockPath
+	hyperConfig.PauseBinPath = pauseBinPath
 	config.AgentConfig = hyperConfig
 
 	p, err := CreatePod(config)
@@ -337,6 +359,11 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 
 	p, err = StopPod(p.id)
 	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -372,9 +399,16 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
 	defer mock.Stop()
 
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	hyperConfig.SockCtlName = ctlSockPath
 	hyperConfig.SockTtyName = ioSockPath
+	hyperConfig.PauseBinPath = pauseBinPath
 	config.AgentConfig = hyperConfig
 
 	p, err := RunPod(config)
@@ -384,6 +418,13 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 
 	podDir := filepath.Join(configStoragePath, p.id)
 	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.agent.(*hyper).bindUnmountAllRootfs()
+
+	err = os.Remove(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -649,60 +690,6 @@ func TestStartContainerNoopAgentSuccessful(t *testing.T) {
 	}
 }
 
-func TestStartContainerHyperstartAgentSuccessful(t *testing.T) {
-	contID := "100"
-	config := newTestPodConfigHyperstartAgent()
-
-	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
-
-	hyperConfig := config.AgentConfig.(HyperConfig)
-	hyperConfig.SockCtlName = ctlSockPath
-	hyperConfig.SockTtyName = ioSockPath
-	config.AgentConfig = hyperConfig
-
-	p, err := CreatePod(config)
-	if p == nil || err != nil {
-		mock.Stop()
-		t.Fatal(err)
-	}
-
-	podDir := filepath.Join(configStoragePath, p.id)
-	_, err = os.Stat(podDir)
-	if err != nil {
-		mock.Stop()
-		t.Fatal(err)
-	}
-
-	p, err = StartPod(p.id)
-	if p == nil || err != nil {
-		mock.Stop()
-		t.Fatal(err)
-	}
-
-	mock.Stop()
-
-	contConfig := newTestContainerConfigNoop(contID)
-
-	c, err := CreateContainer(p.id, contConfig)
-	if c == nil || err != nil {
-		t.Fatal(err)
-	}
-
-	contDir := filepath.Join(podDir, contID)
-	_, err = os.Stat(contDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mock.Start()
-	defer mock.Stop()
-
-	c, err = StartContainer(p.id, contID)
-	if c == nil || err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestStartContainerFailingNoPod(t *testing.T) {
 	podDir := filepath.Join(configStoragePath, testPodID)
 	contID := "100"
@@ -813,15 +800,22 @@ func TestStopContainerNoopAgentSuccessful(t *testing.T) {
 	}
 }
 
-func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
+func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 
 	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
 
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	hyperConfig.SockCtlName = ctlSockPath
 	hyperConfig.SockTtyName = ioSockPath
+	hyperConfig.PauseBinPath = pauseBinPath
 	config.AgentConfig = hyperConfig
 
 	p, err := CreatePod(config)
@@ -872,6 +866,13 @@ func TestStopContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	c, err = StopContainer(p.id, contID)
 	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p.agent.(*hyper).bindUnmountAllRootfs()
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -999,13 +1000,20 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	ctlSockPath, ioSockPath, mock := startMockHyperstart(t)
 
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	hyperConfig.SockCtlName = ctlSockPath
 	hyperConfig.SockTtyName = ioSockPath
+	hyperConfig.PauseBinPath = pauseBinPath
 	config.AgentConfig = hyperConfig
 
 	p, err := CreatePod(config)
-	if p == nil || err != nil {
+	if err != nil {
 		mock.Stop()
 		t.Fatal(err)
 	}
@@ -1018,7 +1026,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	}
 
 	p, err = StartPod(p.id)
-	if p == nil || err != nil {
+	if err != nil {
 		mock.Stop()
 		t.Fatal(err)
 	}
@@ -1027,8 +1035,8 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	contConfig := newTestContainerConfigNoop(contID)
 
-	c, err := CreateContainer(p.id, contConfig)
-	if c == nil || err != nil {
+	_, err = CreateContainer(p.id, contConfig)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -1040,8 +1048,8 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	mock.Start()
 
-	c, err = StartContainer(p.id, contID)
-	if c == nil || err != nil {
+	_, err = StartContainer(p.id, contID)
+	if err != nil {
 		mock.Stop()
 		t.Fatal(err)
 	}
@@ -1051,10 +1059,26 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	cmd := newBasicTestCmd()
 
 	mock.Start()
+
+	_, err = EnterContainer(p.id, contID, cmd)
+	if err != nil {
+		mock.Stop()
+		t.Fatal(err)
+	}
+
+	mock.Stop()
+	mock.Start()
 	defer mock.Stop()
 
-	c, err = EnterContainer(p.id, contID, cmd)
-	if c == nil || err != nil {
+	_, err = StopContainer(p.id, contID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.agent.(*hyper).bindUnmountAllRootfs()
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
