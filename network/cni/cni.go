@@ -47,16 +47,22 @@ type cniNetwork struct {
 // NewNetworkPlugin initialize the CNI network plugin and returns
 // a handler to it.
 func NewNetworkPlugin() (*NetworkPlugin, error) {
+	return NewNetworkPluginWithArgs(PluginConfDir, PluginBinDir)
+}
+
+// NewNetworkPluginWithArgs initialize the CNI network plugin, specifying the
+// configuration and binary directories, and it returns a handler to it.
+func NewNetworkPluginWithArgs(confDir, binDir string) (*NetworkPlugin, error) {
 	var err error
 
 	plugin := &NetworkPlugin{}
 
-	plugin.loNetwork, err = getLoNetwork()
+	plugin.loNetwork, err = getLoNetwork(confDir, binDir)
 	if err != nil {
 		return nil, err
 	}
 
-	plugin.defNetwork, err = getDefNetwork()
+	plugin.defNetwork, err = getDefNetwork(confDir, binDir)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +70,14 @@ func NewNetworkPlugin() (*NetworkPlugin, error) {
 	return plugin, nil
 }
 
-func getNetwork(defaultName string, local bool) (*cniNetwork, error) {
-	confFiles, err := libcni.ConfFiles(PluginConfDir)
-	if err != nil {
-		return nil, err
+func getNetwork(confDir, binDir, defaultName string, local bool) (*cniNetwork, error) {
+	confFiles, err := libcni.ConfFiles(confDir)
+	if err != nil || confFiles == nil {
+		return nil, fmt.Errorf("Invalid configuration directory %s", confDir)
 	}
 
 	if len(confFiles) == 0 {
-		return nil, fmt.Errorf("Could not find networks in %s", PluginConfDir)
+		return nil, fmt.Errorf("Could not find networks in %s", confDir)
 	}
 
 	if local == true {
@@ -87,7 +93,7 @@ func getNetwork(defaultName string, local bool) (*cniNetwork, error) {
 		}
 
 		cninet := &libcni.CNIConfig{
-			Path: []string{PluginBinDir},
+			Path: []string{binDir},
 		}
 
 		name := defaultName
@@ -104,35 +110,30 @@ func getNetwork(defaultName string, local bool) (*cniNetwork, error) {
 		return network, nil
 	}
 
-	return nil, fmt.Errorf("No valid networks found in %s", PluginConfDir)
+	return nil, fmt.Errorf("No valid networks found in %s", confDir)
 }
 
-func getLoNetwork() (*cniNetwork, error) {
-	return getNetwork(LocalNetName, true)
+func getLoNetwork(confDir, binDir string) (*cniNetwork, error) {
+	return getNetwork(confDir, binDir, LocalNetName, true)
 }
 
-func getDefNetwork() (*cniNetwork, error) {
-	return getNetwork(DefNetName, false)
+func getDefNetwork(confDir, binDir string) (*cniNetwork, error) {
+	return getNetwork(confDir, binDir, DefNetName, false)
 }
 
-func buildRuntimeConf(podID string, podNetNSPath string, ifName string) (*libcni.RuntimeConf, error) {
-	rt := &libcni.RuntimeConf{
+func buildRuntimeConf(podID, podNetNSPath, ifName string) *libcni.RuntimeConf {
+	return &libcni.RuntimeConf{
 		ContainerID: podID,
 		NetNS:       podNetNSPath,
 		IfName:      ifName,
 	}
-
-	return rt, nil
 }
 
 // AddNetwork calls the CNI plugin to create a network between the host and the network namespace.
-func (plugin *NetworkPlugin) AddNetwork(podID string, netNSPath string, ifName string) (*types.Result, error) {
-	rt, err := buildRuntimeConf(podID, netNSPath, ifName)
-	if err != nil {
-		return nil, err
-	}
+func (plugin *NetworkPlugin) AddNetwork(podID, netNSPath, ifName string) (*types.Result, error) {
+	rt := buildRuntimeConf(podID, netNSPath, ifName)
 
-	_, err = plugin.loNetwork.cniConfig.AddNetwork(plugin.loNetwork.networkConfig, rt)
+	_, err := plugin.loNetwork.cniConfig.AddNetwork(plugin.loNetwork.networkConfig, rt)
 	if err != nil {
 		return nil, err
 	}
@@ -147,13 +148,10 @@ func (plugin *NetworkPlugin) AddNetwork(podID string, netNSPath string, ifName s
 
 // RemoveNetwork calls the CNI plugin to remove a specific network previously created between
 // the host and the network namespace.
-func (plugin *NetworkPlugin) RemoveNetwork(podID string, netNSPath string, ifName string) error {
-	rt, err := buildRuntimeConf(podID, netNSPath, ifName)
-	if err != nil {
-		return err
-	}
+func (plugin *NetworkPlugin) RemoveNetwork(podID, netNSPath, ifName string) error {
+	rt := buildRuntimeConf(podID, netNSPath, ifName)
 
-	err = plugin.defNetwork.cniConfig.DelNetwork(plugin.defNetwork.networkConfig, rt)
+	err := plugin.defNetwork.cniConfig.DelNetwork(plugin.defNetwork.networkConfig, rt)
 	if err != nil {
 		return err
 	}
