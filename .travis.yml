@@ -17,6 +17,22 @@ before_install:
   - go get github.com/golang/lint/golint
   - go get github.com/client9/misspell/cmd/misspell
   - go get github.com/01org/ciao/test-cases
+  - go get github.com/containernetworking/cni/libcni
+  - go get github.com/containernetworking/cni/pkg/types
+  - go get github.com/containernetworking/cni/pkg/ns
+
+install:
+  - mkdir -p $HOME/build
+  - pushd $HOME/build
+  - git clone https://github.com/containernetworking/cni.git
+  - cd cni
+  - ./build
+  - sudo mkdir -p /tmp/cni/bin
+  - sudo cp ./bin/bridge /tmp/cni/bin/cni-bridge
+  - sudo cp ./bin/loopback /tmp/cni/bin/loopback
+  - sudo cp ./bin/host-local /tmp/cni/bin/host-local
+  - popd
+  - go get -t -v ./...
 
 script:
    - go env
@@ -28,7 +44,7 @@ script:
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs -L 1 ineffassign
    - go list ./... | xargs go list -f '{{.Dir}}' | xargs gofmt -s -l | wc -l | xargs -I % bash -c "test % -eq 0"
    - go build ./...
-   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin $GOPATH/bin/test-cases -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/containers/virtcontainers/...
+   - export GOROOT=`go env GOROOT` && sudo -E PATH=$PATH:$GOROOT/bin:/tmp/cni/bin $GOPATH/bin/test-cases -v -timeout 9 -short -coverprofile /tmp/cover.out github.com/containers/virtcontainers/...
 
 after_success:
    - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=/tmp/cover.out
