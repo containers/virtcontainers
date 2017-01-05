@@ -183,20 +183,6 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 }
 
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
-	if podConfig.ID != "" {
-		// Add the pod rootfs
-		devices = append(devices,
-			ciaoQemu.FSDevice{
-				Driver:        ciaoQemu.Virtio9P,
-				FSDriver:      ciaoQemu.Local,
-				ID:            fmt.Sprintf("pod-%s-9p", podConfig.ID),
-				Path:          podConfig.RootFs,
-				MountTag:      fmt.Sprintf("pod-rootfs-%s", podConfig.ID),
-				SecurityModel: ciaoQemu.None,
-			},
-		)
-	}
-
 	// Add the containers rootfs
 	for _, c := range podConfig.Containers {
 		if c.RootFs == "" || c.ID == "" {
