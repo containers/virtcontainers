@@ -26,12 +26,12 @@ $ sudo apt install linux-container
 #### Get your image
 
 It has to be a recent Clear Linux image to make sure it contains hyperstart binary.
-You can dowload the following tested [image](https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz), or any version more recent.
+You can dowload the following tested [image](https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz), or any version more recent.
 
 ```
-$ wget https://download.clearlinux.org/releases/11130/clear/clear-11130-containers.img.xz
-$ unxz clear-11130-containers.img.xz
-$ sudo cp clear-11130-containers.img /usr/share/clear-containers/clear-containers.img
+$ wget https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz
+$ unxz clear-12210-containers.img.xz
+$ sudo cp clear-12210-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
@@ -41,10 +41,16 @@ _Download virtc_
 $ go get github.com/containers/virtcontainers
 ```
 
-_Build virtc_
+_Build and install pause binary_
 ```
 $ cd $GOPATH/src/github.com/containers/virtcontainers
-$ cd virtc && go build
+$ make
+$ make install
+```
+
+_Go to virtc_
+```
+$ cd hack/virtc
 ```
 
 ### Run virtc
@@ -67,11 +73,11 @@ $ echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/s
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --bundle="/tmp/bundles/busybox/rootfs" --agent="hyperstart" --init-cmd="/bin/sh"
+./virtc pod run --agent="hyperstart" --network="CNI"
 ```
 #### Create a new pod
 ```
-./virtc pod create --bundle="/tmp/bundles/busybox/rootfs" --agent="hyperstart" --init-cmd="/bin/sh"
+./virtc pod create --agent="hyperstart" --network="CNI"
 ```
 This should generate that kind of output
 ```
@@ -98,7 +104,6 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
 
 CONTAINER ID    STATE
-1               ready
 ```
 
 #### Delete an existing pod
