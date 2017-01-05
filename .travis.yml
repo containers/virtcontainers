@@ -17,9 +17,6 @@ before_install:
   - go get github.com/golang/lint/golint
   - go get github.com/client9/misspell/cmd/misspell
   - go get github.com/01org/ciao/test-cases
-  - go get github.com/containernetworking/cni/libcni
-  - go get github.com/containernetworking/cni/pkg/types
-  - go get github.com/containernetworking/cni/pkg/ns
 
 install:
   - mkdir -p $HOME/build
