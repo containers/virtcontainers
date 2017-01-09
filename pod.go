@@ -242,12 +242,6 @@ type PodConfig struct {
 	NetworkModel  NetworkModel
 	NetworkConfig NetworkConfig
 
-	// Rootfs is the pod root file system in the host.
-	// This can be left empty if we only have a set of containers
-	// workload images and expect the agent to aggregate them into
-	// a pod from the guest.
-	RootFs string
-
 	// Volumes is a list of shared volumes between the host and the Pod.
 	Volumes []Volume
 
@@ -316,7 +310,6 @@ type Pod struct {
 
 	config *PodConfig
 
-	rootFs  string
 	volumes []Volume
 
 	containers []ContainerConfig
@@ -380,7 +373,6 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 		agent:      agent,
 		storage:    &filesystem{},
 		config:     &podConfig,
-		rootFs:     podConfig.RootFs,
 		volumes:    podConfig.Volumes,
 		containers: podConfig.Containers,
 		runPath:    filepath.Join(runStoragePath, podConfig.ID),
@@ -593,11 +585,6 @@ func (p *Pod) start() error {
 }
 
 func (p *Pod) stopCheckStates() error {
-	err := p.checkContainersState(stateRunning)
-	if err != nil {
-		return err
-	}
-
 	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
 		return err

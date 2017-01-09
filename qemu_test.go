@@ -150,21 +150,12 @@ func TestQemuAppendSocket(t *testing.T) {
 
 func TestQemuAppendFSDevices(t *testing.T) {
 	podID := "testPodID"
-	podRootFs := "testPodRootFs"
 	contID := "testContID"
 	contRootFs := "testContRootFs"
 	volMountTag := "testVolMountTag"
 	volHostPath := "testVolHostPath"
 
 	expectedOut := []ciaoQemu.Device{
-		ciaoQemu.FSDevice{
-			Driver:        ciaoQemu.Virtio9P,
-			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("pod-%s-9p", podID),
-			Path:          podRootFs,
-			MountTag:      fmt.Sprintf("pod-rootfs-%s", podID),
-			SecurityModel: ciaoQemu.None,
-		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
@@ -223,7 +214,6 @@ func TestQemuAppendFSDevices(t *testing.T) {
 
 	podConfig := PodConfig{
 		ID:         podID,
-		RootFs:     podRootFs,
 		Volumes:    volumes,
 		Containers: containers,
 	}

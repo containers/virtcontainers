@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -34,7 +35,11 @@ var defaultChannelTemplate = "sh.hyper.channel.%d"
 var defaultDeviceIDTemplate = "channel%d"
 var defaultIDTemplate = "charch%d"
 var defaultSharedDir = "/tmp/hyper/shared/pods/"
+var defaultPauseBinDir = "/usr/bin/"
 var mountTag = "hyperShared"
+var rootfsDir = "rootfs"
+var pauseBinName = "pause"
+var pauseContainerName = "pause-container"
 
 const (
 	unixSocket = "unix"
@@ -43,10 +48,11 @@ const (
 // HyperConfig is a structure storing information needed for
 // hyperstart agent initialization.
 type HyperConfig struct {
-	SockCtlName string
-	SockTtyName string
-	Volumes     []Volume
-	Sockets     []Socket
+	SockCtlName  string
+	SockTtyName  string
+	Volumes      []Volume
+	Sockets      []Socket
+	PauseBinPath string
 }
 
 func (c *HyperConfig) validate(pod Pod) bool {
@@ -74,6 +80,10 @@ func (c *HyperConfig) validate(pod Pod) bool {
 
 	if len(c.Sockets) != 2 {
 		return false
+	}
+
+	if c.PauseBinPath == "" {
+		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
 	glog.Infof("Hyperstart config %v\n", c)
@@ -139,16 +149,41 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperJson.Process, error) 
 	return process, nil
 }
 
-func bindMountContainerRootfs(pod Pod, container ContainerConfig) error {
-	rootfsDest := filepath.Join(defaultSharedDir, pod.id, container.ID)
+func (h *hyper) linkPauseBinary() error {
+	pauseDir := filepath.Join(defaultSharedDir, h.pod.id, pauseContainerName, rootfsDir)
+
+	err := os.MkdirAll(pauseDir, os.ModeDir)
+	if err != nil {
+		return err
+	}
+
+	pausePath := filepath.Join(pauseDir, pauseBinName)
+
+	return os.Link(h.config.PauseBinPath, pausePath)
+}
+
+func (h *hyper) unlinkPauseBinary() error {
+	pauseDir := filepath.Join(defaultSharedDir, h.pod.id, pauseContainerName)
+
+	return os.RemoveAll(pauseDir)
+}
+
+func (h *hyper) bindMountContainerRootfs(container ContainerConfig) error {
+	rootfsDest := filepath.Join(defaultSharedDir, h.pod.id, container.ID)
 
 	return bindMount(container.RootFs, rootfsDest)
 }
 
-func bindUnmountAllRootfs(pod Pod) {
-	for _, c := range pod.containers {
-		rootfsDest := filepath.Join(defaultSharedDir, pod.id, c.ID)
-		syscall.Unmount(rootfsDest, 0)
+func (h *hyper) bindUnmountContainerRootfs(container ContainerConfig) error {
+	rootfsDest := filepath.Join(defaultSharedDir, h.pod.id, container.ID)
+	syscall.Unmount(rootfsDest, 0)
+
+	return nil
+}
+
+func (h *hyper) bindUnmountAllRootfs() {
+	for _, c := range h.pod.containers {
+		h.bindUnmountContainerRootfs(c)
 	}
 }
 
@@ -180,14 +215,6 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 		}
 	}
 
-	for _, c := range pod.containers {
-		err := bindMountContainerRootfs(pod, c)
-		if err != nil {
-			bindUnmountAllRootfs(pod)
-			return err
-		}
-	}
-
 	// Adding the hyper shared volume.
 	// This volume contains all bind mounted container bundles.
 	sharedVolume := Volume{
@@ -195,7 +222,12 @@ func (h *hyper) init(pod Pod, config interface{}) error {
 		HostPath: filepath.Join(defaultSharedDir, pod.id),
 	}
 
-	err := h.pod.hypervisor.addDevice(sharedVolume, fsDev)
+	err := os.MkdirAll(sharedVolume.HostPath, os.ModeDir)
+	if err != nil {
+		return err
+	}
+
+	err = h.pod.hypervisor.addDevice(sharedVolume, fsDev)
 	if err != nil {
 		return err
 	}
@@ -251,27 +283,9 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(config PodConfig) error {
-	var containers []hyperJson.Container
-
-	for _, c := range config.Containers {
-		process, err := h.buildHyperContainerProcess(c.Cmd)
-		if err != nil {
-			return err
-		}
-
-		container := hyperJson.Container{
-			Id:      c.ID,
-			Image:   c.ID,
-			Rootfs:  "rootfs",
-			Process: process,
-		}
-
-		containers = append(containers, container)
-	}
-
 	hyperPod := hyperJson.Pod{
 		Hostname:             config.ID,
-		DeprecatedContainers: containers,
+		DeprecatedContainers: []hyperJson.Container{},
 		ShareDir:             mountTag,
 	}
 
@@ -285,6 +299,18 @@ func (h *hyper) startPod(config PodConfig) error {
 		return err
 	}
 
+	err = h.startPauseContainer(h.pod)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range config.Containers {
+		err := h.startContainer(h.pod, c)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -294,6 +320,13 @@ func (h *hyper) stopPod(pod Pod) error {
 	if err != nil {
 		return err
 	}
+
+	err = h.unlinkPauseBinary()
+	if err != nil {
+		return err
+	}
+
+	h.bindUnmountAllRootfs()
 
 	return nil
 }
@@ -305,7 +338,43 @@ func (h *hyper) stopAgent() error {
 		return err
 	}
 
-	bindUnmountAllRootfs(h.pod)
+	return nil
+}
+
+// startPauseContainer starts a specific container running the pause binary provided.
+func (h *hyper) startPauseContainer(pod Pod) error {
+	cmd := Cmd{
+		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
+		Envs:    []EnvVar{},
+		WorkDir: "/",
+	}
+
+	process, err := h.buildHyperContainerProcess(cmd)
+	if err != nil {
+		return err
+	}
+
+	container := hyperJson.Container{
+		Id:      pauseContainerName,
+		Image:   pauseContainerName,
+		Rootfs:  rootfsDir,
+		Process: process,
+	}
+
+	err = h.linkPauseBinary()
+	if err != nil {
+		return err
+	}
+
+	payload, err := hyperstart.FormatMessage(container)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.hyperstart.SendCtlMessage(hyperstart.NewContainer, payload)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -319,9 +388,15 @@ func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 
 	container := hyperJson.Container{
 		Id:      contConfig.ID,
-		Image:   "",
-		Rootfs:  "",
+		Image:   contConfig.ID,
+		Rootfs:  rootfsDir,
 		Process: process,
+	}
+
+	err = h.bindMountContainerRootfs(contConfig)
+	if err != nil {
+		h.bindUnmountAllRootfs()
+		return err
 	}
 
 	payload, err := hyperstart.FormatMessage(container)
@@ -339,9 +414,14 @@ func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, container Container) error {
-	payload := []byte(fmt.Sprintf("{\"container\":\"%s\",\"signal\":\"9\"}", container.id))
+	payload := []byte(fmt.Sprintf("{\"container\":\"%s\"}", container.id))
 
-	_, err := h.hyperstart.SendCtlMessage(hyperstart.KillContainer, payload)
+	_, err := h.hyperstart.SendCtlMessage(hyperstart.RemoveContainer, payload)
+	if err != nil {
+		return err
+	}
+
+	err = h.bindUnmountContainerRootfs(*(container.config))
 	if err != nil {
 		return err
 	}
