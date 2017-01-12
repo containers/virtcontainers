@@ -106,6 +106,11 @@ type ExecInfo struct {
 	Process   hyperJson.Process `json:"process"`
 }
 
+type hyperstartProxyCmd struct {
+	cmd     string
+	message interface{}
+}
+
 func (h *hyper) retryConnectSocket(retry int) error {
 	var err error
 
