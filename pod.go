@@ -242,6 +242,8 @@ type PodConfig struct {
 	NetworkModel  NetworkModel
 	NetworkConfig NetworkConfig
 
+	ProxyType ProxyType
+
 	// Volumes is a list of shared volumes between the host and the Pod.
 	Volumes []Volume
 
@@ -405,7 +407,7 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 		agentConfig = nil
 	}
 
-	err = p.agent.init(*p, agentConfig)
+	err = p.agent.init(p, agentConfig)
 	if err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
