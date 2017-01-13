@@ -114,7 +114,7 @@ type hyperstartProxyCmd struct {
 	message interface{}
 }
 
-func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64) (*hyperJson.Process, error) {
+func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64, terminal bool) (*hyperJson.Process, error) {
 	var envVars []hyperJson.EnvironmentVar
 
 	for _, e := range cmd.Envs {
@@ -127,13 +127,14 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64)
 	}
 
 	process := &hyperJson.Process{
-		User:    cmd.User,
-		Group:   cmd.Group,
-		Stdio:   stdio,
-		Stderr:  stderr,
-		Args:    cmd.Args,
-		Envs:    envVars,
-		Workdir: cmd.WorkDir,
+		User:     cmd.User,
+		Group:    cmd.Group,
+		Terminal: terminal,
+		Stdio:    stdio,
+		Stderr:   stderr,
+		Args:     cmd.Args,
+		Envs:     envVars,
+		Workdir:  cmd.WorkDir,
 	}
 
 	return process, nil
@@ -244,7 +245,7 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 		return err
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID)
+	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID, container.config.Interactive)
 	if err != nil {
 		return err
 	}
@@ -348,7 +349,7 @@ func (h *hyper) startPauseContainer(pod Pod, ioStream IOStream) error {
 		WorkDir: "/",
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID)
+	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID, false)
 	if err != nil {
 		return err
 	}
@@ -379,7 +380,7 @@ func (h *hyper) startPauseContainer(pod Pod, ioStream IOStream) error {
 }
 
 func (h *hyper) startOneContainer(pod Pod, contConfig ContainerConfig, ioStream IOStream) error {
-	process, err := h.buildHyperContainerProcess(contConfig.Cmd, ioStream.StdoutID, ioStream.StderrID)
+	process, err := h.buildHyperContainerProcess(contConfig.Cmd, ioStream.StdoutID, ioStream.StderrID, contConfig.Interactive)
 	if err != nil {
 		return err
 	}
