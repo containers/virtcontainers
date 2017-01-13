@@ -73,11 +73,11 @@ $ echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/s
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --agent="hyperstart" --network="CNI"
+./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy"
 ```
 #### Create a new pod
 ```
-./virtc pod create --agent="hyperstart" --network="CNI"
+./virtc pod create --agent="hyperstart" --network="CNI" --proxy="ccProxy"
 ```
 This should generate that kind of output
 ```

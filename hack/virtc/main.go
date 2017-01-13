@@ -48,6 +48,12 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the network model",
 	},
 
+	cli.GenericFlag{
+		Name:  "proxy",
+		Value: new(vc.ProxyType),
+		Usage: "the agent's proxy",
+	},
+
 	cli.StringFlag{
 		Name:  "sshd-user",
 		Value: "",
@@ -142,6 +148,11 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert network model")
 	}
 
+	proxyType, ok := context.Generic("proxy").(*vc.ProxyType)
+	if ok != true {
+		return vc.PodConfig{}, fmt.Errorf("Could not convert proxy type")
+	}
+
 	volumes, ok := context.Generic("volume").(*vc.Volumes)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
@@ -205,6 +216,8 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 
 		NetworkModel:  *networkModel,
 		NetworkConfig: netConfig,
+
+		ProxyType: *proxyType,
 
 		Containers: []vc.ContainerConfig{},
 	}
