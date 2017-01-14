@@ -314,16 +314,6 @@ func (h *hyper) stopPod(pod Pod) error {
 		return err
 	}
 
-	proxyCmd := hyperstartProxyCmd{
-		cmd:     hyperstart.DestroyPod,
-		message: nil,
-	}
-
-	_, err = h.proxy.sendCmd(proxyCmd)
-	if err != nil {
-		return err
-	}
-
 	err = h.proxy.unregister(pod)
 	if err != nil {
 		return err
