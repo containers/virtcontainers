@@ -114,7 +114,7 @@ type agent interface {
 	// init().
 	// After init() is called, agent implementations should be initialized and ready
 	// to handle all other Agent interface methods.
-	init(pod Pod, config interface{}) error
+	init(pod *Pod, config interface{}) error
 
 	// startAgent will start the agent.
 	startAgent() error

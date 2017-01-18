@@ -22,7 +22,7 @@ import (
 
 func TestNoopAgentInit(t *testing.T) {
 	n := &noopAgent{}
-	pod := Pod{}
+	pod := &Pod{}
 
 	err := n.init(pod, nil)
 	if err != nil {
