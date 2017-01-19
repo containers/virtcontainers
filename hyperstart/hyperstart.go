@@ -407,6 +407,12 @@ func (h *Hyperstart) WaitForReady() error {
 }
 
 // SendCtlMessage sends a message to the CTL channel.
+//
+// This function does a full transaction over the CTL channel: it will write a
+// command and wait for hyperstart's answer before returning. Several
+// concurrent calls to SendCtlMessage is allowed, the function ensuring proper
+// serialization of the communication over the underlying hyperstart serial
+// link.
 func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMessage, error) {
 	h.ctlMutex.Lock()
 	defer h.ctlMutex.Unlock()
