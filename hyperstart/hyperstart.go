@@ -230,7 +230,11 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 	return payloadSlice, nil
 }
 
-func (h *Hyperstart) readCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
+// ReadCtlMessage reads an hyperstart message from conn and returns a decoded message.
+//
+// This is a low level function, for a full and safe transaction on the
+// hyperstart control serial link, use SendCtlMessage.
+func (h *Hyperstart) ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 	needRead := ctlHdrSize
 	length := 0
 	read := 0
@@ -263,7 +267,11 @@ func (h *Hyperstart) readCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error
 	}, nil
 }
 
-func (h *Hyperstart) writeCtlMessage(conn net.Conn, m *hyper.DecodedMessage) error {
+// WriteCtlMessage writes an hyperstart message to conn.
+//
+// This is a low level function, for a full and safe transaction on the
+// hyperstart control serial link, use SendCtlMessage.
+func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) error {
 	length := len(m.Message) + ctlHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
@@ -368,7 +376,7 @@ func (h *Hyperstart) expectReadingCmd(conn net.Conn, code uint32) (*hyper.Decode
 	var err error
 
 	for {
-		msg, err = h.readCtlMessage(conn)
+		msg, err = h.ReadCtlMessage(conn)
 		if err != nil {
 			return nil, nil
 		}
@@ -427,7 +435,7 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 		Code:    code,
 		Message: data,
 	}
-	err = h.writeCtlMessage(h.ctl, msg)
+	err = h.WriteCtlMessage(h.ctl, msg)
 	if err != nil {
 		return nil, err
 	}

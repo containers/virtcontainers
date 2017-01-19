@@ -223,7 +223,7 @@ func TestReadCtlMessage(t *testing.T) {
 
 	mockHyper.SendMessage(int(expected.Code), expected.Message)
 
-	reply, err := h.readCtlMessage(h.ctl)
+	reply, err := h.ReadCtlMessage(h.ctl)
 	if err != nil {
 		t.Fatal()
 	}
@@ -246,7 +246,7 @@ func TestWriteCtlMessage(t *testing.T) {
 		Message: []byte{},
 	}
 
-	err = h.writeCtlMessage(h.ctl, &msg)
+	err = h.WriteCtlMessage(h.ctl, &msg)
 	if err != nil {
 		t.Fatal()
 	}
