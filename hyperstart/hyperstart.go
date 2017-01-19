@@ -230,7 +230,7 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 	return payloadSlice, nil
 }
 
-func (h *Hyperstart) readCtlMessage() (*hyper.DecodedMessage, error) {
+func (h *Hyperstart) readCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 	needRead := ctlHdrSize
 	length := 0
 	read := 0
@@ -241,7 +241,7 @@ func (h *Hyperstart) readCtlMessage() (*hyper.DecodedMessage, error) {
 		if want > 512 {
 			want = 512
 		}
-		nr, err := h.ctl.Read(buf[:want])
+		nr, err := conn.Read(buf[:want])
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +263,7 @@ func (h *Hyperstart) readCtlMessage() (*hyper.DecodedMessage, error) {
 	}, nil
 }
 
-func (h *Hyperstart) writeCtlMessage(m *hyper.DecodedMessage) error {
+func (h *Hyperstart) writeCtlMessage(conn net.Conn, m *hyper.DecodedMessage) error {
 	length := len(m.Message) + ctlHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
@@ -276,7 +276,7 @@ func (h *Hyperstart) writeCtlMessage(m *hyper.DecodedMessage) error {
 	binary.BigEndian.PutUint32(msg[ctlHdrLenOffset:], uint32(length))
 	copy(msg[ctlHdrSize:], m.Message)
 
-	_, err := h.ctl.Write(msg)
+	_, err := conn.Write(msg)
 	if err != nil {
 		return err
 	}
@@ -363,12 +363,12 @@ func codeFromCmd(cmd string) (uint32, error) {
 	return codeList[cmd], nil
 }
 
-func (h *Hyperstart) expectReadingCmd(code uint32) (*hyper.DecodedMessage, error) {
+func (h *Hyperstart) expectReadingCmd(conn net.Conn, code uint32) (*hyper.DecodedMessage, error) {
 	var msg *hyper.DecodedMessage
 	var err error
 
 	for {
-		msg, err = h.readCtlMessage()
+		msg, err = h.readCtlMessage(conn)
 		if err != nil {
 			return nil, nil
 		}
@@ -398,7 +398,7 @@ func (h *Hyperstart) WaitForReady() error {
 	h.ctlMutex.Lock()
 	defer h.ctlMutex.Unlock()
 
-	_, err := h.expectReadingCmd(hyper.INIT_READY)
+	_, err := h.expectReadingCmd(h.ctl, hyper.INIT_READY)
 	if err != nil {
 		return err
 	}
@@ -427,13 +427,13 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 		Code:    code,
 		Message: data,
 	}
-	err = h.writeCtlMessage(msg)
+	err = h.writeCtlMessage(h.ctl, msg)
 	if err != nil {
 		return nil, err
 	}
 
 	// Wait for answer
-	resp, err := h.expectReadingCmd(hyper.INIT_ACK)
+	resp, err := h.expectReadingCmd(h.ctl, hyper.INIT_ACK)
 	if err != nil {
 		return nil, err
 	}
