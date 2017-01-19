@@ -376,13 +376,13 @@ func TestRemoveNetworkFailureNetworkDoesNotExist(t *testing.T) {
 func TestMain(m *testing.M) {
 	err := os.MkdirAll(testConfDir, os.ModeDir)
 	if err != nil {
-		fmt.Printf("Could not create test configuration directory\n")
+		fmt.Println("Could not create test configuration directory:", err)
 		os.Exit(1)
 	}
 
 	_, err = os.Stat(testBinDir)
 	if err != nil {
-		fmt.Printf("Test binary directory should exist\n")
+		fmt.Println("Test binary directory should exist:", err)
 		os.RemoveAll(testConfDir)
 		os.Exit(1)
 	}
