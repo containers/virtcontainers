@@ -340,6 +340,30 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
+func createNetworkEndpoint(idx int, uniqueID string, ifName string) Endpoint {
+	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
+
+	endpoint := Endpoint{
+		NetPair: NetworkInterfacePair{
+			ID:   fmt.Sprintf("%s-%d", uniqueID, idx),
+			Name: fmt.Sprintf("br%d", idx),
+			VirtIface: NetworkInterface{
+				Name:     fmt.Sprintf("eth%d", idx),
+				HardAddr: hardAddr.String(),
+			},
+			TAPIface: NetworkInterface{
+				Name: fmt.Sprintf("tap%d", idx),
+			},
+		},
+	}
+
+	if ifName != "" {
+		endpoint.NetPair.VirtIface.Name = ifName
+	}
+
+	return endpoint
+}
+
 func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
@@ -350,23 +374,7 @@ func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	uniqueID := uuid.Generate().String()
 
 	for i := 0; i < numOfEndpoints; i++ {
-		hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(i >> 8), byte(i)}
-
-		endpoint := Endpoint{
-			NetPair: NetworkInterfacePair{
-				ID:   fmt.Sprintf("%s-%d", uniqueID, i),
-				Name: fmt.Sprintf("br%d", i),
-				VirtIface: NetworkInterface{
-					Name:     fmt.Sprintf("eth%d", i),
-					HardAddr: hardAddr.String(),
-				},
-				TAPIface: NetworkInterface{
-					Name: fmt.Sprintf("tap%d", i),
-				},
-			},
-		}
-
-		endpoints = append(endpoints, endpoint)
+		endpoints = append(endpoints, createNetworkEndpoint(i, uniqueID, ""))
 	}
 
 	return endpoints, nil
