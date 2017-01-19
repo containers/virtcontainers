@@ -230,6 +230,9 @@ type Resources struct {
 type PodConfig struct {
 	ID string
 
+	// Field specific to OCI specs, needed to setup all the hooks
+	Hooks Hooks
+
 	// VMConfig is the VM configuration to set for this pod.
 	VMConfig Resources
 
