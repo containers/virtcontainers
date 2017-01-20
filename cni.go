@@ -90,16 +90,18 @@ func (n *cni) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 		return NetworkNamespace{}, err
 	}
 
-	err = setNetNS(config.NetNSPath)
+	err = doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
+		for _, endpoint := range networkNS.Endpoints {
+			err = bridgeNetworkPair(endpoint.NetPair)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
 		return NetworkNamespace{}, err
-	}
-
-	for _, endpoint := range networkNS.Endpoints {
-		err = bridgeNetworkPair(endpoint.NetPair)
-		if err != nil {
-			return NetworkNamespace{}, err
-		}
 	}
 
 	return networkNS, nil
