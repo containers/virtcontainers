@@ -91,27 +91,33 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Initialize the network.
+	n := newNetwork(p.config.NetworkModel)
+	err = n.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
+	// Join the network.
+	err = n.join(p.config.NetworkConfig.NetNSPath)
+	if err != nil {
+		return nil, err
+	}
+
 	// Execute prestart hooks
 	err = p.config.Hooks.preStartHooks()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create the network.
-	n := newNetwork(p.config.NetworkModel)
-	networkNS, err := n.add(*p, &(p.config.NetworkConfig))
+	// Add the network
+	networkNS, err := n.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Store the network
 	err = p.storage.storePodNetwork(p.id, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
-	// Join the network.
-	err = n.join(networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -206,27 +212,33 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 	defer unlockPod(lockFile)
 
+	// Initialize the network.
+	n := newNetwork(p.config.NetworkModel)
+	err = n.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
+	// Join the network.
+	err = n.join(p.config.NetworkConfig.NetNSPath)
+	if err != nil {
+		return nil, err
+	}
+
 	// Execute prestart hooks
 	err = p.config.Hooks.preStartHooks()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create the network.
-	n := newNetwork(p.config.NetworkModel)
-	networkNS, err := n.add(*p, &(podConfig.NetworkConfig))
+	// Add the network
+	networkNS, err := n.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Store the network
 	err = p.storage.storePodNetwork(p.id, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
-	// Join the network.
-	err = n.join(networkNS)
 	if err != nil {
 		return nil, err
 	}

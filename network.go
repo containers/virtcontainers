@@ -380,12 +380,14 @@ func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
 // Container network plugins are used to setup virtual network
 // between VM netns and the host network physical interface.
 type network interface {
-	// add creates a new network namespace and its virtual network interfaces,
-	// and it creates and bridges TAP interfaces.
-	add(pod Pod, config *NetworkConfig) (NetworkNamespace, error)
+	// init initializes the network, setting a new network namespace.
+	init(config *NetworkConfig) error
 
 	// join switches the current process to the specified network namespace.
-	join(networkNS NetworkNamespace) error
+	join(networkNSPath string) error
+
+	// add adds all needed interfaces inside the network namespace.
+	add(pod Pod, config NetworkConfig) (NetworkNamespace, error)
 
 	// remove unbridges and deletes TAP interfaces. It also removes virtual network
 	// interfaces and deletes the network namespace.

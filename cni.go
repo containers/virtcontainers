@@ -61,20 +61,29 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 	return nil
 }
 
-// add creates a new network namespace and its virtual network interfaces,
-// and it creates and bridges TAP interfaces for the CNI network.
-func (n *cni) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
-	var err error
-
+// init initializes the network, setting a new network namespace for the CNI network.
+func (n *cni) init(config *NetworkConfig) error {
 	if config.NetNSPath == "" {
 		path, err := createNetNS()
 		if err != nil {
-			return NetworkNamespace{}, err
+			return err
 		}
 
 		config.NetNSPath = path
 	}
 
+	return nil
+}
+
+// join does not switch the current process to the specified network namespace
+// for the CNI network. Indeed, the switch will occur in the add() and remove()
+// functions instead.
+func (n *cni) join(networkNSPath string) error {
+	return nil
+}
+
+// add adds all needed interfaces inside the network namespace for the CNI network.
+func (n *cni) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
 	endpoints, err := createNetworkEndpoints(config.NumInterfaces)
 	if err != nil {
 		return NetworkNamespace{}, err
@@ -109,18 +118,12 @@ func (n *cni) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 		return NetworkNamespace{}, err
 	}
 
-	return networkNS, nil
-}
-
-// join switches the current process to the specified network namespace
-// for the CNI network.
-func (n *cni) join(networkNS NetworkNamespace) error {
-	err := setNetNS(networkNS.NetNsPath)
+	err = setNetNS(config.NetNSPath)
 	if err != nil {
-		return err
+		return NetworkNamespace{}, err
 	}
 
-	return nil
+	return networkNS, nil
 }
 
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
