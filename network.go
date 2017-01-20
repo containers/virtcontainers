@@ -372,6 +372,10 @@ func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	return endpoints, nil
 }
 
+func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
+	return pod.hypervisor.addDevice(endpoints, netDev)
+}
+
 // network is the virtcontainers network interface.
 // Container network plugins are used to setup virtual network
 // between VM netns and the host network physical interface.

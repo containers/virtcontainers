@@ -59,13 +59,7 @@ func testCreatePod(t *testing.T, id string,
 		Containers:       containers,
 	}
 
-	n := newNetwork(config.NetworkModel)
-	networkNS, err := n.add(&(config.NetworkConfig))
-	if err != nil {
-		return nil, fmt.Errorf("Could not add network: %s", err)
-	}
-
-	pod, err := createPod(config, networkNS)
+	pod, err := createPod(config)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}

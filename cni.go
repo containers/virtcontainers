@@ -104,6 +104,11 @@ func (n *cni) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 		return NetworkNamespace{}, err
 	}
 
+	err = addNetDevHypervisor(pod, networkNS.Endpoints)
+	if err != nil {
+		return NetworkNamespace{}, err
+	}
+
 	return networkNS, nil
 }
 

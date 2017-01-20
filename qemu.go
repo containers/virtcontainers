@@ -406,7 +406,7 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 }
 
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
-func (q *qemu) createPod(podConfig PodConfig, endpoints []Endpoint) error {
+func (q *qemu) createPod(podConfig PodConfig) error {
 	var devices []ciaoQemu.Device
 
 	machine := ciaoQemu.Machine{
@@ -466,8 +466,6 @@ func (q *qemu) createPod(podConfig PodConfig, endpoints []Endpoint) error {
 	if err != nil {
 		return err
 	}
-
-	devices = q.appendNetworks(devices, endpoints)
 
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
@@ -537,6 +535,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case serialPortDev:
 		socket := devInfo.(Socket)
 		q.qemuConfig.Devices = q.appendSocket(q.qemuConfig.Devices, socket)
+	case netDev:
+		endpoints := devInfo.([]Endpoint)
+		q.qemuConfig.Devices = q.appendNetworks(q.qemuConfig.Devices, endpoints)
 	default:
 		break
 	}
