@@ -27,7 +27,7 @@ import (
 func CreatePod(podConfig PodConfig) (*Pod, error) {
 	// Create the network.
 	n := newNetwork(podConfig.NetworkModel)
-	networkNS, err := n.add(&(podConfig.NetworkConfig))
+	networkNS, err := n.add(Pod{}, &(podConfig.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -35,14 +35,14 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 	// Create the pod.
 	p, err := createPod(podConfig, networkNS)
 	if err != nil {
-		n.remove(networkNS)
+		n.remove(Pod{}, networkNS)
 		return nil, err
 	}
 
 	// Store it.
 	err = p.storePod()
 	if err != nil {
-		n.remove(p.networkNS)
+		n.remove(Pod{}, p.networkNS)
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Remove the network.
 	n := newNetwork(p.config.NetworkModel)
-	err = n.remove(p.networkNS)
+	err = n.remove(Pod{}, p.networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func StopPod(podID string) (*Pod, error) {
 func RunPod(podConfig PodConfig) (*Pod, error) {
 	// Create the network.
 	n := newNetwork(podConfig.NetworkModel)
-	networkNS, err := n.add(&(podConfig.NetworkConfig))
+	networkNS, err := n.add(Pod{}, &(podConfig.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -171,14 +171,14 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	// Create the pod.
 	p, err := createPod(podConfig, networkNS)
 	if err != nil {
-		n.remove(networkNS)
+		n.remove(Pod{}, networkNS)
 		return nil, err
 	}
 
 	// Store it.
 	err = p.storePod()
 	if err != nil {
-		n.remove(p.networkNS)
+		n.remove(Pod{}, p.networkNS)
 		return nil, err
 	}
 

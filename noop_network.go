@@ -24,7 +24,7 @@ type noopNetwork struct {
 // add creates a new network namespace and its virtual network interfaces,
 // and it creates and bridges TAP interfaces for the Noop network.
 // It does nothing.
-func (n *noopNetwork) add(config *NetworkConfig) (NetworkNamespace, error) {
+func (n *noopNetwork) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 	return NetworkNamespace{}, nil
 }
 
@@ -38,6 +38,6 @@ func (n *noopNetwork) join(networkNS NetworkNamespace) error {
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
 // interfaces and deletes the network namespace for the Noop network.
 // It does nothing.
-func (n *noopNetwork) remove(networkNS NetworkNamespace) error {
+func (n *noopNetwork) remove(pod Pod, networkNS NetworkNamespace) error {
 	return nil
 }

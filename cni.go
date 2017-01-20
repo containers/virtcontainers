@@ -63,7 +63,7 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 
 // add creates a new network namespace and its virtual network interfaces,
 // and it creates and bridges TAP interfaces for the CNI network.
-func (n *cni) add(config *NetworkConfig) (NetworkNamespace, error) {
+func (n *cni) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 	var err error
 
 	if config.NetNSPath == "" {
@@ -118,7 +118,7 @@ func (n *cni) join(networkNS NetworkNamespace) error {
 
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
 // interfaces and deletes the network namespace for the CNI network.
-func (n *cni) remove(networkNS NetworkNamespace) error {
+func (n *cni) remove(pod Pod, networkNS NetworkNamespace) error {
 	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
 		for _, endpoint := range networkNS.Endpoints {
 			err := unBridgeNetworkPair(endpoint.NetPair)

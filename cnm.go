@@ -23,7 +23,7 @@ type cnm struct {
 
 // add creates a new network namespace and its virtual network interfaces,
 // and it creates and bridges TAP interfaces for the CNM network.
-func (n *cnm) add(config *NetworkConfig) (NetworkNamespace, error) {
+func (n *cnm) add(pod Pod, config *NetworkConfig) (NetworkNamespace, error) {
 	return NetworkNamespace{}, nil
 }
 
@@ -35,6 +35,6 @@ func (n *cnm) join(networkNS NetworkNamespace) error {
 
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
 // interfaces and deletes the network namespace for the CNM network.
-func (n *cnm) remove(networkNS NetworkNamespace) error {
+func (n *cnm) remove(pod Pod, networkNS NetworkNamespace) error {
 	return nil
 }
