@@ -81,6 +81,7 @@ type resourceStorage interface {
 	fetchPodConfig(podID string) (PodConfig, error)
 	fetchPodState(podID string) (State, error)
 	fetchPodNetwork(podID string) (NetworkNamespace, error)
+	storePodNetwork(podID string, networkNS NetworkNamespace) error
 
 	// Container resources
 	storeContainerResource(podID, containerID string, resource podResource, data interface{}) error
@@ -383,6 +384,10 @@ func (fs *filesystem) fetchPodNetwork(podID string) (NetworkNamespace, error) {
 	}
 
 	return NetworkNamespace{}, fmt.Errorf("Unknown network type")
+}
+
+func (fs *filesystem) storePodNetwork(podID string, networkNS NetworkNamespace) error {
+	return fs.storePodResource(podID, networkFileType, networkNS)
 }
 
 func (fs *filesystem) deletePodResources(podID string, resources []podResource) error {

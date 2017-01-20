@@ -444,7 +444,7 @@ func (p *Pod) storePod() error {
 	}
 
 	// Store network pairs.
-	err = fs.storePodResource(p.id, networkFileType, p.networkNS)
+	err = fs.storePodNetwork(p.id, p.networkNS)
 	if err != nil {
 		return err
 	}
