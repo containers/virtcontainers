@@ -429,22 +429,20 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 
 // storePod stores a pod config.
 func (p *Pod) storePod() error {
-	fs := filesystem{}
-
-	err := fs.storePodResource(p.id, configFileType, *(p.config))
+	err := p.storage.storePodResource(p.id, configFileType, *(p.config))
 	if err != nil {
 		return err
 	}
 
 	for _, container := range p.containers {
-		err = fs.storeContainerResource(p.id, container.ID, configFileType, container)
+		err = p.storage.storeContainerResource(p.id, container.ID, configFileType, container)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Store network pairs.
-	err = fs.storePodNetwork(p.id, p.networkNS)
+	err = p.storage.storePodNetwork(p.id, p.networkNS)
 	if err != nil {
 		return err
 	}
