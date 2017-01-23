@@ -32,6 +32,8 @@ const (
 	PluginBinDir  = "/opt/cni/bin"
 )
 
+var confExtensions = []string{".conf"}
+
 // NetworkPlugin is the CNI network plugin handler.
 type NetworkPlugin struct {
 	loNetwork  *cniNetwork
@@ -71,7 +73,7 @@ func NewNetworkPluginWithArgs(confDir, binDir string) (*NetworkPlugin, error) {
 }
 
 func getNetwork(confDir, binDir, defaultName string, local bool) (*cniNetwork, error) {
-	confFiles, err := libcni.ConfFiles(confDir)
+	confFiles, err := libcni.ConfFiles(confDir, confExtensions)
 	if err != nil || confFiles == nil {
 		return nil, fmt.Errorf("Invalid configuration directory %s", confDir)
 	}
