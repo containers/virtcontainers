@@ -20,11 +20,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 
 	ciaoQemu "github.com/01org/ciao/qemu"
+	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 )
 
@@ -271,6 +273,25 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 	return devices, nil
 }
 
+func (q *qemu) forceUUIDFormat(str string) string {
+	re := regexp.MustCompile(`[^[0-9,a-f,A-F]]*`)
+	hexStr := re.ReplaceAllLiteralString(str, ``)
+
+	slice := []byte(hexStr)
+	sliceLen := len(slice)
+
+	var uuidSlice uuid.UUID
+	uuidLen := len(uuidSlice)
+
+	if sliceLen > uuidLen {
+		copy(uuidSlice[:], slice[:uuidLen])
+	} else {
+		copy(uuidSlice[:], slice)
+	}
+
+	return uuidSlice.String()
+}
+
 // init intializes the Qemu structure.
 func (q *qemu) init(config HypervisorConfig) error {
 	valid, err := config.valid()
@@ -469,7 +490,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
-		UUID:        podConfig.ID,
+		UUID:        q.forceUUIDFormat(podConfig.ID),
 		Path:        q.path,
 		Ctx:         q.qmpMonitorCh.ctx,
 		Machine:     machine,
