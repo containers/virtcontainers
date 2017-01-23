@@ -223,7 +223,7 @@ func TestReadCtlMessage(t *testing.T) {
 
 	mockHyper.SendMessage(int(expected.Code), expected.Message)
 
-	reply, err := h.readCtlMessage()
+	reply, err := h.ReadCtlMessage(h.ctl)
 	if err != nil {
 		t.Fatal()
 	}
@@ -246,12 +246,12 @@ func TestWriteCtlMessage(t *testing.T) {
 		Message: []byte{},
 	}
 
-	err = h.writeCtlMessage(&msg)
+	err = h.WriteCtlMessage(h.ctl, &msg)
 	if err != nil {
 		t.Fatal()
 	}
 
-	_, err = h.expectReadingCmd(hyper.INIT_ACK)
+	_, err = h.expectReadingCmd(h.ctl, hyper.INIT_ACK)
 	if err != nil {
 		t.Fatal()
 	}
@@ -452,7 +452,7 @@ func testExpectReadingCmd(t *testing.T, code uint32) {
 
 	mockHyper.SendMessage(int(code), []byte{})
 
-	msg, err := h.expectReadingCmd(code)
+	msg, err := h.expectReadingCmd(h.ctl, code)
 	if err != nil {
 		t.Fatal()
 	}
@@ -482,7 +482,7 @@ func testExpectReadingCmdWrong(t *testing.T, code uint32) {
 		mockHyper.SendMessage(int(hyper.INIT_ERROR), []byte{})
 	}
 
-	msg, err := h.expectReadingCmd(code)
+	msg, err := h.expectReadingCmd(h.ctl, code)
 	if err == nil || msg != nil {
 		t.Fatal()
 	}
