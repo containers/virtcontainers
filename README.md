@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/containers/virtcontainers.svg?branch=master)](https://travis-ci.org/containers/virtcontainers)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containers/virtcontainers)](https://goreportcard.com/report/github.com/containers/virtcontainers)
-[![Coverage Status](https://coveralls.io/repos/github/sameo/virtcontainers/badge.svg?branch=master)](https://coveralls.io/github/sameo/virtcontainers?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/containers/virtcontainers/badge.svg?branch=master)](https://coveralls.io/github/containers/virtcontainers?branch=master)
 [![GoDoc](https://godoc.org/github.com/containers/virtcontainers?status.svg)](https://godoc.org/github.com/containers/virtcontainers)
 
 # virtcontainers

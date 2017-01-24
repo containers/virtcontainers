@@ -6,7 +6,7 @@ go:
     - tip
 
 env:
-    - COVERALLS_TOKEN=zstmJAjtUJNpNu4QtWYwRmmjPYu3Iubi5
+    - COVERALLS_TOKEN=3NUr5Z9zvjIoGRlKi6WIA3Q9em3x22rZp
 
 before_install:
   - go get github.com/mattn/goveralls
