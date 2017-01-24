@@ -33,6 +33,25 @@ const (
 	testMessage  = "test_message"
 )
 
+func connectHyperstartNoMulticast(h *Hyperstart) error {
+	var err error
+
+	h.ctl, err = net.Dial(h.sockType, h.ctlSerial)
+	if err != nil {
+		return err
+	}
+	h.ctlState.open()
+
+	h.io, err = net.Dial(h.sockType, h.ioSerial)
+	if err != nil {
+		h.ctl.Close()
+		return err
+	}
+	h.ioState.open()
+
+	return nil
+}
+
 func connectHyperstart(h *Hyperstart) error {
 	return h.OpenSockets()
 }
@@ -41,7 +60,7 @@ func disconnectHyperstart(h *Hyperstart) {
 	h.CloseSockets()
 }
 
-func connectMockHyperstart(t *testing.T) (*mock.Hyperstart, *Hyperstart, error) {
+func connectMockHyperstart(t *testing.T, multiCast bool) (*mock.Hyperstart, *Hyperstart, error) {
 	mockHyper := mock.NewHyperstart(t)
 
 	mockHyper.Start()
@@ -54,7 +73,12 @@ func connectMockHyperstart(t *testing.T) (*mock.Hyperstart, *Hyperstart, error) 
 		sockType:  testSockType,
 	}
 
-	err := connectHyperstart(h)
+	var err error
+	if multiCast {
+		err = connectHyperstart(h)
+	} else {
+		err = connectHyperstartNoMulticast(h)
+	}
 	if err != nil {
 		mockHyper.Stop()
 		return nil, nil, err
@@ -104,7 +128,7 @@ func TestOpenSockets(t *testing.T) {
 }
 
 func TestCloseSockets(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -117,7 +141,7 @@ func TestCloseSockets(t *testing.T) {
 }
 
 func TestSetDeadline(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, false)
 	if err != nil {
 		t.Fatal()
 	}
@@ -162,7 +186,7 @@ func TestIsStartedFalse(t *testing.T) {
 }
 
 func TestIsStartedTrue(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -209,7 +233,7 @@ func TestFormatMessageFromStruct(t *testing.T) {
 }
 
 func TestReadCtlMessage(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, false)
 	if err != nil {
 		t.Fatal()
 	}
@@ -234,7 +258,7 @@ func TestReadCtlMessage(t *testing.T) {
 }
 
 func TestWriteCtlMessage(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, false)
 	if err != nil {
 		t.Fatal()
 	}
@@ -251,9 +275,22 @@ func TestWriteCtlMessage(t *testing.T) {
 		t.Fatal()
 	}
 
-	_, err = h.expectReadingCmd(h.ctl, hyper.INIT_ACK)
-	if err != nil {
-		t.Fatal()
+	for {
+		reply, err := ReadCtlMessage(h.ctl)
+		if err != nil {
+			t.Fatal()
+		}
+
+		if reply.Code == hyper.INIT_NEXT {
+			continue
+		}
+
+		err = h.checkReturnedCode(reply.Code, hyper.INIT_ACK)
+		if err != nil {
+			t.Fatal()
+		}
+
+		break
 	}
 
 	msgs := mockHyper.GetLastMessages()
@@ -267,7 +304,7 @@ func TestWriteCtlMessage(t *testing.T) {
 }
 
 func TestReadIoMessage(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -287,7 +324,7 @@ func TestReadIoMessage(t *testing.T) {
 }
 
 func TestReadIoMessageWithConn(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -307,7 +344,7 @@ func TestReadIoMessageWithConn(t *testing.T) {
 }
 
 func TestSendIoMessage(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -333,7 +370,7 @@ func TestSendIoMessage(t *testing.T) {
 }
 
 func TestSendIoMessageWithConn(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -440,62 +477,42 @@ func TestCodeFromCmdUnknown(t *testing.T) {
 	}
 }
 
-func testExpectReadingCmd(t *testing.T, code uint32) {
-	mockHyper, h, err := connectMockHyperstart(t)
+func testCheckReturnedCode(t *testing.T, code, refCode uint32) {
+	h := &Hyperstart{}
+
+	err := h.checkReturnedCode(code, refCode)
 	if err != nil {
-		t.Fatal()
-	}
-	defer mockHyper.Stop()
-	defer disconnectHyperstart(h)
-
-	mockHyper.SendMessage(int(hyper.INIT_READY), []byte{})
-
-	mockHyper.SendMessage(int(code), []byte{})
-
-	msg, err := h.expectReadingCmd(h.ctl, code)
-	if err != nil {
-		t.Fatal()
-	}
-
-	if msg.Code != code || string(msg.Message) != "" {
 		t.Fatal()
 	}
 }
 
-func TestExpectReadingCmdList(t *testing.T) {
+func TestCheckReturnedCodeList(t *testing.T) {
 	for _, code := range codeList {
-		testExpectReadingCmd(t, code)
+		testCheckReturnedCode(t, code, code)
 	}
 }
 
-func testExpectReadingCmdWrong(t *testing.T, code uint32) {
-	mockHyper, h, err := connectMockHyperstart(t)
-	if err != nil {
-		t.Fatal()
-	}
-	defer mockHyper.Stop()
-	defer disconnectHyperstart(h)
+func testCheckReturnedCodeFailure(t *testing.T, code, refCode uint32) {
+	h := &Hyperstart{}
 
-	if code == hyper.INIT_ERROR {
-		mockHyper.SendMessage(int(hyper.INIT_ACK), []byte{})
-	} else {
-		mockHyper.SendMessage(int(hyper.INIT_ERROR), []byte{})
-	}
-
-	msg, err := h.expectReadingCmd(h.ctl, code)
-	if err == nil || msg != nil {
+	err := h.checkReturnedCode(code, refCode)
+	if err == nil {
 		t.Fatal()
 	}
 }
 
-func TestExpectReadingCmdListWrong(t *testing.T) {
+func TestCheckReturnedCodeListWrong(t *testing.T) {
 	for _, code := range codeList {
-		testExpectReadingCmdWrong(t, code)
+		if code != hyper.INIT_READY {
+			testCheckReturnedCodeFailure(t, code, hyper.INIT_READY)
+		} else {
+			testCheckReturnedCodeFailure(t, code, hyper.INIT_PING)
+		}
 	}
 }
 
 func TestWaitForReady(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -511,7 +528,7 @@ func TestWaitForReady(t *testing.T) {
 }
 
 func TestWaitForReadyError(t *testing.T) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
@@ -545,7 +562,7 @@ var cmdList = []string{
 }
 
 func testSendCtlMessage(t *testing.T, cmd string) {
-	mockHyper, h, err := connectMockHyperstart(t)
+	mockHyper, h, err := connectMockHyperstart(t, true)
 	if err != nil {
 		t.Fatal()
 	}
