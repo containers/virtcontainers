@@ -77,7 +77,7 @@ func (p *ccProxy) register(pod Pod) ([]IOStream, error) {
 		return []IOStream{}, fmt.Errorf("Wrong agent config type, should be HyperConfig type")
 	}
 
-	err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName)
+	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, nil)
 	if err != nil {
 		return []IOStream{}, err
 	}
@@ -112,7 +112,7 @@ func (p *ccProxy) connect(pod Pod) (IOStream, error) {
 		return IOStream{}, err
 	}
 
-	err = p.client.Attach(pod.id)
+	_, err = p.client.Attach(pod.id, nil)
 	if err != nil {
 		return IOStream{}, err
 	}
