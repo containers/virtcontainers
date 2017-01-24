@@ -234,7 +234,7 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func (h *Hyperstart) ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
+func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 	needRead := ctlHdrSize
 	length := 0
 	read := 0
@@ -376,7 +376,7 @@ func (h *Hyperstart) expectReadingCmd(conn net.Conn, code uint32) (*hyper.Decode
 	var err error
 
 	for {
-		msg, err = h.ReadCtlMessage(conn)
+		msg, err = ReadCtlMessage(conn)
 		if err != nil {
 			return nil, nil
 		}
