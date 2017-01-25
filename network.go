@@ -24,7 +24,7 @@ import (
 	"github.com/01org/ciao/networking/libsnnet"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
-	"github.com/containernetworking/cni/pkg/types"
+	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containers/virtcontainers/logger/gloginterface"
 	"golang.org/x/sys/unix"
 )
