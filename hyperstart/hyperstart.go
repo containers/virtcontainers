@@ -121,6 +121,8 @@ type Hyperstart struct {
 	// ctl access is arbitrated by ctlMutex. We can only allow a single
 	// "transaction" (write command + read answer) at a time
 	ctlMutex sync.Mutex
+
+	ctlMulticast *multicast
 }
 
 // NewHyperstart returns a new hyperstart structure.
@@ -149,6 +151,8 @@ func (h *Hyperstart) OpenSockets() error {
 	}
 	h.ioState.open()
 
+	h.ctlMulticast = startCtlMonitor(h.ctl)
+
 	return nil
 }
 
@@ -171,6 +175,8 @@ func (h *Hyperstart) CloseSockets() error {
 
 		h.ioState.close()
 	}
+
+	h.ctlMulticast = nil
 
 	return nil
 }
@@ -234,7 +240,7 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func (h *Hyperstart) ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
+func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 	needRead := ctlHdrSize
 	length := 0
 	read := 0
@@ -371,42 +377,32 @@ func codeFromCmd(cmd string) (uint32, error) {
 	return codeList[cmd], nil
 }
 
-func (h *Hyperstart) expectReadingCmd(conn net.Conn, code uint32) (*hyper.DecodedMessage, error) {
-	var msg *hyper.DecodedMessage
-	var err error
-
-	for {
-		msg, err = h.ReadCtlMessage(conn)
-		if err != nil {
-			return nil, nil
+func (h *Hyperstart) checkReturnedCode(recvCode, expectedCode uint32) error {
+	if recvCode != expectedCode {
+		if recvCode == hyper.INIT_ERROR {
+			return fmt.Errorf("ERROR received from Hyperstart")
 		}
 
-		if msg.Code == code {
-			break
-		}
-
-		if msg.Code == hyper.INIT_NEXT || msg.Code == hyper.INIT_READY {
-			continue
-		}
-
-		if msg.Code != code {
-			if msg.Code == hyper.INIT_ERROR {
-				return nil, fmt.Errorf("ERROR received from Hyperstart")
-			}
-
-			return nil, fmt.Errorf("CMD ID received %d not matching expected %d", msg.Code, code)
-		}
+		return fmt.Errorf("CMD ID received %d not matching expected %d", recvCode, expectedCode)
 	}
 
-	return msg, nil
+	return nil
 }
 
 // WaitForReady waits for a READY message on CTL channel.
 func (h *Hyperstart) WaitForReady() error {
-	h.ctlMutex.Lock()
-	defer h.ctlMutex.Unlock()
+	if h.ctlMulticast == nil {
+		return fmt.Errorf("No multicast available for CTL channel")
+	}
 
-	_, err := h.expectReadingCmd(h.ctl, hyper.INIT_READY)
+	channel, err := h.ctlMulticast.listen("", "", replyType)
+	if err != nil {
+		return err
+	}
+
+	msg := <-channel
+
+	err = h.checkReturnedCode(msg.Code, hyper.INIT_READY)
 	if err != nil {
 		return err
 	}
@@ -414,37 +410,75 @@ func (h *Hyperstart) WaitForReady() error {
 	return nil
 }
 
+// WaitForPAE waits for a PROCESSASYNCEVENT message on CTL channel.
+func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAsyncEvent, error) {
+	if h.ctlMulticast == nil {
+		return nil, fmt.Errorf("No multicast available for CTL channel")
+	}
+
+	channel, err := h.ctlMulticast.listen(containerID, processID, eventType)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := <-channel
+
+	var paeData hyper.ProcessAsyncEvent
+	err = json.Unmarshal(msg.Message, paeData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &paeData, nil
+}
+
 // SendCtlMessage sends a message to the CTL channel.
 //
-// This function does a full transaction over the CTL channel: it will write a
-// command and wait for hyperstart's answer before returning. Several
-// concurrent calls to SendCtlMessage is allowed, the function ensuring proper
-// serialization of the communication over the underlying hyperstart serial
-// link.
+// This function does a full transaction over the CTL channel: it will rely on the
+// multicaster to register a listener reading over the CTL channel. Then it writes
+// a command and waits for the multicaster to send hyperstart's answer back before
+// it can return.
+// Several concurrent calls to SendCtlMessage are allowed, the function ensuring
+// proper serialization of the communication by making the listener registration
+// and the command writing an atomic operation protected by a mutex.
+// Waiting for the reply from multicaster doesn't need to be protected by this mutex.
 func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMessage, error) {
+	if h.ctlMulticast == nil {
+		return nil, fmt.Errorf("No multicast available for CTL channel")
+	}
+
 	h.ctlMutex.Lock()
-	defer h.ctlMutex.Unlock()
+
+	channel, err := h.ctlMulticast.listen("", "", replyType)
+	if err != nil {
+		h.ctlMutex.Unlock()
+		return nil, err
+	}
 
 	code, err := codeFromCmd(cmd)
 	if err != nil {
+		h.ctlMutex.Unlock()
 		return nil, err
 	}
 
-	// Write message
-	msg := &hyper.DecodedMessage{
+	msgSend := &hyper.DecodedMessage{
 		Code:    code,
 		Message: data,
 	}
-	err = h.WriteCtlMessage(h.ctl, msg)
+	err = h.WriteCtlMessage(h.ctl, msgSend)
+	if err != nil {
+		h.ctlMutex.Unlock()
+		return nil, err
+	}
+
+	h.ctlMutex.Unlock()
+
+	msgRecv := <-channel
+
+	err = h.checkReturnedCode(msgRecv.Code, hyper.INIT_ACK)
 	if err != nil {
 		return nil, err
 	}
 
-	// Wait for answer
-	resp, err := h.expectReadingCmd(h.ctl, hyper.INIT_ACK)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return msgRecv, nil
 }
