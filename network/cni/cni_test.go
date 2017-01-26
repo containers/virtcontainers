@@ -35,18 +35,18 @@ var testLoFile = "99-test_loopback.conf"
 var testWrongFile = "100-test_error.conf"
 
 var testLoFileContent = []byte(`{
-    "cniVersion": "0.2.0",
+    "cniVersion": "0.3.0",
     "name": "testlonetwork",
     "type": "loopback"
 }`)
 
 var testLoFileContentNoName = []byte(`{
-    "cniVersion": "0.2.0",
+    "cniVersion": "0.3.0",
     "type": "loopback"
 }`)
 
 var testDefFileContent = []byte(`{
-    "cniVersion": "0.2.0",
+    "cniVersion": "0.3.0",
     "name": "testdefnetwork",
     "type": "cni-bridge",
     "bridge": "cni0",
@@ -62,7 +62,7 @@ var testDefFileContent = []byte(`{
 }`)
 
 var testDefFileContentNoName = []byte(`{
-    "cniVersion": "0.2.0",
+    "cniVersion": "0.3.0",
     "type": "cni-bridge",
     "bridge": "cni0",
     "isGateway": true,
@@ -77,7 +77,7 @@ var testDefFileContentNoName = []byte(`{
 }`)
 
 var testWrongFileContent = []byte(`{
-    "cniVersion "0.2.0",
+    "cniVersion "0.3.0",
     "type": "loopback"
 }`)
 

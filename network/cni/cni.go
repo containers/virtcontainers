@@ -21,7 +21,7 @@ import (
 	"sort"
 
 	"github.com/containernetworking/cni/libcni"
-	"github.com/containernetworking/cni/pkg/types"
+	types "github.com/containernetworking/cni/pkg/types/current"
 )
 
 // CNI default values to find plugins and configurations.
@@ -140,7 +140,12 @@ func (plugin *NetworkPlugin) AddNetwork(podID, netNSPath, ifName string) (*types
 		return nil, err
 	}
 
-	res, err := plugin.defNetwork.cniConfig.AddNetwork(plugin.defNetwork.networkConfig, rt)
+	ifaceResult, err := plugin.defNetwork.cniConfig.AddNetwork(plugin.defNetwork.networkConfig, rt)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := types.GetResult(ifaceResult)
 	if err != nil {
 		return nil, err
 	}
