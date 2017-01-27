@@ -156,6 +156,12 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Stop it.
 	err = p.stop()
 	if err != nil {
@@ -163,20 +169,14 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
+	// Execute poststop hooks
+	err = p.config.Hooks.postStopHooks()
 	if err != nil {
 		return nil, err
 	}
 
 	// Remove the network
 	err = p.network.remove(*p, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute poststop hooks
-	err = p.config.Hooks.postStopHooks()
 	if err != nil {
 		return nil, err
 	}
