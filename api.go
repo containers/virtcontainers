@@ -92,14 +92,13 @@ func StartPod(podID string) (*Pod, error) {
 	}
 
 	// Initialize the network.
-	n := newNetwork(p.config.NetworkModel)
-	err = n.init(&(p.config.NetworkConfig))
+	err = p.network.init(&(p.config.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
 
 	// Join the network.
-	err = n.join(p.config.NetworkConfig.NetNSPath)
+	err = p.network.join(p.config.NetworkConfig.NetNSPath)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +110,7 @@ func StartPod(podID string) (*Pod, error) {
 	}
 
 	// Add the network
-	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +170,7 @@ func StopPod(podID string) (*Pod, error) {
 	}
 
 	// Remove the network
-	n := newNetwork(p.config.NetworkModel)
-	err = n.remove(*p, networkNS)
+	err = p.network.remove(*p, networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -213,14 +211,13 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	defer unlockPod(lockFile)
 
 	// Initialize the network.
-	n := newNetwork(p.config.NetworkModel)
-	err = n.init(&(p.config.NetworkConfig))
+	err = p.network.init(&(p.config.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
 
 	// Join the network.
-	err = n.join(p.config.NetworkConfig.NetNSPath)
+	err = p.network.join(p.config.NetworkConfig.NetNSPath)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +229,7 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Add the network
-	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}

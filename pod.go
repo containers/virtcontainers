@@ -312,6 +312,7 @@ type Pod struct {
 	hypervisor hypervisor
 	agent      agent
 	storage    resourceStorage
+	network    network
 
 	config *PodConfig
 
@@ -370,11 +371,14 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	network := newNetwork(podConfig.NetworkModel)
+
 	p := &Pod{
 		id:         podConfig.ID,
 		hypervisor: hypervisor,
 		agent:      agent,
 		storage:    &filesystem{},
+		network:    network,
 		config:     &podConfig,
 		volumes:    podConfig.Volumes,
 		containers: podConfig.Containers,
