@@ -109,6 +109,49 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 	return podConfig
 }
 
+func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
+	// Define the container command and bundle.
+	container := ContainerConfig{
+		ID:     "1",
+		RootFs: filepath.Join(testDir, testBundle),
+		Cmd:    newBasicTestCmd(),
+	}
+
+	// Sets the hypervisor configuration.
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	sockets := []Socket{{}, {}}
+
+	agentConfig := HyperConfig{
+		SockCtlName: TestHyperstartCtlSocket,
+		SockTtyName: TestHyperstartTtySocket,
+		Sockets:     sockets,
+	}
+
+	netConfig := NetworkConfig{
+		NumInterfaces: 1,
+	}
+
+	podConfig := PodConfig{
+		HypervisorType:   MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType:   HyperstartAgent,
+		AgentConfig: agentConfig,
+
+		NetworkModel:  CNINetworkModel,
+		NetworkConfig: netConfig,
+
+		Containers: []ContainerConfig{container},
+	}
+
+	return podConfig
+}
+
 func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 	config := newTestPodConfigNoop()
 
@@ -821,6 +864,51 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	}
 
 	p.agent.(*hyper).bindUnmountAllRootfs()
+
+	err = os.Remove(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
+	config := newTestPodConfigHyperstartAgentCNINetwork()
+
+	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	_, err := os.Create(pauseBinPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hyperConfig := config.AgentConfig.(HyperConfig)
+	hyperConfig.PauseBinPath = pauseBinPath
+	config.AgentConfig = hyperConfig
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StartPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StopPod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = DeletePod(p.id)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
