@@ -392,7 +392,7 @@ type network interface {
 	init(config *NetworkConfig) error
 
 	// join switches the current process to the specified network namespace.
-	join(networkNSPath string) error
+	join(networkNSPath string, cb func() error) error
 
 	// add adds all needed interfaces inside the network namespace.
 	add(pod Pod, config NetworkConfig) (NetworkNamespace, error)

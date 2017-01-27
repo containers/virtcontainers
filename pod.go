@@ -525,7 +525,12 @@ func (p *Pod) start() error {
 	podStartedCh := make(chan struct{})
 	podStoppedCh := make(chan struct{})
 
-	go p.hypervisor.startPod(podStartedCh, podStoppedCh)
+	go func() {
+		err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+			err := p.hypervisor.startPod(podStartedCh, podStoppedCh)
+			return err
+		})
+	}()
 
 	// Wait for the pod started notification
 	select {

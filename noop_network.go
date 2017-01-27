@@ -30,8 +30,8 @@ func (n *noopNetwork) init(config *NetworkConfig) error {
 // join switches the current process to the specified network namespace for
 // the Noop network.
 // It does nothing.
-func (n *noopNetwork) join(networkNSPath string) error {
-	return nil
+func (n *noopNetwork) join(networkNSPath string, cb func() error) error {
+	return cb()
 }
 
 // add adds all needed interfaces inside the network namespace the Noop network.

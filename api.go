@@ -97,14 +97,10 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Join the network.
-	err = p.network.join(p.config.NetworkConfig.NetNSPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks
-	err = p.config.Hooks.preStartHooks()
+	// Execute prestart hooks inside netns
+	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +117,16 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it.
+	// Start it
 	err = p.start()
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute poststart hooks
-	err = p.config.Hooks.postStartHooks()
+	// Execute poststart hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -169,9 +167,12 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Execute poststop hooks
-	err = p.config.Hooks.postStopHooks()
+	// Execute poststop hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStopHooks()
+	})
 	if err != nil {
+		p.delete()
 		return nil, err
 	}
 
@@ -216,14 +217,10 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Join the network.
-	err = p.network.join(p.config.NetworkConfig.NetNSPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks
-	err = p.config.Hooks.preStartHooks()
+	// Execute prestart hooks inside netns
+	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -240,15 +237,17 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it.
+	// Start it
 	err = p.start()
 	if err != nil {
 		p.delete()
 		return nil, err
 	}
 
-	// Execute poststart hooks
-	err = p.config.Hooks.postStartHooks()
+	// Execute poststart hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}

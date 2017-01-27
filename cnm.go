@@ -121,13 +121,10 @@ func (n *cnm) init(config *NetworkConfig) error {
 
 // join switches the current process to the specified network namespace
 // for the CNM network.
-func (n *cnm) join(networkNSPath string) error {
-	err := setNetNS(networkNSPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (n *cnm) join(networkNSPath string, cb func() error) error {
+	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		return cb()
+	})
 }
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
