@@ -20,11 +20,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 
 	ciaoQemu "github.com/01org/ciao/qemu"
+	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
 )
 
@@ -271,6 +273,25 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 	return devices, nil
 }
 
+func (q *qemu) forceUUIDFormat(str string) string {
+	re := regexp.MustCompile(`[^[0-9,a-f,A-F]]*`)
+	hexStr := re.ReplaceAllLiteralString(str, ``)
+
+	slice := []byte(hexStr)
+	sliceLen := len(slice)
+
+	var uuidSlice uuid.UUID
+	uuidLen := len(uuidSlice)
+
+	if sliceLen > uuidLen {
+		copy(uuidSlice[:], slice[:uuidLen])
+	} else {
+		copy(uuidSlice[:], slice)
+	}
+
+	return uuidSlice.String()
+}
+
 // init intializes the Qemu structure.
 func (q *qemu) init(config HypervisorConfig) error {
 	valid, err := config.valid()
@@ -406,7 +427,7 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 }
 
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
-func (q *qemu) createPod(podConfig PodConfig, endpoints []Endpoint) error {
+func (q *qemu) createPod(podConfig PodConfig) error {
 	var devices []ciaoQemu.Device
 
 	machine := ciaoQemu.Machine{
@@ -467,11 +488,9 @@ func (q *qemu) createPod(podConfig PodConfig, endpoints []Endpoint) error {
 		return err
 	}
 
-	devices = q.appendNetworks(devices, endpoints)
-
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
-		UUID:        podConfig.ID,
+		UUID:        q.forceUUIDFormat(podConfig.ID),
 		Path:        q.path,
 		Ctx:         q.qmpMonitorCh.ctx,
 		Machine:     machine,
@@ -537,6 +556,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case serialPortDev:
 		socket := devInfo.(Socket)
 		q.qemuConfig.Devices = q.appendSocket(q.qemuConfig.Devices, socket)
+	case netDev:
+		endpoints := devInfo.([]Endpoint)
+		q.qemuConfig.Devices = q.appendNetworks(q.qemuConfig.Devices, endpoints)
 	default:
 		break
 	}

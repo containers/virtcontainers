@@ -52,9 +52,8 @@ func TestMockHypervisorCreatePod(t *testing.T) {
 	var m *mockHypervisor
 
 	config := PodConfig{}
-	endpoints := []Endpoint{}
 
-	err := m.createPod(config, endpoints)
+	err := m.createPod(config)
 	if err != nil {
 		t.Fatal(err)
 	}

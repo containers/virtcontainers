@@ -230,6 +230,9 @@ type Resources struct {
 type PodConfig struct {
 	ID string
 
+	// Field specific to OCI specs, needed to setup all the hooks
+	Hooks Hooks
+
 	// VMConfig is the VM configuration to set for this pod.
 	VMConfig Resources
 
@@ -323,8 +326,6 @@ type Pod struct {
 
 	state State
 
-	networkNS NetworkNamespace
-
 	lockFile *os.File
 }
 
@@ -352,7 +353,7 @@ func (p *Pod) createSetStates() error {
 // It will create and store the pod structure, and then ask the hypervisor
 // to physically create that pod i.e. starts a VM for that pod to eventually
 // be started.
-func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
+func createPod(podConfig PodConfig) (*Pod, error) {
 	if podConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid pod configuration")
 	}
@@ -380,7 +381,6 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 		runPath:    filepath.Join(runStoragePath, podConfig.ID),
 		configPath: filepath.Join(configStoragePath, podConfig.ID),
 		state:      State{},
-		networkNS:  networkNS,
 	}
 
 	err = p.storage.createAllResources(*p)
@@ -388,7 +388,7 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.hypervisor.createPod(podConfig, networkNS.Endpoints)
+	err = p.hypervisor.createPod(podConfig)
 	if err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
@@ -429,24 +429,16 @@ func createPod(podConfig PodConfig, networkNS NetworkNamespace) (*Pod, error) {
 
 // storePod stores a pod config.
 func (p *Pod) storePod() error {
-	fs := filesystem{}
-
-	err := fs.storePodResource(p.id, configFileType, *(p.config))
+	err := p.storage.storePodResource(p.id, configFileType, *(p.config))
 	if err != nil {
 		return err
 	}
 
 	for _, container := range p.containers {
-		err = fs.storeContainerResource(p.id, container.ID, configFileType, container)
+		err = p.storage.storeContainerResource(p.id, container.ID, configFileType, container)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Store network pairs.
-	err = fs.storePodResource(p.id, networkFileType, p.networkNS)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -460,14 +452,9 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	networkNS, err := fs.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	glog.Infof("Info structure:\n%+v\n", config)
 
-	return createPod(config, networkNS)
+	return createPod(config)
 }
 
 // delete deletes an already created pod.

@@ -340,6 +340,30 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
+func createNetworkEndpoint(idx int, uniqueID string, ifName string) Endpoint {
+	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
+
+	endpoint := Endpoint{
+		NetPair: NetworkInterfacePair{
+			ID:   fmt.Sprintf("%s-%d", uniqueID, idx),
+			Name: fmt.Sprintf("br%d", idx),
+			VirtIface: NetworkInterface{
+				Name:     fmt.Sprintf("eth%d", idx),
+				HardAddr: hardAddr.String(),
+			},
+			TAPIface: NetworkInterface{
+				Name: fmt.Sprintf("tap%d", idx),
+			},
+		},
+	}
+
+	if ifName != "" {
+		endpoint.NetPair.VirtIface.Name = ifName
+	}
+
+	return endpoint
+}
+
 func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
@@ -350,40 +374,30 @@ func createNetworkEndpoints(numOfEndpoints int) ([]Endpoint, error) {
 	uniqueID := uuid.Generate().String()
 
 	for i := 0; i < numOfEndpoints; i++ {
-		hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(i >> 8), byte(i)}
-
-		endpoint := Endpoint{
-			NetPair: NetworkInterfacePair{
-				ID:   fmt.Sprintf("%s-%d", uniqueID, i),
-				Name: fmt.Sprintf("br%d", i),
-				VirtIface: NetworkInterface{
-					Name:     fmt.Sprintf("eth%d", i),
-					HardAddr: hardAddr.String(),
-				},
-				TAPIface: NetworkInterface{
-					Name: fmt.Sprintf("tap%d", i),
-				},
-			},
-		}
-
-		endpoints = append(endpoints, endpoint)
+		endpoints = append(endpoints, createNetworkEndpoint(i, uniqueID, ""))
 	}
 
 	return endpoints, nil
+}
+
+func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
+	return pod.hypervisor.addDevice(endpoints, netDev)
 }
 
 // network is the virtcontainers network interface.
 // Container network plugins are used to setup virtual network
 // between VM netns and the host network physical interface.
 type network interface {
-	// add creates a new network namespace and its virtual network interfaces,
-	// and it creates and bridges TAP interfaces.
-	add(config *NetworkConfig) (NetworkNamespace, error)
+	// init initializes the network, setting a new network namespace.
+	init(config *NetworkConfig) error
 
 	// join switches the current process to the specified network namespace.
-	join(networkNS NetworkNamespace) error
+	join(networkNSPath string) error
+
+	// add adds all needed interfaces inside the network namespace.
+	add(pod Pod, config NetworkConfig) (NetworkNamespace, error)
 
 	// remove unbridges and deletes TAP interfaces. It also removes virtual network
 	// interfaces and deletes the network namespace.
-	remove(networkNS NetworkNamespace) error
+	remove(pod Pod, networkNS NetworkNamespace) error
 }

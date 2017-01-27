@@ -21,23 +21,28 @@ package virtcontainers
 type noopNetwork struct {
 }
 
-// add creates a new network namespace and its virtual network interfaces,
-// and it creates and bridges TAP interfaces for the Noop network.
+// init initializes the network, setting a new network namespace for the Noop network.
 // It does nothing.
-func (n *noopNetwork) add(config *NetworkConfig) (NetworkNamespace, error) {
-	return NetworkNamespace{}, nil
+func (n *noopNetwork) init(config *NetworkConfig) error {
+	return nil
 }
 
 // join switches the current process to the specified network namespace for
 // the Noop network.
 // It does nothing.
-func (n *noopNetwork) join(networkNS NetworkNamespace) error {
+func (n *noopNetwork) join(networkNSPath string) error {
 	return nil
+}
+
+// add adds all needed interfaces inside the network namespace the Noop network.
+// It does nothing.
+func (n *noopNetwork) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
+	return NetworkNamespace{}, nil
 }
 
 // remove unbridges and deletes TAP interfaces. It also removes virtual network
 // interfaces and deletes the network namespace for the Noop network.
 // It does nothing.
-func (n *noopNetwork) remove(networkNS NetworkNamespace) error {
+func (n *noopNetwork) remove(pod Pod, networkNS NetworkNamespace) error {
 	return nil
 }

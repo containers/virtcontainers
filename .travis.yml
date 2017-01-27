@@ -17,6 +17,7 @@ before_install:
   - go get github.com/golang/lint/golint
   - go get github.com/client9/misspell/cmd/misspell
   - go get github.com/01org/ciao/test-cases
+  - go get github.com/opencontainers/runc/libcontainer/configs
 
 install:
   - mkdir -p $HOME/build
@@ -28,6 +29,12 @@ install:
   - sudo cp ./bin/bridge /tmp/cni/bin/cni-bridge
   - sudo cp ./bin/loopback /tmp/cni/bin/loopback
   - sudo cp ./bin/host-local /tmp/cni/bin/host-local
+  - popd
+  - mkdir -p $HOME/build_hook
+  - pushd $HOME/build_hook
+  - sudo mkdir -p /tmp/bin
+  - go build -o hook $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
+  - sudo cp hook /tmp/bin/
   - popd
   - go get -t -v ./...
 

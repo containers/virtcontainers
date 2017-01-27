@@ -25,24 +25,15 @@ import (
 // CreatePod is the virtcontainers pod creation entry point.
 // CreatePod creates a pod and its containers. It does not start them.
 func CreatePod(podConfig PodConfig) (*Pod, error) {
-	// Create the network.
-	n := newNetwork(podConfig.NetworkModel)
-	networkNS, err := n.add(&(podConfig.NetworkConfig))
-	if err != nil {
-		return nil, err
-	}
-
 	// Create the pod.
-	p, err := createPod(podConfig, networkNS)
+	p, err := createPod(podConfig)
 	if err != nil {
-		n.remove(networkNS)
 		return nil, err
 	}
 
 	// Store it.
 	err = p.storePod()
 	if err != nil {
-		n.remove(p.networkNS)
 		return nil, err
 	}
 
@@ -65,13 +56,6 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Remove the network.
-	n := newNetwork(p.config.NetworkModel)
-	err = n.remove(p.networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -107,15 +91,45 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Join the network.
+	// Initialize the network.
 	n := newNetwork(p.config.NetworkModel)
-	err = n.join(p.networkNS)
+	err = n.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
+	// Join the network.
+	err = n.join(p.config.NetworkConfig.NetNSPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute prestart hooks
+	err = p.config.Hooks.preStartHooks()
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the network
+	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the network
+	err = p.storage.storePodNetwork(p.id, networkNS)
 	if err != nil {
 		return nil, err
 	}
 
 	// Start it.
 	err = p.start()
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute poststart hooks
+	err = p.config.Hooks.postStartHooks()
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +164,25 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the network
+	n := newNetwork(p.config.NetworkModel)
+	err = n.remove(*p, networkNS)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute poststop hooks
+	err = p.config.Hooks.postStopHooks()
+	if err != nil {
+		return nil, err
+	}
+
 	err = p.endSession()
 	if err != nil {
 		return nil, err
@@ -161,24 +194,15 @@ func StopPod(podID string) (*Pod, error) {
 // RunPod is the virtcontainers pod running entry point.
 // RunPod creates a pod and its containers and then it starts them.
 func RunPod(podConfig PodConfig) (*Pod, error) {
-	// Create the network.
-	n := newNetwork(podConfig.NetworkModel)
-	networkNS, err := n.add(&(podConfig.NetworkConfig))
-	if err != nil {
-		return nil, err
-	}
-
 	// Create the pod.
-	p, err := createPod(podConfig, networkNS)
+	p, err := createPod(podConfig)
 	if err != nil {
-		n.remove(networkNS)
 		return nil, err
 	}
 
 	// Store it.
 	err = p.storePod()
 	if err != nil {
-		n.remove(p.networkNS)
 		return nil, err
 	}
 
@@ -188,8 +212,33 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 	defer unlockPod(lockFile)
 
+	// Initialize the network.
+	n := newNetwork(p.config.NetworkModel)
+	err = n.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
 	// Join the network.
-	err = n.join(p.networkNS)
+	err = n.join(p.config.NetworkConfig.NetNSPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute prestart hooks
+	err = p.config.Hooks.preStartHooks()
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the network
+	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the network
+	err = p.storage.storePodNetwork(p.id, networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +247,12 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	err = p.start()
 	if err != nil {
 		p.delete()
+		return nil, err
+	}
+
+	// Execute poststart hooks
+	err = p.config.Hooks.postStartHooks()
+	if err != nil {
 		return nil, err
 	}
 
