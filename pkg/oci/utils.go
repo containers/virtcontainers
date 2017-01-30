@@ -45,7 +45,7 @@ func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(bundlePath, cid, console string, interactive bool) (*vc.PodConfig, error) {
+func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
 	log.Debugf("converting %s/config.json", bundlePath)
 
 	configPath := filepath.Join(bundlePath, "config.json")
@@ -72,7 +72,7 @@ func PodConfig(bundlePath, cid, console string, interactive bool) (*vc.PodConfig
 	containerConfig := vc.ContainerConfig{
 		ID:          cid,
 		RootFs:      rootfs,
-		Interactive: interactive,
+		Interactive: ocispec.Process.Terminal,
 		Console:     console,
 		Cmd:         cmd,
 	}
