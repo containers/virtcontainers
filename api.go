@@ -92,26 +92,21 @@ func StartPod(podID string) (*Pod, error) {
 	}
 
 	// Initialize the network.
-	n := newNetwork(p.config.NetworkModel)
-	err = n.init(&(p.config.NetworkConfig))
+	err = p.network.init(&(p.config.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
 
-	// Join the network.
-	err = n.join(p.config.NetworkConfig.NetNSPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks
-	err = p.config.Hooks.preStartHooks()
+	// Execute prestart hooks inside netns
+	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// Add the network
-	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -122,14 +117,16 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it.
+	// Start it
 	err = p.start()
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute poststart hooks
-	err = p.config.Hooks.postStartHooks()
+	// Execute poststart hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +154,12 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Stop it.
 	err = p.stop()
 	if err != nil {
@@ -164,21 +167,17 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
+	// Execute poststop hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStopHooks()
+	})
 	if err != nil {
+		p.delete()
 		return nil, err
 	}
 
 	// Remove the network
-	n := newNetwork(p.config.NetworkModel)
-	err = n.remove(*p, networkNS)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute poststop hooks
-	err = p.config.Hooks.postStopHooks()
+	err = p.network.remove(*p, networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -213,26 +212,21 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	defer unlockPod(lockFile)
 
 	// Initialize the network.
-	n := newNetwork(p.config.NetworkModel)
-	err = n.init(&(p.config.NetworkConfig))
+	err = p.network.init(&(p.config.NetworkConfig))
 	if err != nil {
 		return nil, err
 	}
 
-	// Join the network.
-	err = n.join(p.config.NetworkConfig.NetNSPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks
-	err = p.config.Hooks.preStartHooks()
+	// Execute prestart hooks inside netns
+	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// Add the network
-	networkNS, err := n.add(*p, p.config.NetworkConfig)
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -243,15 +237,17 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it.
+	// Start it
 	err = p.start()
 	if err != nil {
 		p.delete()
 		return nil, err
 	}
 
-	// Execute poststart hooks
-	err = p.config.Hooks.postStartHooks()
+	// Execute poststart hooks inside netns
+	err = p.network.join(networkNS.NetNsPath, func() error {
+		return p.config.Hooks.postStartHooks()
+	})
 	if err != nil {
 		return nil, err
 	}

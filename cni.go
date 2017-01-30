@@ -78,8 +78,10 @@ func (n *cni) init(config *NetworkConfig) error {
 // join does not switch the current process to the specified network namespace
 // for the CNI network. Indeed, the switch will occur in the add() and remove()
 // functions instead.
-func (n *cni) join(networkNSPath string) error {
-	return nil
+func (n *cni) join(networkNSPath string, cb func() error) error {
+	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		return cb()
+	})
 }
 
 // add adds all needed interfaces inside the network namespace for the CNI network.
@@ -114,11 +116,6 @@ func (n *cni) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
 	}
 
 	err = addNetDevHypervisor(pod, networkNS.Endpoints)
-	if err != nil {
-		return NetworkNamespace{}, err
-	}
-
-	err = setNetNS(config.NetNSPath)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}

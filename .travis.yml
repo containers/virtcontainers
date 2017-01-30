@@ -36,6 +36,13 @@ install:
   - go build -o hook $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
   - sudo cp hook /tmp/bin/
   - popd
+  - sudo mkdir -p /etc/cni/net.d
+  - sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf /etc/cni/net.d/
+  - sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf /etc/cni/net.d/
+  - sudo mkdir -p /opt/cni/bin
+  - sudo cp /tmp/cni/bin/cni-bridge /opt/cni/bin/
+  - sudo cp /tmp/cni/bin/loopback /opt/cni/bin/
+  - sudo cp /tmp/cni/bin/host-local /opt/cni/bin/
   - go get -t -v ./...
 
 script:
