@@ -98,7 +98,7 @@ func StartPod(podID string) (*Pod, error) {
 	}
 
 	// Execute prestart hooks inside netns
-	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
 		return p.config.Hooks.preStartHooks()
 	})
 	if err != nil {
@@ -124,7 +124,7 @@ func StartPod(podID string) (*Pod, error) {
 	}
 
 	// Execute poststart hooks inside netns
-	err = p.network.join(networkNS.NetNsPath, func() error {
+	err = p.network.run(networkNS.NetNsPath, func() error {
 		return p.config.Hooks.postStartHooks()
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func StopPod(podID string) (*Pod, error) {
 	}
 
 	// Execute poststop hooks inside netns
-	err = p.network.join(networkNS.NetNsPath, func() error {
+	err = p.network.run(networkNS.NetNsPath, func() error {
 		return p.config.Hooks.postStopHooks()
 	})
 	if err != nil {
@@ -218,7 +218,7 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Execute prestart hooks inside netns
-	err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
 		return p.config.Hooks.preStartHooks()
 	})
 	if err != nil {
@@ -245,7 +245,7 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Execute poststart hooks inside netns
-	err = p.network.join(networkNS.NetNsPath, func() error {
+	err = p.network.run(networkNS.NetNsPath, func() error {
 		return p.config.Hooks.postStartHooks()
 	})
 	if err != nil {

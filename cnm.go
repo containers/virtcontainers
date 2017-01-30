@@ -119,9 +119,8 @@ func (n *cnm) init(config *NetworkConfig) error {
 	return nil
 }
 
-// join switches the current process to the specified network namespace
-// for the CNM network.
-func (n *cnm) join(networkNSPath string, cb func() error) error {
+// run runs a callback in the specified network namespace.
+func (n *cnm) run(networkNSPath string, cb func() error) error {
 	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
 		return cb()
 	})

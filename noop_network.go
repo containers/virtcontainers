@@ -27,10 +27,10 @@ func (n *noopNetwork) init(config *NetworkConfig) error {
 	return nil
 }
 
-// join switches the current process to the specified network namespace for
+// run runs a callback in the specified network namespace for
 // the Noop network.
 // It does nothing.
-func (n *noopNetwork) join(networkNSPath string, cb func() error) error {
+func (n *noopNetwork) run(networkNSPath string, cb func() error) error {
 	return cb()
 }
 
