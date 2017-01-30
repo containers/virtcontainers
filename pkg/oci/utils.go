@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -64,6 +65,8 @@ func PodConfig(bundlePath, cid, console string, interactive bool) (*vc.PodConfig
 		Args:    ocispec.Process.Args,
 		Envs:    cmdEnvs(ocispec, []vc.EnvVar{}),
 		WorkDir: ocispec.Process.Cwd,
+		User:    strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		Group:   strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
 	}
 
 	containerConfig := vc.ContainerConfig{
