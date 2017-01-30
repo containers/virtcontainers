@@ -19,14 +19,14 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
-	log "github.com/Sirupsen/logrus"
 )
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(bundlePath string) (*vc.PodConfig, error) {
+func PodConfig(bundlePath, cid string) (*vc.PodConfig, error) {
 	log.Debugf("converting %s/config.json", bundlePath)
 
 	configPath := filepath.Join(bundlePath, "config.json")
@@ -40,5 +40,13 @@ func PodConfig(bundlePath string) (*vc.PodConfig, error) {
 		return nil, err
 	}
 
-	return nil, nil
+	containerConfig := vc.ContainerConfig{
+		ID: cid,
+	}
+
+	podConfig := vc.PodConfig{
+		Containers: []vc.ContainerConfig{containerConfig},
+	}
+
+	return &podConfig, nil
 }
