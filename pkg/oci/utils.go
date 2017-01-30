@@ -17,6 +17,7 @@ package oci
 import (
 	"encoding/json"
 	"io/ioutil"
+	"path/filepath"
 
 	vc "github.com/containers/virtcontainers"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
@@ -25,10 +26,11 @@ import (
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(path string) (*vc.PodConfig, error) {
-	log.Debugf("converting %s", path)
+func PodConfig(bundlePath string) (*vc.PodConfig, error) {
+	log.Debugf("converting %s/config.json", bundlePath)
 
-	configByte, err := ioutil.ReadFile(path)
+	configPath := filepath.Join(bundlePath, "config.json")
+	configByte, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
