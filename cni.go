@@ -75,10 +75,11 @@ func (n *cni) init(config *NetworkConfig) error {
 	return nil
 }
 
-// join does not switch the current process to the specified network namespace
+// run runs a callback in the specified network namespace.
+// run does not switch the current process to the specified network namespace
 // for the CNI network. Indeed, the switch will occur in the add() and remove()
 // functions instead.
-func (n *cni) join(networkNSPath string, cb func() error) error {
+func (n *cni) run(networkNSPath string, cb func() error) error {
 	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
 		return cb()
 	})

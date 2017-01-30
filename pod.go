@@ -526,7 +526,7 @@ func (p *Pod) start() error {
 	podStoppedCh := make(chan struct{})
 
 	go func() {
-		err = p.network.join(p.config.NetworkConfig.NetNSPath, func() error {
+		err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
 			err := p.hypervisor.startPod(podStartedCh, podStoppedCh)
 			return err
 		})
