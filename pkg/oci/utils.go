@@ -16,6 +16,7 @@ package oci
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -24,6 +25,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+var (
+	// ErrNoLinux is an error for missing Linux sections in the OCI configuration file.
+	ErrNoLinux = errors.New("missing Linux section")
 )
 
 func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
@@ -80,6 +86,28 @@ func containerHooks(spec spec.Spec) vc.Hooks {
 	return hooks
 }
 
+func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
+	linux := ocispec.Linux
+	if linux == nil {
+		return vc.NetworkConfig{}, ErrNoLinux
+	}
+
+	var netConf vc.NetworkConfig
+
+	for _, n := range linux.Namespaces {
+		if n.Type != spec.NetworkNamespace {
+			continue
+		}
+
+		netConf.NumInterfaces = 1
+		if n.Path != "" {
+			netConf.NetNSPath = n.Path
+		}
+	}
+
+	return netConf, nil
+}
+
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
 func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
@@ -114,9 +142,16 @@ func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
 		Cmd:         cmd,
 	}
 
+	networkConfig, err := networkConfig(ocispec)
+	if err != nil {
+		return nil, err
+	}
+
 	podConfig := vc.PodConfig{
-		Hooks:      containerHooks(ocispec),
-		Containers: []vc.ContainerConfig{containerConfig},
+		Hooks:         containerHooks(ocispec),
+		NetworkModel:  vc.CNMNetworkModel,
+		NetworkConfig: networkConfig,
+		Containers:    []vc.ContainerConfig{containerConfig},
 	}
 
 	return &podConfig, nil
