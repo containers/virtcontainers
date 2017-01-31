@@ -32,6 +32,19 @@ var (
 	ErrNoLinux = errors.New("missing Linux section")
 )
 
+// RuntimeConfig aggregates all runtime specific settings
+type RuntimeConfig struct {
+	VMConfig vc.Resources
+
+	HypervisorType   vc.HypervisorType
+	HypervisorConfig vc.HypervisorConfig
+
+	AgentType   vc.AgentType
+	AgentConfig interface{}
+
+	ProxyType vc.ProxyType
+}
+
 func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
 	for _, env := range spec.Process.Env {
 		kv := strings.Split(env, "=")
@@ -110,7 +123,7 @@ func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
+func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, error) {
 	log.Debugf("converting %s/config.json", bundlePath)
 
 	configPath := filepath.Join(bundlePath, "config.json")
@@ -148,10 +161,22 @@ func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
 	}
 
 	podConfig := vc.PodConfig{
-		Hooks:         containerHooks(ocispec),
+		Hooks: containerHooks(ocispec),
+
+		VMConfig: runtime.VMConfig,
+
+		HypervisorType:   runtime.HypervisorType,
+		HypervisorConfig: runtime.HypervisorConfig,
+
+		AgentType:   runtime.AgentType,
+		AgentConfig: runtime.AgentConfig,
+
+		ProxyType: runtime.ProxyType,
+
 		NetworkModel:  vc.CNMNetworkModel,
 		NetworkConfig: networkConfig,
-		Containers:    []vc.ContainerConfig{containerConfig},
+
+		Containers: []vc.ContainerConfig{containerConfig},
 	}
 
 	return &podConfig, nil
