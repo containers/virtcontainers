@@ -43,6 +43,43 @@ func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
 	return envs
 }
 
+func newHook(h spec.Hook) vc.Hook {
+	timeout := 0
+	if h.Timeout != nil {
+		timeout = *h.Timeout
+	}
+
+	return vc.Hook{
+		Path:    h.Path,
+		Args:    h.Args,
+		Env:     h.Env,
+		Timeout: timeout,
+	}
+}
+
+func containerHooks(spec spec.Spec) vc.Hooks {
+	ociHooks := spec.Hooks
+	if ociHooks == nil {
+		return vc.Hooks{}
+	}
+
+	var hooks vc.Hooks
+
+	for _, h := range ociHooks.Prestart {
+		hooks.PreStartHooks = append(hooks.PreStartHooks, newHook(h))
+	}
+
+	for _, h := range ociHooks.Poststart {
+		hooks.PostStartHooks = append(hooks.PostStartHooks, newHook(h))
+	}
+
+	for _, h := range ociHooks.Poststop {
+		hooks.PostStopHooks = append(hooks.PostStopHooks, newHook(h))
+	}
+
+	return hooks
+}
+
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
 func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
@@ -78,6 +115,7 @@ func PodConfig(bundlePath, cid, console string) (*vc.PodConfig, error) {
 	}
 
 	podConfig := vc.PodConfig{
+		Hooks:      containerHooks(ocispec),
 		Containers: []vc.ContainerConfig{containerConfig},
 	}
 
