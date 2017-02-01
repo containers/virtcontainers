@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/containers/virtcontainers/hyperstart"
+	"github.com/containers/virtcontainers/pkg/hyperstart"
 	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
