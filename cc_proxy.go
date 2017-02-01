@@ -23,14 +23,25 @@ import (
 	"github.com/01org/cc-oci-runtime/proxy/api"
 )
 
-var defaultHyperstartProxySock = "/usr/local/var/run/cc-oci-runtime/proxy.sock"
+var defaultCCProxyRuntimeSock = "/run/cc-oci-runtime/proxy.sock"
 
 type ccProxy struct {
 	client *api.Client
 }
 
-func (p *ccProxy) connectProxy() (*api.Client, error) {
-	conn, err := net.Dial(unixSocket, defaultHyperstartProxySock)
+// CCProxyConfig is a structure storing information needed for
+// the Clear Containers proxy initialization.
+type CCProxyConfig struct {
+	RuntimeSocketPath string
+	ShimSocketPath    string
+}
+
+func (p *ccProxy) connectProxy(runtimeSocketPath string) (*api.Client, error) {
+	if runtimeSocketPath == "" {
+		runtimeSocketPath = defaultCCProxyRuntimeSock
+	}
+
+	conn, err := net.Dial(unixSocket, runtimeSocketPath)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +78,12 @@ func (p *ccProxy) register(pod Pod) ([]IOStream, error) {
 	var err error
 	var ioStreams []IOStream
 
-	p.client, err = p.connectProxy()
+	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
+	if !ok {
+		return []IOStream{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+	}
+
+	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
 		return []IOStream{}, err
 	}
@@ -107,7 +123,12 @@ func (p *ccProxy) unregister(pod Pod) error {
 func (p *ccProxy) connect(pod Pod) (IOStream, error) {
 	var err error
 
-	p.client, err = p.connectProxy()
+	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
+	if !ok {
+		return IOStream{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+	}
+
+	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
 		return IOStream{}, err
 	}

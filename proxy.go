@@ -19,6 +19,8 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 // ProxyType describes a proxy type.
@@ -67,6 +69,23 @@ func newProxy(pType ProxyType) (proxy, error) {
 		return &ccProxy{}, nil
 	default:
 		return &noopProxy{}, nil
+	}
+}
+
+// newProxyConfig returns a proxy config from a generic PodConfig interface.
+func newProxyConfig(config PodConfig) interface{} {
+	switch config.ProxyType {
+	case NoopProxyType:
+		return nil
+	case CCProxyType:
+		var ccConfig CCProxyConfig
+		err := mapstructure.Decode(config.ProxyConfig, &ccConfig)
+		if err != nil {
+			return err
+		}
+		return ccConfig
+	default:
+		return nil
 	}
 }
 

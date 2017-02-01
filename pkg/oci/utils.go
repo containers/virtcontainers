@@ -42,7 +42,8 @@ type RuntimeConfig struct {
 	AgentType   vc.AgentType
 	AgentConfig interface{}
 
-	ProxyType vc.ProxyType
+	ProxyType   vc.ProxyType
+	ProxyConfig interface{}
 }
 
 func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
@@ -172,7 +173,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		AgentType:   runtime.AgentType,
 		AgentConfig: runtime.AgentConfig,
 
-		ProxyType: runtime.ProxyType,
+		ProxyType:   runtime.ProxyType,
+		ProxyConfig: runtime.ProxyConfig,
 
 		NetworkModel:  vc.CNMNetworkModel,
 		NetworkConfig: networkConfig,
