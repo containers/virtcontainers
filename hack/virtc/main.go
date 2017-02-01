@@ -55,6 +55,12 @@ var podConfigFlags = []cli.Flag{
 	},
 
 	cli.StringFlag{
+		Name:  "proxy-sock",
+		Value: "",
+		Usage: "the agent's proxy socket path",
+	},
+
+	cli.StringFlag{
 		Name:  "sshd-user",
 		Value: "",
 		Usage: "the sshd user",
@@ -123,6 +129,7 @@ var podConfigFlags = []cli.Flag{
 
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	var agConfig interface{}
+	var proxyConfig interface{}
 
 	sshdUser := context.String("sshd-user")
 	sshdServer := context.String("sshd-server")
@@ -131,6 +138,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	hyperPauseBinPath := context.String("pause-path")
+	proxyRuntimeSocket := context.String("proxy-runtime-sock")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
@@ -200,6 +208,16 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = nil
 	}
 
+	switch *proxyType {
+	case vc.CCProxyType:
+		proxyConfig = vc.CCProxyConfig{
+			RuntimeSocketPath: proxyRuntimeSocket,
+		}
+
+	default:
+		proxyConfig = nil
+	}
+
 	vmConfig := vc.Resources{
 		VCPUs:  vmVCPUs,
 		Memory: vmMemory,
@@ -217,7 +235,8 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		NetworkModel:  *networkModel,
 		NetworkConfig: netConfig,
 
-		ProxyType: *proxyType,
+		ProxyType:   *proxyType,
+		ProxyConfig: proxyConfig,
 
 		Containers: []vc.ContainerConfig{},
 	}
