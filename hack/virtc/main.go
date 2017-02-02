@@ -138,7 +138,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	hyperPauseBinPath := context.String("pause-path")
-	proxyRuntimeSocket := context.String("proxy-runtime-sock")
+	proxyRuntimeSocket := context.String("proxy-sock")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
