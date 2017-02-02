@@ -47,10 +47,10 @@ const (
 	stateReady stateString = "ready"
 
 	// stateRunning represents a pod/container that's currently running.
-	stateRunning = "running"
+	stateRunning stateString = "running"
 
 	// statePaused represents a pod/container that has been paused.
-	statePaused = "paused"
+	statePaused stateString = "paused"
 )
 
 // State is a pod state structure.
