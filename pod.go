@@ -515,6 +515,38 @@ func (p *Pod) startSetStates() error {
 	return nil
 }
 
+// startVM starts the VM, ensuring it is started before it returns or issuing
+// an error in case of timeout. Then it connects to the agent inside the VM.
+func (p *Pod) startVM() error {
+	vmStartedCh := make(chan struct{})
+	vmStoppedCh := make(chan struct{})
+
+	go func() {
+		p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+			err := p.hypervisor.startPod(vmStartedCh, vmStoppedCh)
+			return err
+		})
+	}()
+
+	// Wait for the pod started notification
+	select {
+	case <-vmStartedCh:
+		break
+	case <-time.After(time.Second):
+		return fmt.Errorf("Did not receive the pod started notification")
+	}
+
+	err := p.agent.startAgent()
+	if err != nil {
+		p.stop()
+		return err
+	}
+
+	glog.Infof("VM started\n")
+
+	return nil
+}
+
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
@@ -523,27 +555,8 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	podStartedCh := make(chan struct{})
-	podStoppedCh := make(chan struct{})
-
-	go func() {
-		err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
-			err := p.hypervisor.startPod(podStartedCh, podStoppedCh)
-			return err
-		})
-	}()
-
-	// Wait for the pod started notification
-	select {
-	case <-podStartedCh:
-		break
-	case <-time.After(time.Second):
-		return fmt.Errorf("Did not receive the pod started notification")
-	}
-
-	err = p.agent.startAgent()
+	err = p.startVM()
 	if err != nil {
-		p.stop()
 		return err
 	}
 
@@ -553,32 +566,12 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	interactive := false
-	for _, c := range p.config.Containers {
-		if c.Interactive != false && c.Console != "" {
-			interactive = true
-			break
-		}
-	}
-
 	err = p.startSetStates()
 	if err != nil {
 		return err
 	}
 
-	if interactive == true {
-		select {
-		case <-podStoppedCh:
-			err = p.stopSetStates()
-			if err != nil {
-				return err
-			}
-
-			break
-		}
-	} else {
-		glog.Infof("Created Pod %s\n", p.ID())
-	}
+	glog.Infof("Started Pod %s\n", p.ID())
 
 	return nil
 }
