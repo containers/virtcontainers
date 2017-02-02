@@ -604,6 +604,21 @@ func (p *Pod) stopSetStates() error {
 	return nil
 }
 
+// stopVM stops the agent inside the VM and shut down the VM itself.
+func (p *Pod) stopVM() error {
+	err := p.agent.stopAgent()
+	if err != nil {
+		return err
+	}
+
+	err = p.hypervisor.stopPod()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
@@ -627,12 +642,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
-	err = p.hypervisor.stopPod()
+	err = p.stopVM()
 	if err != nil {
 		return err
 	}
