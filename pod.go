@@ -555,11 +555,6 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	err = p.startVM()
-	if err != nil {
-		return err
-	}
-
 	err = p.agent.startPod(*p.config)
 	if err != nil {
 		p.stop()
@@ -627,22 +622,12 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	err = p.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = p.agent.stopPod(*p)
 	if err != nil {
 		return err
 	}
 
 	err = p.stopSetStates()
-	if err != nil {
-		return err
-	}
-
-	err = p.stopVM()
 	if err != nil {
 		return err
 	}
@@ -675,11 +660,6 @@ func (p *Pod) setPodState(state stateString) error {
 
 // endSession makes sure to end the session properly.
 func (p *Pod) endSession() error {
-	err := p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
