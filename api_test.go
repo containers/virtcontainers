@@ -1207,7 +1207,7 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1228,7 +1228,7 @@ func TestStatusContainerFailing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err == nil {
 		t.Fatal()
 	}

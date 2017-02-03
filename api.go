@@ -569,14 +569,14 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
-func StatusContainer(podID, containerID string) error {
+func StatusContainer(podID, containerID string) (*ContainerStatus, error) {
 	fs := filesystem{}
 
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 
 	state, err := fs.fetchContainerState(podID, containerID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
@@ -584,5 +584,10 @@ func StatusContainer(podID, containerID string) error {
 
 	w.Flush()
 
-	return nil
+	contStatus := ContainerStatus{
+		ID:    containerID,
+		State: state,
+	}
+
+	return &contStatus, nil
 }

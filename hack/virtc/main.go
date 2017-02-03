@@ -520,7 +520,7 @@ func enterContainer(context *cli.Context) error {
 }
 
 func statusContainer(context *cli.Context) error {
-	err := vc.StatusContainer(context.String("pod-id"), context.String("id"))
+	_, err := vc.StatusContainer(context.String("pod-id"), context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not get container status: %s", err)
 	}
