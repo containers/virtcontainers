@@ -337,9 +337,6 @@ func ListPod() error {
 func StatusPod(podID string) (PodStatus, error) {
 	fs := filesystem{}
 
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
-
 	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
 		return PodStatus{}, err
@@ -350,19 +347,12 @@ func StatusPod(podID string) (PodStatus, error) {
 		return PodStatus{}, err
 	}
 
-	fmt.Fprintf(w, listFormat+"\n",
-		podID, state.State, config.HypervisorType, config.AgentType)
-
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-
 	var contStatusList []ContainerStatus
 	for _, container := range config.Containers {
 		contState, err := fs.fetchContainerState(podID, container.ID)
 		if err != nil {
 			continue
 		}
-
-		fmt.Fprintf(w, statusFormat, container.ID, contState.State)
 
 		contStatus := ContainerStatus{
 			ID:    container.ID,
@@ -371,8 +361,6 @@ func StatusPod(podID string) (PodStatus, error) {
 
 		contStatusList = append(contStatusList, contStatus)
 	}
-
-	w.Flush()
 
 	podStatus := PodStatus{
 		ID:               podID,

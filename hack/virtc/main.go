@@ -22,12 +22,16 @@ import (
 	"os"
 	"os/user"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
 
 	vc "github.com/containers/virtcontainers"
 )
+
+var listFormat = "%s\t%s\t%s\t%s\n"
+var statusFormat = "%s\t%s\n"
 
 var podConfigFlags = []cli.Flag{
 	cli.GenericFlag{
@@ -311,10 +315,24 @@ func listPods(context *cli.Context) error {
 }
 
 func statusPod(context *cli.Context) error {
-	_, err := vc.StatusPod(context.String("id"))
+	podStatus, err := vc.StatusPod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not get pod status: %s", err)
 	}
+
+	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
+	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+
+	fmt.Fprintf(w, listFormat+"\n",
+		podStatus.ID, podStatus.State.State, podStatus.Hypervisor, podStatus.Agent)
+
+	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
+
+	for _, contStatus := range podStatus.ContainersStatus {
+		fmt.Fprintf(w, statusFormat, contStatus.ID, contStatus.State.State)
+	}
+
+	w.Flush()
 
 	return nil
 }
