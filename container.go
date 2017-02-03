@@ -25,6 +25,12 @@ import (
 	"github.com/golang/glog"
 )
 
+// ContainerStatus describes a container status.
+type ContainerStatus struct {
+	ID    string
+	State State
+}
+
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string

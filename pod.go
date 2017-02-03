@@ -226,6 +226,15 @@ type Resources struct {
 	Memory uint
 }
 
+// PodStatus describes a pod status.
+type PodStatus struct {
+	ID               string
+	State            State
+	Hypervisor       HypervisorType
+	Agent            AgentType
+	ContainersStatus []ContainerStatus
+}
+
 // PodConfig is a Pod configuration.
 type PodConfig struct {
 	ID string

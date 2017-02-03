@@ -334,7 +334,7 @@ func ListPod() error {
 }
 
 // StatusPod is the virtcontainers pod status entry point.
-func StatusPod(podID string) error {
+func StatusPod(podID string) (PodStatus, error) {
 	fs := filesystem{}
 
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
@@ -342,12 +342,12 @@ func StatusPod(podID string) error {
 
 	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
 	state, err := fs.fetchPodState(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
 	fmt.Fprintf(w, listFormat+"\n",
@@ -355,6 +355,7 @@ func StatusPod(podID string) error {
 
 	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
 
+	var contStatusList []ContainerStatus
 	for _, container := range config.Containers {
 		contState, err := fs.fetchContainerState(podID, container.ID)
 		if err != nil {
@@ -362,10 +363,26 @@ func StatusPod(podID string) error {
 		}
 
 		fmt.Fprintf(w, statusFormat, container.ID, contState.State)
+
+		contStatus := ContainerStatus{
+			ID:    container.ID,
+			State: contState,
+		}
+
+		contStatusList = append(contStatusList, contStatus)
 	}
 
 	w.Flush()
-	return nil
+
+	podStatus := PodStatus{
+		ID:               podID,
+		State:            state,
+		Hypervisor:       config.HypervisorType,
+		Agent:            config.AgentType,
+		ContainersStatus: contStatusList,
+	}
+
+	return podStatus, nil
 }
 
 // CreateContainer is the virtcontainers container creation entry point.

@@ -311,7 +311,7 @@ func listPods(context *cli.Context) error {
 }
 
 func statusPod(context *cli.Context) error {
-	err := vc.StatusPod(context.String("id"))
+	_, err := vc.StatusPod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not get pod status: %s", err)
 	}

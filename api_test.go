@@ -483,7 +483,7 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 	path := filepath.Join(configStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
@@ -517,7 +517,7 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 	path := filepath.Join(runStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
