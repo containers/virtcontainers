@@ -47,10 +47,10 @@ const (
 	stateReady stateString = "ready"
 
 	// stateRunning represents a pod/container that's currently running.
-	stateRunning = "running"
+	stateRunning stateString = "running"
 
 	// statePaused represents a pod/container that has been paused.
-	statePaused = "paused"
+	statePaused stateString = "paused"
 )
 
 // State is a pod state structure.
@@ -515,35 +515,43 @@ func (p *Pod) startSetStates() error {
 	return nil
 }
 
-// start starts a pod. The containers that are making the pod
-// will be started.
-func (p *Pod) start() error {
-	err := p.startCheckStates()
-	if err != nil {
-		return err
-	}
-
-	podStartedCh := make(chan struct{})
-	podStoppedCh := make(chan struct{})
+// startVM starts the VM, ensuring it is started before it returns or issuing
+// an error in case of timeout. Then it connects to the agent inside the VM.
+func (p *Pod) startVM() error {
+	vmStartedCh := make(chan struct{})
+	vmStoppedCh := make(chan struct{})
 
 	go func() {
-		err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
-			err := p.hypervisor.startPod(podStartedCh, podStoppedCh)
+		p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+			err := p.hypervisor.startPod(vmStartedCh, vmStoppedCh)
 			return err
 		})
 	}()
 
 	// Wait for the pod started notification
 	select {
-	case <-podStartedCh:
+	case <-vmStartedCh:
 		break
 	case <-time.After(time.Second):
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err = p.agent.startAgent()
+	err := p.agent.startAgent()
 	if err != nil {
 		p.stop()
+		return err
+	}
+
+	glog.Infof("VM started\n")
+
+	return nil
+}
+
+// start starts a pod. The containers that are making the pod
+// will be started.
+func (p *Pod) start() error {
+	err := p.startCheckStates()
+	if err != nil {
 		return err
 	}
 
@@ -553,32 +561,12 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	interactive := false
-	for _, c := range p.config.Containers {
-		if c.Interactive != false && c.Console != "" {
-			interactive = true
-			break
-		}
-	}
-
 	err = p.startSetStates()
 	if err != nil {
 		return err
 	}
 
-	if interactive == true {
-		select {
-		case <-podStoppedCh:
-			err = p.stopSetStates()
-			if err != nil {
-				return err
-			}
-
-			break
-		}
-	} else {
-		glog.Infof("Created Pod %s\n", p.ID())
-	}
+	glog.Infof("Started Pod %s\n", p.ID())
 
 	return nil
 }
@@ -611,15 +599,25 @@ func (p *Pod) stopSetStates() error {
 	return nil
 }
 
-// stop stops a pod. The containers that are making the pod
-// will be destroyed.
-func (p *Pod) stop() error {
-	err := p.stopCheckStates()
+// stopVM stops the agent inside the VM and shut down the VM itself.
+func (p *Pod) stopVM() error {
+	err := p.agent.stopAgent()
 	if err != nil {
 		return err
 	}
 
-	err = p.agent.startAgent()
+	err = p.hypervisor.stopPod()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// stop stops a pod. The containers that are making the pod
+// will be destroyed.
+func (p *Pod) stop() error {
+	err := p.stopCheckStates()
 	if err != nil {
 		return err
 	}
@@ -630,16 +628,6 @@ func (p *Pod) stop() error {
 	}
 
 	err = p.stopSetStates()
-	if err != nil {
-		return err
-	}
-
-	err = p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
-	err = p.hypervisor.stopPod()
 	if err != nil {
 		return err
 	}
@@ -672,11 +660,6 @@ func (p *Pod) setPodState(state stateString) error {
 
 // endSession makes sure to end the session properly.
 func (p *Pod) endSession() error {
-	err := p.agent.stopAgent()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

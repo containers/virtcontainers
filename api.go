@@ -37,6 +37,38 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Initialize the network.
+	err = p.network.init(&(p.config.NetworkConfig))
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute prestart hooks inside netns
+	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the network
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the network
+	err = p.storage.storePodNetwork(p.id, networkNS)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the VM
+	err = p.startVM()
+	if err != nil {
+		return nil, err
+	}
+
 	err = p.endSession()
 	if err != nil {
 		return nil, err
@@ -56,6 +88,24 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Fetch the pod from storage and create it.
 	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stop the VM
+	err = p.stopVM()
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the network
+	err = p.network.remove(*p, networkNS)
 	if err != nil {
 		return nil, err
 	}
@@ -91,28 +141,8 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Initialize the network.
-	err = p.network.init(&(p.config.NetworkConfig))
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks inside netns
-	err = p.network.run(p.config.NetworkConfig.NetNSPath, func() error {
-		return p.config.Hooks.preStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the network
-	networkNS, err := p.network.add(*p, p.config.NetworkConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store the network
-	err = p.storage.storePodNetwork(p.id, networkNS)
+	// Fetch the network config
+	networkNS, err := p.storage.fetchPodNetwork(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,12 +203,6 @@ func StopPod(podID string) (*Pod, error) {
 	})
 	if err != nil {
 		p.delete()
-		return nil, err
-	}
-
-	// Remove the network
-	err = p.network.remove(*p, networkNS)
-	if err != nil {
 		return nil, err
 	}
 
