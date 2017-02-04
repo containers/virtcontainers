@@ -460,7 +460,7 @@ func TestListPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ListPod()
+	_, err = ListPod()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +469,7 @@ func TestListPodSuccessful(t *testing.T) {
 func TestListPodFailing(t *testing.T) {
 	os.RemoveAll(configStoragePath)
 
-	err := ListPod()
+	_, err := ListPod()
 	if err == nil {
 		t.Fatal()
 	}

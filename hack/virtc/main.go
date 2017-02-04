@@ -306,7 +306,7 @@ func stopPod(context *cli.Context) error {
 }
 
 func listPods(context *cli.Context) error {
-	err := vc.ListPod()
+	_, err := vc.ListPod()
 	if err != nil {
 		return fmt.Errorf("Could not list pod: %s", err)
 	}

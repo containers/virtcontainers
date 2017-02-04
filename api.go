@@ -293,23 +293,25 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 var listFormat = "%s\t%s\t%s\t%s\n"
 
 // ListPod is the virtcontainers pod listing entry point.
-func ListPod() error {
+func ListPod() ([]PodStatus, error) {
 	dir, err := os.Open(configStoragePath)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	defer dir.Close()
 
 	pods, err := dir.Readdirnames(0)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	fs := filesystem{}
 
 	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+
+	var podStatusList []PodStatus
 
 	for _, p := range pods {
 		var config PodConfig
@@ -326,10 +328,20 @@ func ListPod() error {
 
 		fmt.Fprintf(w, listFormat,
 			config.ID, state.State, config.HypervisorType, config.AgentType)
+
+		podStatus := PodStatus{
+			ID:         config.ID,
+			State:      state,
+			Hypervisor: config.HypervisorType,
+			Agent:      config.AgentType,
+		}
+
+		podStatusList = append(podStatusList, podStatus)
 	}
 
 	w.Flush()
-	return nil
+
+	return podStatusList, nil
 }
 
 // StatusPod is the virtcontainers pod status entry point.
