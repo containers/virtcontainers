@@ -291,7 +291,6 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 }
 
 var listFormat = "%s\t%s\t%s\t%s\n"
-var statusFormat = "%s\t%s\n"
 
 // ListPod is the virtcontainers pod listing entry point.
 func ListPod() error {
@@ -569,25 +568,18 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
-func StatusContainer(podID, containerID string) (*ContainerStatus, error) {
+func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	fs := filesystem{}
-
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 
 	state, err := fs.fetchContainerState(podID, containerID)
 	if err != nil {
-		return nil, err
+		return ContainerStatus{}, err
 	}
-
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-	fmt.Fprintf(w, statusFormat, containerID, state.State)
-
-	w.Flush()
 
 	contStatus := ContainerStatus{
 		ID:    containerID,
 		State: state,
 	}
 
-	return &contStatus, nil
+	return contStatus, nil
 }

@@ -520,12 +520,16 @@ func enterContainer(context *cli.Context) error {
 }
 
 func statusContainer(context *cli.Context) error {
-	_, err := vc.StatusContainer(context.String("pod-id"), context.String("id"))
+	contStatus, err := vc.StatusContainer(context.String("pod-id"), context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not get container status: %s", err)
 	}
 
-	fmt.Printf("Container status obtained\n")
+	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
+	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
+	fmt.Fprintf(w, statusFormat, contStatus.ID, contStatus.State.State)
+
+	w.Flush()
 
 	return nil
 }
