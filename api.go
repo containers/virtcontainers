@@ -17,9 +17,7 @@
 package virtcontainers
 
 import (
-	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -290,8 +288,6 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	return p, nil
 }
 
-var listFormat = "%s\t%s\t%s\t%s\n"
-
 // ListPod is the virtcontainers pod listing entry point.
 func ListPod() ([]PodStatus, error) {
 	dir, err := os.Open(configStoragePath)
@@ -308,9 +304,6 @@ func ListPod() ([]PodStatus, error) {
 
 	fs := filesystem{}
 
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
-
 	var podStatusList []PodStatus
 
 	for _, p := range pods {
@@ -326,9 +319,6 @@ func ListPod() ([]PodStatus, error) {
 			continue
 		}
 
-		fmt.Fprintf(w, listFormat,
-			config.ID, state.State, config.HypervisorType, config.AgentType)
-
 		podStatus := PodStatus{
 			ID:         config.ID,
 			State:      state,
@@ -338,8 +328,6 @@ func ListPod() ([]PodStatus, error) {
 
 		podStatusList = append(podStatusList, podStatus)
 	}
-
-	w.Flush()
 
 	return podStatusList, nil
 }

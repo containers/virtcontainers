@@ -306,10 +306,20 @@ func stopPod(context *cli.Context) error {
 }
 
 func listPods(context *cli.Context) error {
-	_, err := vc.ListPod()
+	podStatusList, err := vc.ListPod()
 	if err != nil {
 		return fmt.Errorf("Could not list pod: %s", err)
 	}
+
+	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
+	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+
+	for _, podStatus := range podStatusList {
+		fmt.Fprintf(w, listFormat,
+			podStatus.ID, podStatus.State.State, podStatus.Hypervisor, podStatus.Agent)
+	}
+
+	w.Flush()
 
 	return nil
 }
