@@ -261,7 +261,13 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start it
+	// Start the VM
+	err = p.startVM()
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the pod
 	err = p.start()
 	if err != nil {
 		p.delete()
