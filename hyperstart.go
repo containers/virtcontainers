@@ -181,7 +181,11 @@ func (h *hyper) bindUnmountContainerRootfs(container ContainerConfig) error {
 
 func (h *hyper) bindUnmountAllRootfs() {
 	for _, c := range h.pod.containers {
-		h.bindUnmountContainerRootfs(c)
+		if c.config == nil {
+			continue
+		}
+
+		h.bindUnmountContainerRootfs(*(c.config))
 	}
 }
 
@@ -277,7 +281,7 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(config PodConfig) error {
-	h.pod.containers = append(h.pod.containers, ContainerConfig{})
+	h.pod.containers = append(h.pod.containers, &Container{})
 
 	ioStreams, err := h.proxy.register(*(h.pod))
 	if err != nil {

@@ -338,7 +338,7 @@ type Pod struct {
 
 	volumes []Volume
 
-	containers []ContainerConfig
+	containers []*Container
 
 	runPath    string
 	configPath string
@@ -355,8 +355,8 @@ func (p *Pod) ID() string {
 	return p.id
 }
 
-// GetContainersConfigs returns a container config list.
-func (p *Pod) GetContainersConfigs() []ContainerConfig {
+// GetContainers returns a container config list.
+func (p *Pod) GetContainers() []*Container {
 	return p.containers
 }
 
@@ -406,11 +406,17 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		network:    network,
 		config:     &podConfig,
 		volumes:    podConfig.Volumes,
-		containers: podConfig.Containers,
 		runPath:    filepath.Join(runStoragePath, podConfig.ID),
 		configPath: filepath.Join(configStoragePath, podConfig.ID),
 		state:      State{},
 	}
+
+	containers, err := createContainers(p, podConfig.Containers)
+	if err != nil {
+		return nil, err
+	}
+
+	p.containers = containers
 
 	err = p.storage.createAllResources(*p)
 	if err != nil {
@@ -464,7 +470,7 @@ func (p *Pod) storePod() error {
 	}
 
 	for _, container := range p.containers {
-		err = p.storage.storeContainerResource(p.id, container.ID, configFileType, container)
+		err = p.storage.storeContainerResource(p.id, container.id, configFileType, *(container.config))
 		if err != nil {
 			return err
 		}

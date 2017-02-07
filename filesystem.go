@@ -108,14 +108,14 @@ func (fs *filesystem) createAllResources(pod Pod) error {
 	}
 
 	for _, container := range pod.containers {
-		_, path, _ = fs.containerURI(pod.id, container.ID, configFileType)
+		_, path, _ = fs.containerURI(pod.id, container.id, configFileType)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
 			return err
 		}
 
-		_, path, _ = fs.containerURI(pod.id, container.ID, stateFileType)
+		_, path, _ = fs.containerURI(pod.id, container.id, stateFileType)
 		err = os.MkdirAll(path, os.ModeDir)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
