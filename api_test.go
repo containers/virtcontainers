@@ -460,7 +460,7 @@ func TestListPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ListPod()
+	_, err = ListPod()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +469,7 @@ func TestListPodSuccessful(t *testing.T) {
 func TestListPodFailing(t *testing.T) {
 	os.RemoveAll(configStoragePath)
 
-	err := ListPod()
+	_, err := ListPod()
 	if err == nil {
 		t.Fatal()
 	}
@@ -483,7 +483,7 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 	path := filepath.Join(configStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
@@ -517,7 +517,7 @@ func TestListPodFailingFetchPodState(t *testing.T) {
 	path := filepath.Join(runStoragePath, p.id)
 	os.RemoveAll(path)
 
-	err = StatusPod(p.id)
+	_, err = StatusPod(p.id)
 	if err == nil {
 		t.Fatal()
 	}
@@ -1207,7 +1207,7 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1228,7 +1228,7 @@ func TestStatusContainerFailing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = StatusContainer(p.id, contID)
+	_, err = StatusContainer(p.id, contID)
 	if err == nil {
 		t.Fatal()
 	}

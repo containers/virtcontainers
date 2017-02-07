@@ -17,9 +17,7 @@
 package virtcontainers
 
 import (
-	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -290,27 +288,23 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	return p, nil
 }
 
-var listFormat = "%s\t%s\t%s\t%s\n"
-var statusFormat = "%s\t%s\n"
-
 // ListPod is the virtcontainers pod listing entry point.
-func ListPod() error {
+func ListPod() ([]PodStatus, error) {
 	dir, err := os.Open(configStoragePath)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	defer dir.Close()
 
 	pods, err := dir.Readdirnames(0)
 	if err != nil {
-		return err
+		return []PodStatus{}, err
 	}
 
 	fs := filesystem{}
 
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
+	var podStatusList []PodStatus
 
 	for _, p := range pods {
 		var config PodConfig
@@ -325,47 +319,57 @@ func ListPod() error {
 			continue
 		}
 
-		fmt.Fprintf(w, listFormat,
-			config.ID, state.State, config.HypervisorType, config.AgentType)
+		podStatus := PodStatus{
+			ID:         config.ID,
+			State:      state,
+			Hypervisor: config.HypervisorType,
+			Agent:      config.AgentType,
+		}
+
+		podStatusList = append(podStatusList, podStatus)
 	}
 
-	w.Flush()
-	return nil
+	return podStatusList, nil
 }
 
 // StatusPod is the virtcontainers pod status entry point.
-func StatusPod(podID string) error {
+func StatusPod(podID string) (PodStatus, error) {
 	fs := filesystem{}
-
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
-	fmt.Fprintf(w, listFormat, "POD ID", "STATE", "HYPERVISOR", "AGENT")
 
 	config, err := fs.fetchPodConfig(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
 	state, err := fs.fetchPodState(podID)
 	if err != nil {
-		return err
+		return PodStatus{}, err
 	}
 
-	fmt.Fprintf(w, listFormat+"\n",
-		podID, state.State, config.HypervisorType, config.AgentType)
-
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-
+	var contStatusList []ContainerStatus
 	for _, container := range config.Containers {
 		contState, err := fs.fetchContainerState(podID, container.ID)
 		if err != nil {
 			continue
 		}
 
-		fmt.Fprintf(w, statusFormat, container.ID, contState.State)
+		contStatus := ContainerStatus{
+			ID:    container.ID,
+			State: contState,
+		}
+
+		contStatusList = append(contStatusList, contStatus)
 	}
 
-	w.Flush()
-	return nil
+	podStatus := PodStatus{
+		ID:               podID,
+		State:            state,
+		Hypervisor:       config.HypervisorType,
+		Agent:            config.AgentType,
+		ContainersStatus: contStatusList,
+	}
+
+	return podStatus, nil
 }
 
 // CreateContainer is the virtcontainers container creation entry point.
@@ -564,20 +568,18 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 
 // StatusContainer is the virtcontainers container status entry point.
 // StatusContainer returns a detailed container status.
-func StatusContainer(podID, containerID string) error {
+func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	fs := filesystem{}
-
-	w := tabwriter.NewWriter(os.Stdout, 2, 8, 1, '\t', 0)
 
 	state, err := fs.fetchContainerState(podID, containerID)
 	if err != nil {
-		return err
+		return ContainerStatus{}, err
 	}
 
-	fmt.Fprintf(w, statusFormat, "CONTAINER ID", "STATE")
-	fmt.Fprintf(w, statusFormat, containerID, state.State)
+	contStatus := ContainerStatus{
+		ID:    containerID,
+		State: state,
+	}
 
-	w.Flush()
-
-	return nil
+	return contStatus, nil
 }
