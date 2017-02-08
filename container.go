@@ -26,6 +26,12 @@ import (
 	"github.com/golang/glog"
 )
 
+// Process gathers data related to a container process.
+type Process struct {
+	Token string
+	Pid   int
+}
+
 // ContainerStatus describes a container status.
 type ContainerStatus struct {
 	ID    string
@@ -75,6 +81,8 @@ type Container struct {
 	containerPath string
 
 	state State
+
+	process Process
 }
 
 // ID returns the container identifier string.
@@ -152,6 +160,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			configPath:    filepath.Join(configStoragePath, pod.id, contConfig.ID),
 			containerPath: filepath.Join(pod.id, contConfig.ID),
 			state:         State{},
+			process:       Process{},
 		}
 
 		containers = append(containers, c)
@@ -175,6 +184,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		configPath:    filepath.Join(configStoragePath, pod.id, contConfig.ID),
 		containerPath: filepath.Join(pod.id, contConfig.ID),
 		state:         State{},
+		process:       Process{},
 	}
 
 	err := c.createContainersDirs()
