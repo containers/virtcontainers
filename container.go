@@ -289,6 +289,11 @@ func (c *Container) stop() error {
 		return err
 	}
 
+	err = c.pod.agent.killContainer(*c.pod, *c, syscall.SIGTERM)
+	if err != nil {
+		return err
+	}
+
 	err = c.pod.agent.stopContainer(*c.pod, *c)
 	if err != nil {
 		return err

@@ -499,7 +499,9 @@ func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
 
 	_, err := h.proxy.sendCmd(proxyCmd)
 	if err != nil {
-		return err
+		// It is likely that we get an error because the container has been
+		// previously killed, preventing us from removing it.
+		glog.Infof("%s\n", err)
 	}
 
 	err = h.bindUnmountContainerRootfs(contConfig)
