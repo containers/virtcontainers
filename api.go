@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"os"
+	"syscall"
 )
 
 // CreatePod is the virtcontainers pod creation entry point.
@@ -582,4 +583,38 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	}
 
 	return contStatus, nil
+}
+
+// KillContainer is the virtcontainers entry point to send a signal
+// to a container running inside a pod.
+func KillContainer(podID, containerID string, signal syscall.Signal) error {
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return err
+	}
+	defer unlockPod(lockFile)
+
+	p, err := fetchPod(podID)
+	if err != nil {
+		return err
+	}
+
+	// Fetch the container.
+	c, err := fetchContainer(p, containerID)
+	if err != nil {
+		return err
+	}
+
+	// Send a signal to the process.
+	err = c.kill(signal)
+	if err != nil {
+		return err
+	}
+
+	err = p.endSession()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
