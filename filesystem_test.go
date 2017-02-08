@@ -35,7 +35,8 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 	}
 
 	pod := Pod{
-		id: testPodID,
+		id:      testPodID,
+		storage: fs,
 	}
 
 	containers, err := createContainers(&pod, contConfigs)

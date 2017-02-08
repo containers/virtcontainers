@@ -215,16 +215,6 @@ type Cmd struct {
 
 	User  string
 	Group string
-
-	// Hidden field filled by agent implementation and used later by
-	// virtcontainers consumer who wants to start a shim to connect
-	// the proxy.
-	token string
-}
-
-// GetToken returns a shim token associated to the process defined by Cmd structure.
-func (c *Cmd) GetToken() string {
-	return c.token
 }
 
 // Resources describes VM resources configuration.
