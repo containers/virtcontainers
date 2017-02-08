@@ -452,23 +452,15 @@ func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
 }
 
 func (h *hyper) stopPauseContainer() error {
-	killCmd := KillCommand{
-		Container: pauseContainerName,
-		Signal:    syscall.SIGKILL,
+	container := Container{
+		id: pauseContainerName,
 	}
 
-	proxyCmd := hyperstartProxyCmd{
-		cmd:     hyperstart.KillContainer,
-		message: killCmd,
-	}
-
-	_, err := h.proxy.sendCmd(proxyCmd)
-	if err != nil {
+	if err := h.killOneContainer(container, syscall.SIGKILL); err != nil {
 		return err
 	}
 
-	err = h.unlinkPauseBinary()
-	if err != nil {
+	if err := h.unlinkPauseBinary(); err != nil {
 		return err
 	}
 
@@ -520,5 +512,35 @@ func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
 
 // killContainer is the agent process signal implementation for hyperstart.
 func (h *hyper) killContainer(pod Pod, container Container, signal syscall.Signal) error {
+	if _, err := h.proxy.connect(pod); err != nil {
+		return err
+	}
+
+	if err := h.killOneContainer(container, signal); err != nil {
+		return err
+	}
+
+	if err := h.proxy.disconnect(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *hyper) killOneContainer(container Container, signal syscall.Signal) error {
+	killCmd := KillCommand{
+		Container: container.id,
+		Signal:    signal,
+	}
+
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.KillContainer,
+		message: killCmd,
+	}
+
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
+		return err
+	}
+
 	return nil
 }
