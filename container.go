@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/golang/glog"
@@ -326,6 +327,38 @@ func (c *Container) enter(cmd Cmd) error {
 	}
 
 	err = c.pod.agent.exec(*c.pod, *c, cmd)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) kill(signal syscall.Signal) error {
+	state, err := c.pod.storage.fetchPodState(c.pod.id)
+	if err != nil {
+		return err
+	}
+
+	if state.State != stateRunning {
+		return fmt.Errorf("Pod not running, impossible to signal the container")
+	}
+
+	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	if err != nil {
+		return err
+	}
+
+	if state.State != stateRunning {
+		return fmt.Errorf("Container not running, impossible to signal the container")
+	}
+
+	err = c.pod.agent.startAgent()
+	if err != nil {
+		return err
+	}
+
+	err = c.pod.agent.killContainer(*c.pod, *c, signal)
 	if err != nil {
 		return err
 	}
