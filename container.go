@@ -163,6 +163,11 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			process:       Process{},
 		}
 
+		state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
+		if err == nil {
+			c.state.State = state.State
+		}
+
 		containers = append(containers, c)
 	}
 
