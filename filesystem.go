@@ -22,8 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	//	"github.com/01org/ciao/ssntp/uuid"
-	//	"github.com/golang/glog"
 )
 
 // podResource is an int representing a pod resource type
