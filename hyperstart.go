@@ -517,3 +517,8 @@ func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
 
 	return nil
 }
+
+// killContainer is the agent process signal implementation for hyperstart.
+func (h *hyper) killContainer(pod Pod, container Container, signal syscall.Signal) error {
+	return nil
+}
