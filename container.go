@@ -175,8 +175,8 @@ func (c *Container) delete() error {
 		return err
 	}
 
-	if state.State != stateReady {
-		return fmt.Errorf("Container not ready, impossible to delete")
+	if state.State != stateReady && state.State != stateStopped {
+		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
 	err = c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
@@ -202,13 +202,16 @@ func (c *Container) start() error {
 		return err
 	}
 
-	if state.State != stateReady {
-		return fmt.Errorf("Container not ready, impossible to start")
+	if state.State != stateReady && state.State != stateStopped {
+		return fmt.Errorf("Container not ready or stopped, impossible to start")
 	}
 
 	err = state.validTransition(stateReady, stateRunning)
 	if err != nil {
-		return err
+		err = state.validTransition(stateStopped, stateRunning)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = c.pod.agent.startAgent()
@@ -249,7 +252,7 @@ func (c *Container) stop() error {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}
 
-	err = state.validTransition(stateRunning, stateReady)
+	err = state.validTransition(stateRunning, stateStopped)
 	if err != nil {
 		return err
 	}
@@ -264,7 +267,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.setContainerState(stateReady)
+	err = c.setContainerState(stateStopped)
 	if err != nil {
 		return err
 	}
