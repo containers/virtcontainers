@@ -133,6 +133,32 @@ func (c *Container) createContainersDirs() error {
 	return nil
 }
 
+func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
+	var containers []*Container
+
+	for _, contConfig := range contConfigs {
+		if contConfig.valid() == false {
+			return containers, fmt.Errorf("Invalid container configuration")
+		}
+
+		c := &Container{
+			id:            contConfig.ID,
+			podID:         pod.id,
+			rootFs:        contConfig.RootFs,
+			config:        &contConfig,
+			pod:           pod,
+			runPath:       filepath.Join(runStoragePath, pod.id, contConfig.ID),
+			configPath:    filepath.Join(configStoragePath, pod.id, contConfig.ID),
+			containerPath: filepath.Join(pod.id, contConfig.ID),
+			state:         State{},
+		}
+
+		containers = append(containers, c)
+	}
+
+	return containers, nil
+}
+
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if contConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid container configuration")
