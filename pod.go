@@ -49,8 +49,8 @@ const (
 	// stateRunning represents a pod/container that's currently running.
 	stateRunning stateString = "running"
 
-	// statePaused represents a pod/container that has been paused.
-	statePaused stateString = "paused"
+	// stateStopped represents a pod/container that has been stopped.
+	stateStopped stateString = "stopped"
 )
 
 // State is a pod state structure.
@@ -60,7 +60,7 @@ type State struct {
 
 // valid checks that the pod state is valid.
 func (state *State) valid() bool {
-	for _, validState := range []stateString{stateReady, stateRunning, statePaused} {
+	for _, validState := range []stateString{stateReady, stateRunning, stateStopped} {
 		if state.State == validState {
 			return true
 		}
@@ -83,11 +83,11 @@ func (state *State) validTransition(oldState stateString, newState stateString) 
 		}
 
 	case stateRunning:
-		if newState == statePaused || newState == stateReady {
+		if newState == stateStopped {
 			return nil
 		}
 
-	case statePaused:
+	case stateStopped:
 		if newState == stateRunning {
 			return nil
 		}
@@ -494,8 +494,8 @@ func (p *Pod) delete() error {
 		return err
 	}
 
-	if state.State != stateReady {
-		return fmt.Errorf("Pod not ready, impossible to delete")
+	if state.State != stateReady && state.State != stateStopped {
+		return fmt.Errorf("Pod not ready or stopped, impossible to delete")
 	}
 
 	err = p.storage.deletePodResources(p.id, nil)
@@ -514,12 +514,18 @@ func (p *Pod) startCheckStates() error {
 
 	err = state.validTransition(stateReady, stateRunning)
 	if err != nil {
-		return err
+		err = state.validTransition(stateStopped, stateRunning)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = p.checkContainersState(stateReady)
 	if err != nil {
-		return err
+		err = p.checkContainersState(stateStopped)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -601,7 +607,7 @@ func (p *Pod) stopCheckStates() error {
 		return err
 	}
 
-	err = state.validTransition(stateRunning, stateReady)
+	err = state.validTransition(stateRunning, stateStopped)
 	if err != nil {
 		return err
 	}
@@ -610,12 +616,12 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.setContainersState(stateReady)
+	err := p.setContainersState(stateStopped)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(stateReady)
+	err = p.setPodState(stateStopped)
 	if err != nil {
 		return err
 	}
