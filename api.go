@@ -349,14 +349,19 @@ func StatusPod(podID string) (PodStatus, error) {
 
 	var contStatusList []ContainerStatus
 	for _, container := range config.Containers {
-		contState, err := fs.fetchContainerState(podID, container.ID)
-		if err != nil {
-			continue
+		contStatus := ContainerStatus{
+			ID:     container.ID,
+			RootFs: container.RootFs,
 		}
 
-		contStatus := ContainerStatus{
-			ID:    container.ID,
-			State: contState,
+		state, err := fs.fetchContainerState(podID, container.ID)
+		if err == nil {
+			contStatus.State = state
+		}
+
+		process, err := fs.fetchContainerProcess(podID, container.ID)
+		if err == nil {
+			contStatus.PID = process.Pid
 		}
 
 		contStatusList = append(contStatusList, contStatus)
@@ -572,14 +577,24 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Container, error) {
 func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	fs := filesystem{}
 
-	state, err := fs.fetchContainerState(podID, containerID)
+	contConfig, err := fs.fetchContainerConfig(podID, containerID)
 	if err != nil {
 		return ContainerStatus{}, err
 	}
 
 	contStatus := ContainerStatus{
-		ID:    containerID,
-		State: state,
+		ID:     contConfig.ID,
+		RootFs: contConfig.RootFs,
+	}
+
+	state, err := fs.fetchContainerState(podID, containerID)
+	if err == nil {
+		contStatus.State = state
+	}
+
+	process, err := fs.fetchContainerProcess(podID, containerID)
+	if err == nil {
+		contStatus.PID = process.Pid
 	}
 
 	return contStatus, nil

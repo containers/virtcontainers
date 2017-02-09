@@ -34,8 +34,10 @@ type Process struct {
 
 // ContainerStatus describes a container status.
 type ContainerStatus struct {
-	ID    string
-	State State
+	ID     string
+	State  State
+	PID    int
+	RootFs string
 }
 
 // ContainerConfig describes one container runtime configuration.
