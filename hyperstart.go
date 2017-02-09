@@ -336,6 +336,14 @@ func (h *hyper) stopPod(pod Pod) error {
 			continue
 		}
 
+		container := Container{
+			id: contConfig.ID,
+		}
+
+		if err := h.killOneContainer(container, syscall.SIGTERM); err != nil {
+			return err
+		}
+
 		err = h.stopOneContainer(contConfig)
 		if err != nil {
 			return err
@@ -499,9 +507,7 @@ func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
 
 	_, err := h.proxy.sendCmd(proxyCmd)
 	if err != nil {
-		// It is likely that we get an error because the container has been
-		// previously killed, preventing us from removing it.
-		glog.Infof("%s\n", err)
+		return err
 	}
 
 	err = h.bindUnmountContainerRootfs(contConfig)
