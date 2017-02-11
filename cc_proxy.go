@@ -98,15 +98,6 @@ func (p *ccProxy) register(pod Pod) ([]IOStream, error) {
 		return []IOStream{}, err
 	}
 
-	for i := 0; i < len(pod.containers); i++ {
-		ioStream, err := p.allocateIOStream()
-		if err != nil {
-			return []IOStream{}, err
-		}
-
-		ioStreams = append(ioStreams, ioStream)
-	}
-
 	return ioStreams, nil
 }
 
@@ -128,9 +119,11 @@ func (p *ccProxy) connect(pod Pod) (IOStream, error) {
 		return IOStream{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
-	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
-	if err != nil {
-		return IOStream{}, err
+	if p.client == nil {
+		p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
+		if err != nil {
+			return IOStream{}, err
+		}
 	}
 
 	_, err = p.client.Attach(pod.id, nil)
@@ -153,6 +146,7 @@ func (p *ccProxy) disconnect() error {
 	}
 
 	p.client.Close()
+	p.client = nil
 
 	return nil
 }

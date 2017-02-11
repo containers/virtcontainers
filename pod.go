@@ -574,6 +574,22 @@ func (p *Pod) startVM() error {
 	return nil
 }
 
+func (p *Pod) checkPodStarted() (bool, error) {
+	state, err := p.storage.fetchPodState(p.id)
+	if err != nil {
+		return false, err
+	}
+
+	switch state.State {
+	case StateReady:
+		return false, nil
+	case StateRunning, StateStopped:
+		return true, nil
+	}
+
+	return false, fmt.Errorf("Invalid state %s", string(state.State))
+}
+
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
@@ -584,7 +600,6 @@ func (p *Pod) start() error {
 
 	err = p.agent.startPod(*p.config)
 	if err != nil {
-		p.stop()
 		return err
 	}
 
