@@ -440,6 +440,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	state, err := p.storage.fetchPodState(p.id)
 	if err == nil && state.State != "" {
+		p.state = state
 		return p, nil
 	}
 
