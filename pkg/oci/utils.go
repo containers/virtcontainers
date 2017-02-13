@@ -196,7 +196,7 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 	state := spec.State{
 		Version: spec.Version,
 		ID:      status.ID,
-		Status:  stateToOCIState(status.State),
+		Status:  stateToOCIState(status.ContainersStatus[0].State),
 		Pid:     status.ContainersStatus[0].PID,
 		Bundle:  status.ContainersStatus[0].RootFs,
 	}
