@@ -134,6 +134,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
@@ -167,6 +168,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
@@ -200,6 +202,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 
 	cStatuses := []vc.ContainerStatus{
 		{
+			State:  state,
 			PID:    testPID,
 			RootFs: testRootFs,
 		},
