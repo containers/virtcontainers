@@ -526,7 +526,7 @@ func TestPodDeleteContainerStateSuccessful(t *testing.T) {
 	}
 
 	path := filepath.Join(runStoragePath, testPodID, contID)
-	err := os.MkdirAll(path, os.ModeDir)
+	err := os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +595,7 @@ func TestPodDeleteContainersStateSuccessful(t *testing.T) {
 
 	for _, c := range containers {
 		path := filepath.Join(runStoragePath, testPodID, c.ID)
-		err = os.MkdirAll(path, os.ModeDir)
+		err = os.MkdirAll(path, dirMode)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -675,7 +675,7 @@ func TestPodCheckContainerStateFailingNotExpectedState(t *testing.T) {
 	}
 
 	path := filepath.Join(runStoragePath, testPodID, contID)
-	err := os.MkdirAll(path, os.ModeDir)
+	err := os.MkdirAll(path, dirMode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -734,7 +734,7 @@ func TestPodCheckContainersStateFailingEmptyPodID(t *testing.T) {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	err := os.MkdirAll(testDir, os.ModeDir)
+	err := os.MkdirAll(testDir, dirMode)
 	if err != nil {
 		fmt.Println("Could not create test directories:", err)
 		os.Exit(1)
@@ -761,7 +761,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	err = os.Mkdir(filepath.Join(testDir, testBundle), os.ModeDir)
+	err = os.Mkdir(filepath.Join(testDir, testBundle), dirMode)
 	if err != nil {
 		fmt.Println("Could not create test bundle directory:", err)
 		os.RemoveAll(testDir)

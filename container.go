@@ -151,12 +151,12 @@ func (c *Container) setContainerState(state stateString) error {
 }
 
 func (c *Container) createContainersDirs() error {
-	err := os.MkdirAll(c.runPath, os.ModeDir)
+	err := os.MkdirAll(c.runPath, dirMode)
 	if err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(c.configPath, os.ModeDir)
+	err = os.MkdirAll(c.configPath, dirMode)
 	if err != nil {
 		c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 		return err
