@@ -27,6 +27,10 @@ import (
 	"github.com/containernetworking/cni/pkg/ns"
 )
 
+const (
+	dirMode = os.FileMode(0750)
+)
+
 var testConfDir = "/tmp/cni/net.d"
 var testBinDir = "/tmp/cni/bin"
 var testWrongConfDir = "/tmp/cni/wrong"
@@ -374,7 +378,7 @@ func TestRemoveNetworkFailureNetworkDoesNotExist(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	err := os.MkdirAll(testConfDir, os.ModeDir)
+	err := os.MkdirAll(testConfDir, dirMode)
 	if err != nil {
 		fmt.Println("Could not create test configuration directory:", err)
 		os.Exit(1)

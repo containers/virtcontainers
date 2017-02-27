@@ -67,6 +67,9 @@ const processFile = "process.json"
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
 
+// dirMode is the permission bits used for creating a directory
+const dirMode = os.FileMode(0750)
+
 // resourceStorage is the virtcontainers resources (configuration, state, etc...)
 // storage interface.
 // The default resource storage implementation is filesystem.
@@ -102,27 +105,27 @@ type filesystem struct {
 
 func (fs *filesystem) createAllResources(pod Pod) error {
 	_, path, _ := fs.podURI(pod.id, stateFileType)
-	err := os.MkdirAll(path, os.ModeDir)
+	err := os.MkdirAll(path, dirMode)
 	if err != nil {
 		return err
 	}
 
 	_, path, _ = fs.podURI(pod.id, configFileType)
-	err = os.MkdirAll(path, os.ModeDir)
+	err = os.MkdirAll(path, dirMode)
 	if err != nil {
 		return err
 	}
 
 	for _, container := range pod.containers {
 		_, path, _ = fs.containerURI(pod.id, container.id, configFileType)
-		err = os.MkdirAll(path, os.ModeDir)
+		err = os.MkdirAll(path, dirMode)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
 			return err
 		}
 
 		_, path, _ = fs.containerURI(pod.id, container.id, stateFileType)
-		err = os.MkdirAll(path, os.ModeDir)
+		err = os.MkdirAll(path, dirMode)
 		if err != nil {
 			fs.deletePodResources(pod.id, nil)
 			return err

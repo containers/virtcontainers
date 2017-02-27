@@ -150,7 +150,7 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64,
 func (h *hyper) linkPauseBinary() error {
 	pauseDir := filepath.Join(defaultSharedDir, h.pod.id, pauseContainerName, rootfsDir)
 
-	err := os.MkdirAll(pauseDir, os.ModeDir)
+	err := os.MkdirAll(pauseDir, dirMode)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (h *hyper) init(pod *Pod, config interface{}) error {
 		HostPath: filepath.Join(defaultSharedDir, pod.id),
 	}
 
-	err := os.MkdirAll(sharedVolume.HostPath, os.ModeDir)
+	err := os.MkdirAll(sharedVolume.HostPath, dirMode)
 	if err != nil {
 		return err
 	}
