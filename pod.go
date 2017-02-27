@@ -113,12 +113,15 @@ type Volumes []Volume
 // Set assigns volume values from string to a Volume.
 func (v *Volumes) Set(volStr string) error {
 	volSlice := strings.Split(volStr, " ")
+	const expectedVolLen = 2
+	const volDelimiter = ":"
 
 	for _, vol := range volSlice {
-		volArgs := strings.Split(vol, ":")
+		volArgs := strings.Split(vol, volDelimiter)
 
-		if len(volArgs) != 2 {
-			return fmt.Errorf("Wrong string format: %s, expecting only 2 parameters separated with ':'", vol)
+		if len(volArgs) != expectedVolLen {
+			return fmt.Errorf("Wrong string format: %s, expecting only %v parameters separated with %q",
+				vol, expectedVolLen, volDelimiter)
 		}
 
 		if volArgs[0] == "" || volArgs[1] == "" {
@@ -162,12 +165,14 @@ type Sockets []Socket
 // Set assigns socket values from string to a Socket.
 func (s *Sockets) Set(sockStr string) error {
 	sockSlice := strings.Split(sockStr, " ")
+	const expectedSockCount = 4
+	const sockDelimiter = ":"
 
 	for _, sock := range sockSlice {
-		sockArgs := strings.Split(sock, ":")
+		sockArgs := strings.Split(sock, sockDelimiter)
 
-		if len(sockArgs) != 4 {
-			return fmt.Errorf("Wrong string format: %s, expecting only 4 parameters separated with ':'", sock)
+		if len(sockArgs) != expectedSockCount {
+			return fmt.Errorf("Wrong string format: %s, expecting only %v parameters separated with %q", sock, expectedSockCount, sockDelimiter)
 		}
 
 		for _, a := range sockArgs {
