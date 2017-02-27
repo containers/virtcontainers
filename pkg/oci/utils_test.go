@@ -32,11 +32,12 @@ import (
 const tempBundlePath = "/tmp/virtc/ocibundle/"
 const containerID = "virtc-oci-test"
 const consolePath = "/tmp/virtc/console"
+const fileMode = os.FileMode(0640)
 
 func createConfig(fileName string, fileData string) (string, error) {
 	configPath := path.Join(tempBundlePath, fileName)
 
-	err := ioutil.WriteFile(configPath, []byte(fileData), 0755)
+	err := ioutil.WriteFile(configPath, []byte(fileData), fileMode)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create config file %s %v\n", configPath, err)
 		return "", err
