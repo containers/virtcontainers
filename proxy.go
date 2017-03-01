@@ -18,7 +18,6 @@ package virtcontainers
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -89,30 +88,29 @@ func newProxyConfig(config PodConfig) interface{} {
 	}
 }
 
-// IOStream holds three file descriptors returned by the proxy.
-// Those file descriptors will be given to the calling process,
-// so that it can interact with a workload running on a container.
-type IOStream struct {
-	Stdin    *os.File
-	Stdout   *os.File
-	Stderr   *os.File
-	StdinID  uint64
-	StdoutID uint64
+// ProxyInfo holds the token and url returned by the proxy.
+// Each ProxyInfo relates to a process running inside a container.
+type ProxyInfo struct {
+	Token string
+	URL   string
+
+	// Keep for legacy, will be removed when new proxy is ready.
+	StdioID  uint64
 	StderrID uint64
 }
 
 // proxy is the virtcontainers proxy interface.
 type proxy interface {
 	// register connects and registers the proxy to the given VM.
-	// It also returns streams related to containers workloads.
-	register(pod Pod) ([]IOStream, error)
+	// It also returns information related to containers workloads.
+	register(pod Pod, reuseConnection bool) ([]ProxyInfo, error)
 
 	// unregister unregisters and disconnects the proxy from the given VM.
 	unregister(pod Pod) error
 
 	// connect gets the proxy a handle to a previously registered VM.
-	// It also returns streams related to containers workloads.
-	connect(pod Pod) (IOStream, error)
+	// It also returns information related to containers workloads.
+	connect(pod Pod, reuseConnection bool) (ProxyInfo, error)
 
 	// disconnect disconnects from the proxy.
 	disconnect() error

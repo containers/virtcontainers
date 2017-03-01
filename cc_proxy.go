@@ -49,65 +49,63 @@ func (p *ccProxy) connectProxy(runtimeSocketPath string) (*api.Client, error) {
 	return api.NewClient(conn.(*net.UnixConn)), nil
 }
 
-func (p *ccProxy) allocateIOStream() (IOStream, error) {
+func (p *ccProxy) allocateProxyInfo() (ProxyInfo, error) {
 	if p.client == nil {
-		return IOStream{}, fmt.Errorf("allocateIOStream: Client is nil, we can't interact with cc-proxy")
+		return ProxyInfo{}, fmt.Errorf("allocateIOStream: Client is nil, we can't interact with cc-proxy")
 	}
 
-	ioBase, fd, err := p.client.AllocateIo(2)
+	ioBase, _, err := p.client.AllocateIo(2)
 	if err != nil {
-		return IOStream{}, err
+		return ProxyInfo{}, err
 	}
 
-	// We have to wait for cc-proxy API to be modified before we
-	// can really assign each fd to the right field.
-	ioStream := IOStream{
-		Stdin:    fd,
-		Stdout:   fd,
-		Stderr:   fd,
-		StdinID:  uint64(0),
-		StdoutID: ioBase,
+	proxyInfo := ProxyInfo{
+		StdioID:  ioBase,
 		StderrID: ioBase + 1,
 	}
 
-	return ioStream, nil
+	return proxyInfo, nil
 }
 
 // register is the proxy register implementation for ccProxy.
-func (p *ccProxy) register(pod Pod) ([]IOStream, error) {
+func (p *ccProxy) register(pod Pod, reuseConnection bool) ([]ProxyInfo, error) {
 	var err error
-	var ioStreams []IOStream
+	var proxyInfos []ProxyInfo
 
 	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
 	if !ok {
-		return []IOStream{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+		return []ProxyInfo{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
 	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
-		return []IOStream{}, err
+		return []ProxyInfo{}, err
 	}
 
 	hyperConfig, ok := newAgentConfig(*(pod.config)).(HyperConfig)
 	if !ok {
-		return []IOStream{}, fmt.Errorf("Wrong agent config type, should be HyperConfig type")
+		return []ProxyInfo{}, fmt.Errorf("Wrong agent config type, should be HyperConfig type")
 	}
 
 	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, nil)
 	if err != nil {
-		return []IOStream{}, err
+		return []ProxyInfo{}, err
+	}
+
+	if reuseConnection == true {
+		return []ProxyInfo{}, nil
 	}
 
 	for i := 0; i < len(pod.containers); i++ {
-		ioStream, err := p.allocateIOStream()
+		proxyInfo, err := p.allocateProxyInfo()
 		if err != nil {
-			return []IOStream{}, err
+			return []ProxyInfo{}, err
 		}
 
-		ioStreams = append(ioStreams, ioStream)
+		proxyInfos = append(proxyInfos, proxyInfo)
 	}
 
-	return ioStreams, nil
+	return proxyInfos, nil
 }
 
 // unregister is the proxy unregister implementation for ccProxy.
@@ -120,30 +118,34 @@ func (p *ccProxy) unregister(pod Pod) error {
 }
 
 // connect is the proxy connect implementation for ccProxy.
-func (p *ccProxy) connect(pod Pod) (IOStream, error) {
+func (p *ccProxy) connect(pod Pod, reuseConnection bool) (ProxyInfo, error) {
 	var err error
 
 	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
 	if !ok {
-		return IOStream{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+		return ProxyInfo{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
 	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
-		return IOStream{}, err
+		return ProxyInfo{}, err
 	}
 
 	_, err = p.client.Attach(pod.id, nil)
 	if err != nil {
-		return IOStream{}, err
+		return ProxyInfo{}, err
 	}
 
-	ioStream, err := p.allocateIOStream()
+	if reuseConnection == true {
+		return ProxyInfo{}, nil
+	}
+
+	proxyInfo, err := p.allocateProxyInfo()
 	if err != nil {
-		return IOStream{}, err
+		return ProxyInfo{}, err
 	}
 
-	return ioStream, nil
+	return proxyInfo, nil
 }
 
 // disconnect is the proxy disconnect implementation for ccProxy.

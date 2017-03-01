@@ -251,12 +251,12 @@ func (h *hyper) startAgent() error {
 
 // exec is the agent command execution implementation for hyperstart.
 func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
-	ioStream, err := h.proxy.connect(pod)
+	proxyInfo, err := h.proxy.connect(pod, true)
 	if err != nil {
 		return err
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID, container.config.Interactive)
+	process, err := h.buildHyperContainerProcess(cmd, proxyInfo.StdioID, proxyInfo.StderrID, container.config.Interactive)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 func (h *hyper) startPod(config PodConfig) error {
 	h.pod.containers = append(h.pod.containers, &Container{})
 
-	ioStreams, err := h.proxy.register(*(h.pod))
+	proxyInfos, err := h.proxy.register(*(h.pod), true)
 	if err != nil {
 		return err
 	}
@@ -304,13 +304,13 @@ func (h *hyper) startPod(config PodConfig) error {
 		return err
 	}
 
-	err = h.startPauseContainer(*(h.pod), ioStreams[0])
+	err = h.startPauseContainer(*(h.pod), proxyInfos[0])
 	if err != nil {
 		return err
 	}
 
 	for idx, c := range config.Containers {
-		err := h.startOneContainer(*(h.pod), c, ioStreams[idx+1])
+		err := h.startOneContainer(*(h.pod), c, proxyInfos[idx+1])
 		if err != nil {
 			return err
 		}
@@ -321,7 +321,7 @@ func (h *hyper) startPod(config PodConfig) error {
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(pod Pod) error {
-	_, err := h.proxy.connect(pod)
+	_, err := h.proxy.connect(pod, false)
 	if err != nil {
 		return err
 	}
@@ -375,14 +375,14 @@ func (h *hyper) stopAgent() error {
 }
 
 // startPauseContainer starts a specific container running the pause binary provided.
-func (h *hyper) startPauseContainer(pod Pod, ioStream IOStream) error {
+func (h *hyper) startPauseContainer(pod Pod, proxyInfo ProxyInfo) error {
 	cmd := Cmd{
 		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
 		Envs:    []EnvVar{},
 		WorkDir: "/",
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, ioStream.StdoutID, ioStream.StderrID, false)
+	process, err := h.buildHyperContainerProcess(cmd, proxyInfo.StdioID, proxyInfo.StderrID, false)
 	if err != nil {
 		return err
 	}
@@ -412,8 +412,8 @@ func (h *hyper) startPauseContainer(pod Pod, ioStream IOStream) error {
 	return nil
 }
 
-func (h *hyper) startOneContainer(pod Pod, contConfig ContainerConfig, ioStream IOStream) error {
-	process, err := h.buildHyperContainerProcess(contConfig.Cmd, ioStream.StdoutID, ioStream.StderrID, contConfig.Interactive)
+func (h *hyper) startOneContainer(pod Pod, contConfig ContainerConfig, proxyInfo ProxyInfo) error {
+	process, err := h.buildHyperContainerProcess(contConfig.Cmd, proxyInfo.StdioID, proxyInfo.StderrID, contConfig.Interactive)
 	if err != nil {
 		return err
 	}
@@ -446,12 +446,12 @@ func (h *hyper) startOneContainer(pod Pod, contConfig ContainerConfig, ioStream 
 
 // startContainer is the agent Container starting implementation for hyperstart.
 func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
-	ioStream, err := h.proxy.connect(pod)
+	proxyInfo, err := h.proxy.connect(pod, true)
 	if err != nil {
 		return err
 	}
 
-	err = h.startOneContainer(pod, contConfig, ioStream)
+	err = h.startOneContainer(pod, contConfig, proxyInfo)
 	if err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func (h *hyper) stopPauseContainer() error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, container Container) error {
-	_, err := h.proxy.connect(pod)
+	_, err := h.proxy.connect(pod, false)
 	if err != nil {
 		return err
 	}
@@ -520,7 +520,7 @@ func (h *hyper) stopOneContainer(contConfig ContainerConfig) error {
 
 // killContainer is the agent process signal implementation for hyperstart.
 func (h *hyper) killContainer(pod Pod, container Container, signal syscall.Signal) error {
-	if _, err := h.proxy.connect(pod); err != nil {
+	if _, err := h.proxy.connect(pod, false); err != nil {
 		return err
 	}
 
