@@ -26,12 +26,6 @@ import (
 	ciaoQemu "github.com/01org/ciao/qemu"
 )
 
-const (
-	testQemuKernelPath = testDir + testKernel
-	testQemuImagePath  = testDir + testImage
-	testQemuPath       = testDir + testHypervisor
-)
-
 func newQemuConfig() HypervisorConfig {
 	return HypervisorConfig{
 		KernelPath:     testQemuKernelPath,

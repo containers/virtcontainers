@@ -25,9 +25,7 @@ import (
 )
 
 const (
-	TestHyperstartCtlSocket    = "/tmp/test_hyper.sock"
-	TestHyperstartTtySocket    = "/tmp/test_tty.sock"
-	TestHyperstartPauseBinName = "pause"
+	testHyperstartPauseBinName = "pause"
 )
 
 func newBasicTestCmd() Cmd {
@@ -92,8 +90,8 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 	sockets := []Socket{{}, {}}
 
 	agentConfig := HyperConfig{
-		SockCtlName: TestHyperstartCtlSocket,
-		SockTtyName: TestHyperstartTtySocket,
+		SockCtlName: testHyperstartCtlSocket,
+		SockTtyName: testHyperstartTtySocket,
 		Sockets:     sockets,
 	}
 
@@ -128,8 +126,8 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	sockets := []Socket{{}, {}}
 
 	agentConfig := HyperConfig{
-		SockCtlName: TestHyperstartCtlSocket,
-		SockTtyName: TestHyperstartTtySocket,
+		SockCtlName: testHyperstartCtlSocket,
+		SockTtyName: testHyperstartTtySocket,
 		Sockets:     sockets,
 	}
 
@@ -275,7 +273,7 @@ func TestStartPodNoopAgentSuccessful(t *testing.T) {
 func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 	config := newTestPodConfigHyperstartAgent()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
@@ -347,7 +345,7 @@ func TestStopPodNoopAgentSuccessful(t *testing.T) {
 func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 	config := newTestPodConfigHyperstartAgent()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
@@ -412,7 +410,7 @@ func TestRunPodNoopAgentSuccessful(t *testing.T) {
 func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 	config := newTestPodConfigHyperstartAgent()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
@@ -814,7 +812,7 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
@@ -874,7 +872,7 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
 	config := newTestPodConfigHyperstartAgentCNINetwork()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
@@ -1037,7 +1035,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 
-	pauseBinPath := filepath.Join(testDir, TestHyperstartPauseBinName)
+	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
 	_, err := os.Create(pauseBinPath)
 	if err != nil {
 		t.Fatal(err)
