@@ -44,14 +44,6 @@ const (
 	lockFileType
 )
 
-// configStoragePath is the pod configuration directory.
-// It will contain one config.json file for each created pod.
-const configStoragePath = "/var/lib/virtcontainers/pods"
-
-// runStoragePath is the pod runtime directory.
-// It will contain one state.json and one lock file for each created pod.
-const runStoragePath = "/run/virtcontainers/pods"
-
 // configFile is the file name used for every JSON pod configuration.
 const configFile = "config.json"
 
@@ -69,6 +61,17 @@ const lockFileName = "lock"
 
 // dirMode is the permission bits used for creating a directory
 const dirMode = os.FileMode(0750)
+
+// storagePathSuffix is the suffix used for all storage paths
+const storagePathSuffix = "/virtcontainers/pods"
+
+// configStoragePath is the pod configuration directory.
+// It will contain one config.json file for each created pod.
+var configStoragePath = filepath.Join("/var/lib", storagePathSuffix)
+
+// runStoragePath is the pod runtime directory.
+// It will contain one state.json and one lock file for each created pod.
+var runStoragePath = filepath.Join("/run", storagePathSuffix)
 
 // resourceStorage is the virtcontainers resources (configuration, state, etc...)
 // storage interface.
