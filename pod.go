@@ -273,8 +273,6 @@ type PodConfig struct {
 
 // valid checks that the pod configuration is valid.
 func (podConfig *PodConfig) valid() bool {
-	newAgent(podConfig.AgentType)
-
 	if _, err := newHypervisor(podConfig.HypervisorType); err != nil {
 		podConfig.HypervisorType = QemuHypervisor
 	}
