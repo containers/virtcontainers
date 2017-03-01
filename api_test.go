@@ -260,6 +260,10 @@ func TestStartPodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	config := newTestPodConfigHyperstartAgent()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
@@ -310,6 +314,10 @@ func TestStopPodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	config := newTestPodConfigHyperstartAgent()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
@@ -364,6 +372,10 @@ func TestRunPodNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	config := newTestPodConfigHyperstartAgent()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
@@ -742,6 +754,10 @@ func TestStopContainerNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 
@@ -792,6 +808,10 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 }
 
 func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	config := newTestPodConfigHyperstartAgentCNINetwork()
 
 	pauseBinPath := filepath.Join(testDir, testHyperstartPauseBinName)
@@ -921,6 +941,10 @@ func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
 }
 
 func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 

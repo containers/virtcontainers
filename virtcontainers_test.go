@@ -31,6 +31,8 @@ const testImage = "image"
 const testHypervisor = "hypervisor"
 const testBundle = "bundle"
 
+const testDisabledAsNonRoot = "Test disabled as requires root privileges"
+
 // package variables set in TestMain
 var testDir = ""
 var podDirConfig = ""
