@@ -309,16 +309,22 @@ func TestAddNetworkFailureUnknownNetNs(t *testing.T) {
 	createDefNetworkNoName(t)
 	defer removeDefNetwork(t)
 
-	testNetNsPath := "/var/run/netns/testNetNs"
+	const invalidNetNsPath = "/this/path/does/not/exist"
+
+	// ensure it really is invalid
+	_, err := os.Stat(invalidNetNsPath)
+	if err == nil {
+		t.Fatalf("directory %v unexpectedly exists", invalidNetNsPath)
+	}
 
 	netPlugin, err := NewNetworkPluginWithArgs(testConfDir, testBinDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = netPlugin.AddNetwork("testPodID", testNetNsPath, "testIfName")
+	_, err = netPlugin.AddNetwork("testPodID", invalidNetNsPath, "testIfName")
 	if err == nil {
-		t.Fatalf("Should fail because netns %s does not exist", testNetNsPath)
+		t.Fatalf("Should fail because netns %s does not exist", invalidNetNsPath)
 	}
 }
 

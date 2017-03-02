@@ -111,6 +111,10 @@ func TestNewUnknownNetworkFromNetworkModel(t *testing.T) {
 }
 
 func TestCreateDeleteNetNS(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip(testDisabledAsNonRoot)
+	}
+
 	netNSPath, err := createNetNS()
 	if err != nil {
 		t.Fatal(err)
