@@ -106,32 +106,23 @@ type resourceStorage interface {
 type filesystem struct {
 }
 
-func (fs *filesystem) createAllResources(pod Pod) error {
-	_, path, _ := fs.podURI(pod.id, stateFileType)
-	err := os.MkdirAll(path, dirMode)
-	if err != nil {
-		return err
-	}
-
-	_, path, _ = fs.podURI(pod.id, configFileType)
-	err = os.MkdirAll(path, dirMode)
-	if err != nil {
-		return err
+func (fs *filesystem) createAllResources(pod Pod) (err error) {
+	for _, resource := range []podResource{stateFileType, configFileType} {
+		_, path, _ := fs.podURI(pod.id, resource)
+		err = os.MkdirAll(path, os.ModeDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, container := range pod.containers {
-		_, path, _ = fs.containerURI(pod.id, container.id, configFileType)
-		err = os.MkdirAll(path, dirMode)
-		if err != nil {
-			fs.deletePodResources(pod.id, nil)
-			return err
-		}
-
-		_, path, _ = fs.containerURI(pod.id, container.id, stateFileType)
-		err = os.MkdirAll(path, dirMode)
-		if err != nil {
-			fs.deletePodResources(pod.id, nil)
-			return err
+		for _, resource := range []podResource{stateFileType, configFileType} {
+			_, path, _ := fs.containerURI(pod.id, container.id, resource)
+			err = os.MkdirAll(path, os.ModeDir)
+			if err != nil {
+				fs.deletePodResources(pod.id, nil)
+				return err
+			}
 		}
 	}
 
