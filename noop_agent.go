@@ -55,6 +55,11 @@ func (n *noopAgent) stopAgent() error {
 	return nil
 }
 
+// createContainer is the Noop agent Container creation implementation. It does nothing.
+func (n *noopAgent) createContainer(contConfig ContainerConfig) error {
+	return nil
+}
+
 // startContainer is the Noop agent Container starting implementation. It does nothing.
 func (n *noopAgent) startContainer(pod Pod, contConfig ContainerConfig) error {
 	return nil

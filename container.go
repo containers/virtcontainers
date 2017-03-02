@@ -233,20 +233,27 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
+	process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
+	if err == nil {
+		c.process = process
+	}
+
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err == nil && state.State != "" {
 		c.state.State = state.State
 		return c, nil
 	}
 
-	err = c.pod.setContainerState(c.id, StateReady)
-	if err != nil {
+	// If we reached that point, this means that no state file has been
+	// found and that we are in the first creation of this container.
+	// We don't want the following code to be executed outside of this
+	// specific case.
+	if err := c.pod.agent.createContainer(*(c.config)); err != nil {
 		return nil, err
 	}
 
-	process, err := c.pod.storage.fetchContainerProcess(c.podID, c.id)
-	if err == nil {
-		c.process = process
+	if err := c.pod.setContainerState(c.id, StateReady); err != nil {
+		return nil, err
 	}
 
 	return c, nil
