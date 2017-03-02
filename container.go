@@ -30,6 +30,10 @@ import (
 type Process struct {
 	Token string
 	Pid   int
+
+	// TODO: Remove these fields when new proxy protocol is ready.
+	Stdio  uint64
+	Stderr uint64
 }
 
 // ContainerStatus describes a container status.
@@ -106,11 +110,15 @@ func (c *Container) GetPid() int {
 func (c *Container) SetPid(pid int) error {
 	c.process.Pid = pid
 
-	if err := c.pod.storage.storeContainerProcess(c.podID, c.id, c.process); err != nil {
-		return err
-	}
+	return c.storeProcess()
+}
 
-	return nil
+func (c *Container) storeProcess() error {
+	return c.pod.storage.storeContainerProcess(c.podID, c.id, c.process)
+}
+
+func (c *Container) fetchProcess() (Process, error) {
+	return c.pod.storage.fetchContainerProcess(c.podID, c.id)
 }
 
 // fetchContainer fetches a container config from a pod ID and returns a Container.
@@ -289,11 +297,6 @@ func (c *Container) start() error {
 		}
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = c.pod.agent.startContainer(*c.pod, *(c.config))
 	if err != nil {
 		c.stop()
@@ -328,11 +331,6 @@ func (c *Container) stop() error {
 	}
 
 	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.startAgent()
 	if err != nil {
 		return err
 	}
@@ -374,11 +372,6 @@ func (c *Container) enter(cmd Cmd) error {
 		return fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = c.pod.agent.exec(*c.pod, *c, cmd)
 	if err != nil {
 		return err
@@ -404,11 +397,6 @@ func (c *Container) kill(signal syscall.Signal) error {
 
 	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to signal the container")
-	}
-
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
 	}
 
 	err = c.pod.agent.killContainer(*c.pod, *c, signal)
