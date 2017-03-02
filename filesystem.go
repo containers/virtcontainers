@@ -146,11 +146,6 @@ func (fs *filesystem) createAllResources(pod Pod) (err error) {
 }
 
 func (fs *filesystem) storeFile(path string, data interface{}) error {
-	_, err := os.Stat(path)
-	if err == nil {
-		os.Remove(path)
-	}
-
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -167,11 +162,6 @@ func (fs *filesystem) storeFile(path string, data interface{}) error {
 }
 
 func (fs *filesystem) fetchFile(path string, data interface{}) error {
-	_, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-
 	fileData, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
