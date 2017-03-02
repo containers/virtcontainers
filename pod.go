@@ -566,7 +566,7 @@ func (p *Pod) startVM() error {
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err := p.agent.startAgent()
+	err := p.agent.start(p)
 	if err != nil {
 		p.stop()
 		return err
@@ -585,7 +585,7 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	err = p.agent.startPod(*p.config)
+	err = p.agent.startPod(*p)
 	if err != nil {
 		p.stop()
 		return err
@@ -631,7 +631,7 @@ func (p *Pod) stopSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
-	err := p.agent.stopAgent()
+	err := p.agent.stop(*p)
 	if err != nil {
 		return err
 	}
