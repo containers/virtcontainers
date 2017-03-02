@@ -248,7 +248,9 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// found and that we are in the first creation of this container.
 	// We don't want the following code to be executed outside of this
 	// specific case.
-	if err := c.pod.agent.createContainer(*(c.config)); err != nil {
+	pod.containers = append(pod.containers, c)
+
+	if err := c.pod.agent.createContainer(*pod, c); err != nil {
 		return nil, err
 	}
 
@@ -304,7 +306,7 @@ func (c *Container) start() error {
 		}
 	}
 
-	err = c.pod.agent.startContainer(*c.pod, *(c.config))
+	err = c.pod.agent.startContainer(*(c.pod), *c)
 	if err != nil {
 		c.stop()
 		return err
@@ -342,12 +344,12 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.pod.agent.killContainer(*c.pod, *c, syscall.SIGTERM)
+	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM)
 	if err != nil {
 		return err
 	}
 
-	err = c.pod.agent.stopContainer(*c.pod, *c)
+	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
 		return err
 	}
@@ -379,7 +381,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	process, err := c.pod.agent.exec(*c.pod, *c, cmd)
+	process, err := c.pod.agent.exec(*(c.pod), *c, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +408,7 @@ func (c *Container) kill(signal syscall.Signal) error {
 		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
 
-	err = c.pod.agent.killContainer(*c.pod, *c, signal)
+	err = c.pod.agent.killContainer(*(c.pod), *c, signal)
 	if err != nil {
 		return err
 	}

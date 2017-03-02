@@ -281,7 +281,7 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -399,7 +399,7 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -799,7 +799,7 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -993,7 +993,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
