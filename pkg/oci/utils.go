@@ -190,7 +190,9 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 // StatusToOCIState translates a virtcontainers pod status into an OCI state.
 func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 	if len(status.ContainersStatus) != 1 {
-		return spec.State{}, fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one container status")
+		return spec.State{},
+			fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one container status, got %v",
+				status.ContainersStatus)
 	}
 
 	state := spec.State{
