@@ -124,7 +124,7 @@ type agent interface {
 	stopAgent() error
 
 	// exec will tell the agent to run a command in an already running container.
-	exec(pod Pod, container Container, cmd Cmd) error
+	exec(pod Pod, container Container, cmd Cmd) (*Process, error)
 
 	// startPod will tell the agent to start all containers related to the Pod.
 	startPod(config PodConfig) error

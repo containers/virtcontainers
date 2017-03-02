@@ -36,8 +36,8 @@ func (n *noopAgent) startAgent() error {
 }
 
 // exec is the Noop agent command execution implementation. It does nothing.
-func (n *noopAgent) exec(pod Pod, container Container, cmd Cmd) error {
-	return nil
+func (n *noopAgent) exec(pod Pod, container Container, cmd Cmd) (*Process, error) {
+	return nil, nil
 }
 
 // startPod is the Noop agent Pod starting implementation. It does nothing.

@@ -270,15 +270,15 @@ func (h *hyper) startAgent() error {
 }
 
 // exec is the agent command execution implementation for hyperstart.
-func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
+func (h *hyper) exec(pod Pod, container Container, cmd Cmd) (*Process, error) {
 	proxyInfo, err := h.proxy.connect(pod, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	process, err := h.buildHyperContainerProcess(cmd, proxyInfo.StdioID, proxyInfo.StderrID, container.config.Interactive)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	execInfo := ExecInfo{
@@ -291,12 +291,19 @@ func (h *hyper) exec(pod Pod, container Container, cmd Cmd) error {
 		message: execInfo,
 	}
 
-	_, err = h.proxy.sendCmd(proxyCmd)
-	if err != nil {
-		return nil
+	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
+		return nil, err
 	}
 
-	return h.proxy.disconnect()
+	if err := h.proxy.disconnect(); err != nil {
+		return nil, err
+	}
+
+	processInfo := &Process{
+		Token: proxyInfo.Token,
+	}
+
+	return processInfo, nil
 }
 
 // startPod is the agent Pod starting implementation for hyperstart.
