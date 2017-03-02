@@ -353,31 +353,31 @@ func (c *Container) stop() error {
 	return nil
 }
 
-func (c *Container) enter(cmd Cmd) error {
+func (c *Container) enter(cmd Cmd) (*Process, error) {
 	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to enter the container")
+		return nil, fmt.Errorf("Pod not running, impossible to enter the container")
 	}
 
 	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to enter")
+		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	err = c.pod.agent.exec(*c.pod, *c, cmd)
+	process, err := c.pod.agent.exec(*c.pod, *c, cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return process, nil
 }
 
 func (c *Container) kill(signal syscall.Signal) error {

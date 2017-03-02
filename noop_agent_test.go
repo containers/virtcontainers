@@ -45,8 +45,7 @@ func TestNoopAgentExec(t *testing.T) {
 	container := Container{}
 	cmd := Cmd{}
 
-	err := n.exec(pod, container, cmd)
-	if err != nil {
+	if _, err := n.exec(pod, container, cmd); err != nil {
 		t.Fatal(err)
 	}
 }
