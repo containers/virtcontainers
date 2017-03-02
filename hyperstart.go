@@ -481,11 +481,55 @@ func (h *hyper) startOneContainer(pod Pod, contConfig ContainerConfig, proxyInfo
 	return nil
 }
 
-// startContainer is the agent Container starting implementation for hyperstart.
-func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
-	proxyInfo, err := h.proxy.connect(pod, true)
+// createContainer is the agent Container creation implementation for hyperstart.
+func (h *hyper) createContainer(contConfig ContainerConfig) error {
+	proxyInfo, err := h.proxy.connect(*(h.pod), true)
 	if err != nil {
 		return err
+	}
+
+	container := &Container{
+		id:    contConfig.ID,
+		podID: h.pod.id,
+		pod:   h.pod,
+		process: Process{
+			Token:  proxyInfo.Token,
+			Stdio:  proxyInfo.StdioID,
+			Stderr: proxyInfo.StderrID,
+		},
+	}
+
+	if err := container.storeProcess(); err != nil {
+		return err
+	}
+
+	return h.proxy.disconnect()
+}
+
+// startContainer is the agent Container starting implementation for hyperstart.
+func (h *hyper) startContainer(pod Pod, contConfig ContainerConfig) error {
+	_, err := h.proxy.connect(pod, false)
+	if err != nil {
+		return err
+	}
+
+	var proxyInfo ProxyInfo
+	containerFound := false
+	for _, c := range h.pod.containers {
+		if c.id != contConfig.ID {
+			continue
+		}
+
+		proxyInfo.StdioID = c.process.Stdio
+		proxyInfo.StderrID = c.process.Stderr
+
+		containerFound = true
+
+		break
+	}
+
+	if containerFound == false {
+		return fmt.Errorf("Could not find container %s in the pod", contConfig.ID)
 	}
 
 	err = h.startOneContainer(pod, contConfig, proxyInfo)

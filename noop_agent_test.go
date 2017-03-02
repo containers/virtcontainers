@@ -79,6 +79,16 @@ func TestNoopAgentStopAgent(t *testing.T) {
 	}
 }
 
+func TestNoopAgentCreateContainer(t *testing.T) {
+	n := &noopAgent{}
+	contConfig := ContainerConfig{}
+
+	err := n.createContainer(contConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNoopAgentStartContainer(t *testing.T) {
 	n := &noopAgent{}
 	pod := Pod{}

@@ -164,6 +164,11 @@ func (s *sshd) stopAgent() error {
 	return nil
 }
 
+// createContainer is the agent Container creation implementation for sshd.
+func (s *sshd) createContainer(contConfig ContainerConfig) error {
+	return nil
+}
+
 // startContainer is the agent Container starting implementation for sshd.
 func (s *sshd) startContainer(pod Pod, contConfig ContainerConfig) error {
 	return nil
