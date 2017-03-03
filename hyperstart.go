@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -118,9 +119,10 @@ type RemoveContainer struct {
 type hyperstartProxyCmd struct {
 	cmd     string
 	message interface{}
+	token   string
 }
 
-func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64, terminal bool) (*hyperJson.Process, error) {
+func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.Process, error) {
 	var envVars []hyperJson.EnvironmentVar
 
 	for _, e := range cmd.Envs {
@@ -136,11 +138,14 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, stdio uint64, stderr uint64,
 		User:     cmd.User,
 		Group:    cmd.Group,
 		Terminal: terminal,
-		Stdio:    stdio,
-		Stderr:   stderr,
 		Args:     cmd.Args,
 		Envs:     envVars,
 		Workdir:  cmd.WorkDir,
+
+		// TODO: Remove when switching to new proxy.
+		// Temporary to get it still working with the current proxy.
+		Stdio:  uint64(rand.Int63()),
+		Stderr: uint64(rand.Int63()),
 	}
 
 	return process, nil
@@ -248,9 +253,7 @@ func (h *hyper) start(pod *Pod) error {
 
 	for idx := range pod.containers {
 		pod.containers[idx].process = Process{
-			Token:  proxyInfos[idx].Token,
-			Stdio:  proxyInfos[idx].StdioID,
-			Stderr: proxyInfos[idx].StderrID,
+			Token: proxyInfos[idx].Token,
 		}
 
 		if err := pod.containers[idx].storeProcess(); err != nil {
@@ -281,7 +284,7 @@ func (h *hyper) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, proxyInfo.StdioID, proxyInfo.StderrID, c.config.Interactive)
+	process, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
 	if err != nil {
 		return nil, err
 	}
@@ -294,6 +297,7 @@ func (h *hyper) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.ExecCmd,
 		message: execInfo,
+		token:   proxyInfo.Token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
@@ -313,7 +317,8 @@ func (h *hyper) exec(pod Pod, c Container, cmd Cmd) (*Process, error) {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
-	if _, err := h.proxy.connect(pod, false); err != nil {
+	proxyInfo, err := h.proxy.connect(pod, true)
+	if err != nil {
 		return err
 	}
 
@@ -332,7 +337,7 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	if err := h.startPauseContainer(pod.id); err != nil {
+	if err := h.startPauseContainer(pod.id, proxyInfo.Token); err != nil {
 		return err
 	}
 
@@ -382,14 +387,14 @@ func (h *hyper) stopPod(pod Pod) error {
 }
 
 // startPauseContainer starts a specific container running the pause binary provided.
-func (h *hyper) startPauseContainer(podID string) error {
+func (h *hyper) startPauseContainer(podID, token string) error {
 	cmd := Cmd{
 		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
 		Envs:    []EnvVar{},
 		WorkDir: "/",
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, ^uint64(0)-1, ^uint64(0), false)
+	process, err := h.buildHyperContainerProcess(cmd, false)
 	if err != nil {
 		return err
 	}
@@ -408,6 +413,7 @@ func (h *hyper) startPauseContainer(podID string) error {
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,
 		message: container,
+		token:   token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
@@ -418,7 +424,7 @@ func (h *hyper) startPauseContainer(podID string) error {
 }
 
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
-	process, err := h.buildHyperContainerProcess(c.config.Cmd, c.process.Stdio, c.process.Stderr, c.config.Interactive)
+	process, err := h.buildHyperContainerProcess(c.config.Cmd, c.config.Interactive)
 	if err != nil {
 		return err
 	}
@@ -438,6 +444,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,
 		message: container,
+		token:   c.process.Token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
@@ -455,9 +462,7 @@ func (h *hyper) createContainer(pod Pod, c *Container) error {
 	}
 
 	c.process = Process{
-		Token:  proxyInfo.Token,
-		Stdio:  proxyInfo.StdioID,
-		Stderr: proxyInfo.StderrID,
+		Token: proxyInfo.Token,
 	}
 
 	if err := c.storeProcess(); err != nil {

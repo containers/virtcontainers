@@ -30,10 +30,6 @@ import (
 type Process struct {
 	Token string
 	Pid   int
-
-	// TODO: Remove these fields when new proxy protocol is ready.
-	Stdio  uint64
-	Stderr uint64
 }
 
 // ContainerStatus describes a container status.
