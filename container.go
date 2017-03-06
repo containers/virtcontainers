@@ -262,17 +262,31 @@ func (c *Container) delete() error {
 	return nil
 }
 
-func (c *Container) start() error {
+// fetchState retrieves the container state.
+//
+// cmd specifies the operation (or verb) that the retieval is destined
+// for and is only used to make the returned error as descriptive as
+// possible.
+func (c *Container) fetchState(cmd string) (State, error) {
 	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
-		return err
+		return State{}, err
 	}
 
 	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to start the container")
+		return State{}, fmt.Errorf("Pod not running, impossible to %s the container", cmd)
 	}
 
 	state, err = c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err != nil {
+		return State{}, err
+	}
+
+	return state, nil
+}
+
+func (c *Container) start() error {
+	state, err := c.fetchState("start")
 	if err != nil {
 		return err
 	}
@@ -309,16 +323,7 @@ func (c *Container) start() error {
 }
 
 func (c *Container) stop() error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to stop the container")
-	}
-
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	state, err := c.fetchState("stop")
 	if err != nil {
 		return err
 	}
@@ -356,16 +361,7 @@ func (c *Container) stop() error {
 }
 
 func (c *Container) enter(cmd Cmd) error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to enter the container")
-	}
-
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	state, err := c.fetchState("enter")
 	if err != nil {
 		return err
 	}
@@ -388,16 +384,7 @@ func (c *Container) enter(cmd Cmd) error {
 }
 
 func (c *Container) kill(signal syscall.Signal) error {
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Pod not running, impossible to signal the container")
-	}
-
-	state, err = c.pod.storage.fetchContainerState(c.pod.id, c.id)
+	state, err := c.fetchState("signal")
 	if err != nil {
 		return err
 	}
