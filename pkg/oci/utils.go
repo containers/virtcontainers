@@ -218,3 +218,40 @@ func stateToOCIState(state vc.State) string {
 		return ""
 	}
 }
+
+// EnvVars converts an OCI process environment variables slice
+// into a virtcontainers EnvVar slice.
+func EnvVars(envs []string) ([]vc.EnvVar, error) {
+	var envVars []vc.EnvVar
+
+	envDelimiter := "="
+	expectedEnvLen := 2
+
+	for _, env := range envs {
+		envSlice := strings.SplitN(env, envDelimiter, expectedEnvLen)
+
+		if len(envSlice) < expectedEnvLen {
+			return []vc.EnvVar{}, fmt.Errorf("Wrong string format: %s, expecting only %v parameters separated with %q",
+				env, expectedEnvLen, envDelimiter)
+		}
+
+		if envSlice[0] == "" {
+			return []vc.EnvVar{}, fmt.Errorf("Environment variable cannot be empty")
+		}
+
+		envSlice[1] = strings.Trim(envSlice[1], "' ")
+
+		if envSlice[1] == "" {
+			return []vc.EnvVar{}, fmt.Errorf("Environment value cannot be empty")
+		}
+
+		envVar := vc.EnvVar{
+			Var:   envSlice[0],
+			Value: envSlice[1],
+		}
+
+		envVars = append(envVars, envVar)
+	}
+
+	return envVars, nil
+}
