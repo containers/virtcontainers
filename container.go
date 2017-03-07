@@ -308,11 +308,6 @@ func (c *Container) start() error {
 		}
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = c.pod.agent.startContainer(*c.pod, *(c.config))
 	if err != nil {
 		c.stop()
@@ -338,11 +333,6 @@ func (c *Container) stop() error {
 	}
 
 	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
-	}
-
-	err = c.pod.agent.startAgent()
 	if err != nil {
 		return err
 	}
@@ -375,11 +365,6 @@ func (c *Container) enter(cmd Cmd) error {
 		return fmt.Errorf("Container not running, impossible to enter")
 	}
 
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
-	}
-
 	err = c.pod.agent.exec(*c.pod, *c, cmd)
 	if err != nil {
 		return err
@@ -396,11 +381,6 @@ func (c *Container) kill(signal syscall.Signal) error {
 
 	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to signal the container")
-	}
-
-	err = c.pod.agent.startAgent()
-	if err != nil {
-		return err
 	}
 
 	err = c.pod.agent.killContainer(*c.pod, *c, signal)
