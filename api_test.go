@@ -281,7 +281,7 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -399,7 +399,7 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -799,7 +799,7 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -934,7 +934,7 @@ func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, err = EnterContainer(p.id, contID, cmd)
+	c, _, err = EnterContainer(p.id, contID, cmd)
 	if c == nil || err != nil {
 		t.Fatal(err)
 	}
@@ -983,7 +983,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	_, err = EnterContainer(p.id, contID, cmd)
+	_, _, err = EnterContainer(p.id, contID, cmd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -993,7 +993,7 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.agent.(*hyper).bindUnmountAllRootfs()
+	p.agent.(*hyper).bindUnmountAllRootfs(*p)
 
 	err = os.Remove(pauseBinPath)
 	if err != nil {
@@ -1008,7 +1008,7 @@ func TestEnterContainerFailingNoPod(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, err := EnterContainer(testPodID, contID, cmd)
+	c, _, err := EnterContainer(testPodID, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}
@@ -1031,7 +1031,7 @@ func TestEnterContainerFailingNoContainer(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, err := EnterContainer(p.id, contID, cmd)
+	c, _, err := EnterContainer(p.id, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}
@@ -1061,7 +1061,7 @@ func TestEnterContainerFailingContNotStarted(t *testing.T) {
 
 	cmd := newBasicTestCmd()
 
-	c, err = EnterContainer(p.id, contID, cmd)
+	c, _, err = EnterContainer(p.id, contID, cmd)
 	if c != nil || err == nil {
 		t.Fatal()
 	}

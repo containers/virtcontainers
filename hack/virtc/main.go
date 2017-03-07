@@ -519,7 +519,7 @@ func enterContainer(context *cli.Context) error {
 		WorkDir: "/",
 	}
 
-	c, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
+	c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
 	if err != nil {
 		return fmt.Errorf("Could not enter container: %s", err)
 	}
