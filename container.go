@@ -92,6 +92,11 @@ func (c *Container) ID() string {
 	return c.id
 }
 
+// Process returns the container process.
+func (c *Container) Process() Process {
+	return c.process
+}
+
 // GetToken returns the token related to this container's process.
 func (c *Container) GetToken() string {
 	return c.process.Token
