@@ -462,7 +462,7 @@ func createContainer(context *cli.Context) error {
 		Cmd:         cmd,
 	}
 
-	c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
+	_, c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
 	if err != nil {
 		return fmt.Errorf("Could not create container: %s", err)
 	}
@@ -519,7 +519,7 @@ func enterContainer(context *cli.Context) error {
 		WorkDir: "/",
 	}
 
-	c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
+	_, c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
 	if err != nil {
 		return fmt.Errorf("Could not enter container: %s", err)
 	}

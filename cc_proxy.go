@@ -23,7 +23,7 @@ import (
 	"github.com/01org/cc-oci-runtime/proxy/api"
 )
 
-var defaultCCProxyRuntimeSock = "/run/cc-oci-runtime/proxy.sock"
+var defaultCCProxyURL = "/run/cc-oci-runtime/proxy.sock"
 
 type ccProxy struct {
 	client *api.Client
@@ -38,7 +38,7 @@ type CCProxyConfig struct {
 
 func (p *ccProxy) connectProxy(runtimeSocketPath string) (*api.Client, error) {
 	if runtimeSocketPath == "" {
-		runtimeSocketPath = defaultCCProxyRuntimeSock
+		runtimeSocketPath = defaultCCProxyURL
 	}
 
 	conn, err := net.Dial(unixSocket, runtimeSocketPath)
@@ -68,40 +68,47 @@ func (p *ccProxy) allocateProxyInfo() (ProxyInfo, error) {
 }
 
 // register is the proxy register implementation for ccProxy.
-func (p *ccProxy) register(pod Pod) ([]ProxyInfo, error) {
+func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 	var err error
 	var proxyInfos []ProxyInfo
 
 	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
 	if !ok {
-		return []ProxyInfo{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+		return []ProxyInfo{}, "", fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
 	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
-		return []ProxyInfo{}, err
+		return []ProxyInfo{}, "", err
 	}
 
 	hyperConfig, ok := newAgentConfig(*(pod.config)).(HyperConfig)
 	if !ok {
-		return []ProxyInfo{}, fmt.Errorf("Wrong agent config type, should be HyperConfig type")
+		return []ProxyInfo{}, "", fmt.Errorf("Wrong agent config type, should be HyperConfig type")
 	}
 
 	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, nil)
 	if err != nil {
-		return []ProxyInfo{}, err
+		return []ProxyInfo{}, "", err
+	}
+
+	// TODO: url will be given by the RegisterVM of the new proxy
+	url := ""
+
+	if url == "" {
+		url = defaultCCProxyURL
 	}
 
 	for i := 0; i < len(pod.containers); i++ {
 		proxyInfo, err := p.allocateProxyInfo()
 		if err != nil {
-			return []ProxyInfo{}, err
+			return []ProxyInfo{}, "", err
 		}
 
 		proxyInfos = append(proxyInfos, proxyInfo)
 	}
 
-	return proxyInfos, nil
+	return proxyInfos, url, nil
 }
 
 // unregister is the proxy unregister implementation for ccProxy.
@@ -114,37 +121,44 @@ func (p *ccProxy) unregister(pod Pod) error {
 }
 
 // connect is the proxy connect implementation for ccProxy.
-func (p *ccProxy) connect(pod Pod, createToken bool) (ProxyInfo, error) {
+func (p *ccProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
 	var err error
 
 	ccConfig, ok := newProxyConfig(*(pod.config)).(CCProxyConfig)
 	if !ok {
-		return ProxyInfo{}, fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
+		return ProxyInfo{}, "", fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
 	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
 	if err != nil {
-		return ProxyInfo{}, err
+		return ProxyInfo{}, "", err
 	}
 
 	_, err = p.client.Attach(pod.id, nil)
 	if err != nil {
-		return ProxyInfo{}, err
+		return ProxyInfo{}, "", err
+	}
+
+	// TODO: url will be given by the AttachVM of the new proxy
+	url := ""
+
+	if url == "" {
+		url = defaultCCProxyURL
 	}
 
 	// createToken is intended to be true in case we don't want
 	// the proxy to create a new token, but instead only get a handle
 	// to be able to communicate with the agent inside the VM.
 	if createToken == false {
-		return ProxyInfo{}, nil
+		return ProxyInfo{}, url, nil
 	}
 
 	proxyInfo, err := p.allocateProxyInfo()
 	if err != nil {
-		return ProxyInfo{}, err
+		return ProxyInfo{}, "", err
 	}
 
-	return proxyInfo, nil
+	return proxyInfo, url, nil
 }
 
 // disconnect is the proxy disconnect implementation for ccProxy.
