@@ -19,11 +19,12 @@ package virtcontainers
 import (
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/01org/cc-oci-runtime/proxy/api"
 )
 
-var defaultCCProxyURL = "/run/cc-oci-runtime/proxy.sock"
+var defaultCCProxyURL = "unix:///run/cc-oci-runtime/proxy.sock"
 
 type ccProxy struct {
 	client *api.Client
@@ -32,16 +33,33 @@ type ccProxy struct {
 // CCProxyConfig is a structure storing information needed for
 // the Clear Containers proxy initialization.
 type CCProxyConfig struct {
-	RuntimeSocketPath string
-	ShimSocketPath    string
+	URL string
 }
 
-func (p *ccProxy) connectProxy(runtimeSocketPath string) (*api.Client, error) {
-	if runtimeSocketPath == "" {
-		runtimeSocketPath = defaultCCProxyURL
+func (p *ccProxy) connectProxy(proxyURL string) (*api.Client, error) {
+	if proxyURL == "" {
+		proxyURL = defaultCCProxyURL
 	}
 
-	conn, err := net.Dial(unixSocket, runtimeSocketPath)
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Scheme == "" {
+		return nil, fmt.Errorf("URL scheme cannot be empty")
+	}
+
+	address := u.Host
+	if address == "" {
+		if u.Path == "" {
+			return nil, fmt.Errorf("URL host and path cannot be empty")
+		}
+
+		address = u.Path
+	}
+
+	conn, err := net.Dial(u.Scheme, address)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +95,7 @@ func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 		return []ProxyInfo{}, "", fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
-	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
+	p.client, err = p.connectProxy(ccConfig.URL)
 	if err != nil {
 		return []ProxyInfo{}, "", err
 	}
@@ -129,7 +147,7 @@ func (p *ccProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) 
 		return ProxyInfo{}, "", fmt.Errorf("Wrong proxy config type, should be CCProxyConfig type")
 	}
 
-	p.client, err = p.connectProxy(ccConfig.RuntimeSocketPath)
+	p.client, err = p.connectProxy(ccConfig.URL)
 	if err != nil {
 		return ProxyInfo{}, "", err
 	}

@@ -59,7 +59,7 @@ var podConfigFlags = []cli.Flag{
 	},
 
 	cli.StringFlag{
-		Name:  "proxy-sock",
+		Name:  "proxy-url",
 		Value: "",
 		Usage: "the agent's proxy socket path",
 	},
@@ -142,7 +142,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	hyperPauseBinPath := context.String("pause-path")
-	proxyRuntimeSocket := context.String("proxy-sock")
+	proxyURL := context.String("proxy-url")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
@@ -215,7 +215,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	switch *proxyType {
 	case vc.CCProxyType:
 		proxyConfig = vc.CCProxyConfig{
-			RuntimeSocketPath: proxyRuntimeSocket,
+			URL: proxyURL,
 		}
 
 	default:
