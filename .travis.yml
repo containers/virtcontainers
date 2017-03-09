@@ -8,6 +8,9 @@ go:
 env:
 - COVERALLS_TOKEN=3NUr5Z9zvjIoGRlKi6WIA3Q9em3x22rZp
 
+services:
+- docker
+
 before_install:
 - go get github.com/mattn/goveralls
 - go get golang.org/x/tools/cmd/cover
@@ -20,31 +23,7 @@ before_install:
 - go get github.com/opencontainers/runc/libcontainer/configs
 
 install:
-- mkdir -p $HOME/build
-- pushd $HOME/build
-- git clone https://github.com/containernetworking/cni.git
-- cd cni
-- "./build"
-- sudo mkdir -p /tmp/cni/bin
-- sudo cp ./bin/bridge /tmp/cni/bin/cni-bridge
-- sudo cp ./bin/loopback /tmp/cni/bin/loopback
-- sudo cp ./bin/host-local /tmp/cni/bin/host-local
-- popd
-- mkdir -p $HOME/build_hook
-- pushd $HOME/build_hook
-- sudo mkdir -p /tmp/bin
-- go build -o hook $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
-- sudo cp hook /tmp/bin/
-- popd
-- sudo mkdir -p /etc/cni/net.d
-- sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf
-  /etc/cni/net.d/
-- sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf
-  /etc/cni/net.d/
-- sudo mkdir -p /opt/cni/bin
-- sudo cp /tmp/cni/bin/cni-bridge /opt/cni/bin/
-- sudo cp /tmp/cni/bin/loopback /opt/cni/bin/
-- sudo cp /tmp/cni/bin/host-local /opt/cni/bin/
+- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/ci/ci-setup.sh
 - go get -t -v ./...
 
 script:
