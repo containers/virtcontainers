@@ -55,6 +55,19 @@ type qemu struct {
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
+const defaultQemuMachineType = "pc-lite"
+
+var supportedQemuMachines = []ciaoQemu.Machine{
+	{
+		Type:         defaultQemuMachineType,
+		Acceleration: "kvm,kernel_irqchip,nvdimm",
+	},
+	{
+		Type:         "q35",
+		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit,nofw",
+	},
+}
+
 const (
 	defaultSockets uint32 = 1
 	defaultThreads uint32 = 1
@@ -311,6 +324,16 @@ func (q *qemu) forceUUIDFormat(str string) string {
 	return uuidSlice.String()
 }
 
+func (q *qemu) getMachine(name string) (ciaoQemu.Machine, error) {
+	for _, m := range supportedQemuMachines {
+		if m.Type == name {
+			return m, nil
+		}
+	}
+
+	return ciaoQemu.Machine{}, fmt.Errorf("unrecognised machine type: %v", name)
+}
+
 // init intializes the Qemu structure.
 func (q *qemu) init(config HypervisorConfig) error {
 	valid, err := config.valid()
@@ -402,9 +425,14 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 func (q *qemu) createPod(podConfig PodConfig) error {
 	var devices []ciaoQemu.Device
 
-	machine := ciaoQemu.Machine{
-		Type:         "pc-lite",
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+	machineType := q.config.HypervisorMachineType
+	if machineType == "" {
+		machineType = defaultQemuMachineType
+	}
+
+	machine, err := q.getMachine(machineType)
+	if err != nil {
+		return err
 	}
 
 	smp := q.setCPUResources(podConfig)
@@ -455,7 +483,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
-	devices, err := q.appendImage(devices, podConfig)
+	devices, err = q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
 	}
