@@ -128,18 +128,18 @@ func networkConfig(ocispec spec.Spec) (vc.NetworkConfig, error) {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, error) {
+func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *spec.Spec, error) {
 	configPath := filepath.Join(bundlePath, "config.json")
 	log.Debugf("converting %s", configPath)
 
 	configByte, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var ocispec spec.Spec
 	if err = json.Unmarshal(configByte, &ocispec); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rootfs := filepath.Join(bundlePath, ocispec.Root.Path)
@@ -162,7 +162,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 	networkConfig, err := networkConfig(ocispec)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	podConfig := vc.PodConfig{
@@ -189,7 +189,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
 
-	return &podConfig, nil
+	return &podConfig, &ocispec, nil
 }
 
 // StatusToOCIState translates a virtcontainers pod status into an OCI state.
