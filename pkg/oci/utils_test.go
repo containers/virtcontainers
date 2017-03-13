@@ -102,7 +102,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
 
-	podConfig, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)
+	podConfig, _, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)
 	if err != nil {
 		t.Fatalf("Could not create Pod configuration %v", err)
 	}
