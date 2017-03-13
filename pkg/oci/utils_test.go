@@ -98,6 +98,8 @@ func TestMinimalPodConfig(t *testing.T) {
 		NetworkConfig: expectedNetworkConfig,
 
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
+
+		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
 
 	podConfig, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)

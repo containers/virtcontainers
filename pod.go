@@ -269,6 +269,10 @@ type PodConfig struct {
 	// This list can be empty and populated by adding containers
 	// to the Pod a posteriori.
 	Containers []ContainerConfig
+
+	// Annotations keys must be unique strings an must be name-spaced
+	// with e.g. reverse domain notation (org.clearlinux.key).
+	Annotations map[string]string
 }
 
 // valid checks that the pod configuration is valid.
@@ -346,6 +350,16 @@ type Pod struct {
 // ID returns the pod identifier string.
 func (p *Pod) ID() string {
 	return p.id
+}
+
+// Annotations returns any annotation that a user could have stored through the pod.
+func (p *Pod) Annotations(key string) (string, error) {
+	value, exist := p.config.Annotations[key]
+	if exist == false {
+		return "", fmt.Errorf("Annotations key %s does not exist", key)
+	}
+
+	return value, nil
 }
 
 // URL returns the pod URL for any runtime to connect to the proxy.
