@@ -61,6 +61,12 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the guest spawner",
 	},
 
+	cli.StringFlag{
+		Name:  "machine-type",
+		Value: "",
+		Usage: "hypervisor machine type",
+	},
+
 	cli.GenericFlag{
 		Name:  "network",
 		Value: new(vc.NetworkModel),
@@ -213,9 +219,10 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	}
 
 	hypervisorConfig := vc.HypervisorConfig{
-		KernelPath:     "/usr/share/clear-containers/vmlinux.container",
-		ImagePath:      "/usr/share/clear-containers/clear-containers.img",
-		HypervisorPath: "/usr/bin/qemu-lite-system-x86_64",
+		KernelPath:            "/usr/share/clear-containers/vmlinux.container",
+		ImagePath:             "/usr/share/clear-containers/clear-containers.img",
+		HypervisorPath:        "/usr/bin/qemu-lite-system-x86_64",
+		HypervisorMachineType: context.String("machine-type"),
 	}
 
 	netConfig := vc.NetworkConfig{
