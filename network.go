@@ -390,6 +390,50 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	return endpoints, nil
 }
 
+func getIfacesFromNetNs(networkNSPath string) ([]net.Interface, error) {
+	var ifaces []net.Interface
+	var err error
+
+	if networkNSPath == "" {
+		return []net.Interface{}, fmt.Errorf("Network namespace path cannot be empty")
+	}
+
+	err = doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		ifaces, err = net.Interfaces()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return []net.Interface{}, err
+	}
+
+	return ifaces, err
+}
+
+func getIPNetFromEndpoint(endpoint Endpoint, netIfaces []net.Interface) (net.IPNet, error) {
+	idx := -1
+	for _, netIface := range netIfaces {
+		if netIface.Name == endpoint.NetPair.VirtIface.Name {
+			idx = netIface.Index
+		}
+	}
+
+	if idx == -1 {
+		return net.IPNet{}, fmt.Errorf("Could not find the interface %s in the list", endpoint.NetPair.VirtIface.Name)
+	}
+
+	for _, ipConfig := range endpoint.Properties.IPs {
+		if ipConfig.Interface == idx {
+			return ipConfig.Address, nil
+		}
+	}
+
+	return net.IPNet{}, fmt.Errorf("Could not find the interface index %d in IPConfig list", idx)
+}
+
 func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
 	return pod.hypervisor.addDevice(endpoints, netDev)
 }

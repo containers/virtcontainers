@@ -37,6 +37,14 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 			return err
 		}
 
+		// Interface index found by CNI plugin has to be updated by adding an offset
+		// of 1 because it starts to count interfaces indexes from 0 instead 1.
+		// Network interface standards expect interface indexes to be count from 1,
+		// zero being never used.
+		for i := range result.IPs {
+			result.IPs[i].Interface = result.IPs[i].Interface + 1
+		}
+
 		networkNS.Endpoints[idx].Properties = *result
 
 		glog.Infof("AddNetwork results %v\n", *result)
