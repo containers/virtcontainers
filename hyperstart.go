@@ -122,6 +122,34 @@ type hyperstartProxyCmd struct {
 	token   string
 }
 
+// HyperPod is the structure corresponding to the format expected
+// by hyperstart to start the pod on the guest.
+type HyperPod struct {
+	Hostname   string                `json:"hostname"`
+	Containers []hyperJson.Container `json:"containers,omitempty"`
+	Interfaces []HyperNetIface       `json:"interfaces,omitempty"`
+	Routes     []hyperJson.Route     `json:"routes,omitempty"`
+	ShareDir   string                `json:"shareDir"`
+}
+
+// HyperNetIface is the structure corresponding to the format expected
+// by hyperstart to setup network interfaces on the guest.
+type HyperNetIface struct {
+	Device      string           `json:"device,omitempty"`
+	NewDevice   string           `json:"newDeviceName,omitempty"`
+	IPAddresses []HyperIPAddress `json:"ipAddresses"`
+	NetMask     string           `json:"netMask"`
+	MTU         string           `json:"mtu"`
+	MACAddr     string           `json:"macAddr"`
+}
+
+// HyperIPAddress is the structure corresponding to the format expected
+// by hyperstart to describe an IP address.
+type HyperIPAddress struct {
+	IPAddress string `json:"ipAddress"`
+	NetMask   string `json:"netMask"`
+}
+
 func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.Process, error) {
 	var envVars []hyperJson.EnvironmentVar
 
@@ -149,6 +177,62 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.P
 	}
 
 	return process, nil
+}
+
+func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyperJson.Route, error) {
+	networkNS, err := pod.storage.fetchPodNetwork(pod.id)
+	if err != nil {
+		return []HyperNetIface{}, []hyperJson.Route{}, err
+	}
+
+	if networkNS.NetNsPath == "" {
+		return []HyperNetIface{}, []hyperJson.Route{}, nil
+	}
+
+	netIfaces, err := getIfacesFromNetNs(networkNS.NetNsPath)
+	if err != nil {
+		return []HyperNetIface{}, []hyperJson.Route{}, err
+	}
+
+	var ifaces []HyperNetIface
+	var routes []hyperJson.Route
+	for _, endpoint := range networkNS.Endpoints {
+		netIface, err := getNetIfaceByName(endpoint.NetPair.VirtIface.Name, netIfaces)
+		if err != nil {
+			return []HyperNetIface{}, []hyperJson.Route{}, err
+		}
+
+		var ipAddrs []HyperIPAddress
+		for _, ipConfig := range endpoint.Properties.IPs {
+			ipAddr := HyperIPAddress{
+				IPAddress: ipConfig.Address.IP.String(),
+				NetMask:   ipConfig.Address.Mask.String(),
+			}
+
+			ipAddrs = append(ipAddrs, ipAddr)
+		}
+
+		iface := HyperNetIface{
+			NewDevice:   endpoint.NetPair.VirtIface.Name,
+			IPAddresses: ipAddrs,
+			MTU:         fmt.Sprintf("%d", netIface.MTU),
+			MACAddr:     endpoint.NetPair.VirtIface.HardAddr,
+		}
+
+		ifaces = append(ifaces, iface)
+
+		for _, r := range endpoint.Properties.Routes {
+			route := hyperJson.Route{
+				Dest:    r.Dst.String(),
+				Gateway: r.GW.String(),
+				Device:  endpoint.NetPair.VirtIface.Name,
+			}
+
+			routes = append(routes, route)
+		}
+	}
+
+	return ifaces, routes, nil
 }
 
 func (h *hyper) linkPauseBinary(podID string) error {
@@ -326,10 +410,17 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	hyperPod := hyperJson.Pod{
-		Hostname:             pod.id,
-		DeprecatedContainers: []hyperJson.Container{},
-		ShareDir:             mountTag,
+	ifaces, routes, err := h.buildNetworkInterfacesAndRoutes(pod)
+	if err != nil {
+		return err
+	}
+
+	hyperPod := HyperPod{
+		Hostname:   pod.id,
+		Containers: []hyperJson.Container{},
+		Interfaces: ifaces,
+		Routes:     routes,
+		ShareDir:   mountTag,
 	}
 
 	proxyCmd := hyperstartProxyCmd{

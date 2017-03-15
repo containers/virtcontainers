@@ -390,6 +390,39 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	return endpoints, nil
 }
 
+func getIfacesFromNetNs(networkNSPath string) ([]net.Interface, error) {
+	var ifaces []net.Interface
+	var err error
+
+	if networkNSPath == "" {
+		return []net.Interface{}, fmt.Errorf("Network namespace path cannot be empty")
+	}
+
+	err = doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		ifaces, err = net.Interfaces()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return []net.Interface{}, err
+	}
+
+	return ifaces, nil
+}
+
+func getNetIfaceByName(name string, netIfaces []net.Interface) (net.Interface, error) {
+	for _, netIface := range netIfaces {
+		if netIface.Name == name {
+			return netIface, nil
+		}
+	}
+
+	return net.Interface{}, fmt.Errorf("Could not find the interface %s in the list", name)
+}
+
 func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
 	return pod.hypervisor.addDevice(endpoints, netDev)
 }
