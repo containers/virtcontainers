@@ -67,10 +67,10 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr) (types.Result,
 	return res, nil
 }
 
-func (n *cnm) createEndpointsFromScan() ([]Endpoint, error) {
+func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
-	ifaces, err := net.Interfaces()
+	ifaces, err := getIfacesFromNetNs(networkNSPath)
 	if err != nil {
 		return []Endpoint{}, err
 	}
@@ -131,7 +131,7 @@ func (n *cnm) run(networkNSPath string, cb func() error) error {
 
 // add adds all needed interfaces inside the network namespace for the CNM network.
 func (n *cnm) add(pod Pod, config NetworkConfig) (NetworkNamespace, error) {
-	endpoints, err := n.createEndpointsFromScan()
+	endpoints, err := n.createEndpointsFromScan(config.NetNSPath)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}
