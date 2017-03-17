@@ -65,6 +65,10 @@ const (
 	defaultMemSlots uint8 = 2
 )
 
+const (
+	defaultConsole = "console.sock"
+)
+
 type qmpGlogLogger struct{}
 
 func (l qmpGlogLogger) V(level int32) bool {
@@ -101,7 +105,7 @@ var kernelDefaultParams = []Param{
 	{"console", "hvc1"},
 	{"initcall_debug", ""},
 	{"init", "/usr/lib/systemd/systemd"},
-	{"systemd.unit", "container.target"},
+	{"systemd.unit", "cc-agent.target"},
 	{"iommu", "off"},
 	{"systemd.mask", "systemd-networkd.service"},
 	{"systemd.mask", "systemd-networkd.socket"},
@@ -225,24 +229,41 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 
 	devices = append(devices, serial)
 
-	for i, c := range podConfig.Containers {
-		var console ciaoQemu.CharDevice
-		if c.Interactive == false || c.Console == "" {
-			consolePath := fmt.Sprintf("%s/%s/console.sock", runStoragePath, podConfig.ID)
+	var console ciaoQemu.CharDevice
 
+	offset := 0
+	if podConfig.Console != "" {
+		console = ciaoQemu.CharDevice{
+			Driver:   ciaoQemu.Console,
+			Backend:  ciaoQemu.Socket,
+			DeviceID: "console0",
+			ID:       "charconsole0",
+			Path:     podConfig.Console,
+		}
+
+		devices = append(devices, console)
+
+		offset++
+	}
+
+	for i, c := range podConfig.Containers {
+		// Need to add an offset because of the console created for the pod.
+		idx := i + offset
+
+		if c.Interactive == false || c.Console == "" {
 			console = ciaoQemu.CharDevice{
 				Driver:   ciaoQemu.Console,
 				Backend:  ciaoQemu.Socket,
-				DeviceID: fmt.Sprintf("console%d", i),
-				ID:       fmt.Sprintf("charconsole%d", i),
-				Path:     consolePath,
+				DeviceID: fmt.Sprintf("console%d", idx),
+				ID:       fmt.Sprintf("charconsole%d", idx),
+				Path:     fmt.Sprintf("%s/%s/%s/%s", runStoragePath, podConfig.ID, c.ID, defaultConsole),
 			}
 		} else {
 			console = ciaoQemu.CharDevice{
 				Driver:   ciaoQemu.Console,
 				Backend:  ciaoQemu.Serial,
-				DeviceID: fmt.Sprintf("console%d", i),
-				ID:       fmt.Sprintf("charconsole%d", i),
+				DeviceID: fmt.Sprintf("console%d", idx),
+				ID:       fmt.Sprintf("charconsole%d", idx),
 				Path:     c.Console,
 			}
 		}
