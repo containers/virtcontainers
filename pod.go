@@ -23,8 +23,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/01org/ciao/ssntp/uuid"
 )
 
 // controlSocket is the pod control socket.
@@ -281,7 +279,7 @@ func (podConfig *PodConfig) valid() bool {
 	}
 
 	if podConfig.ID == "" {
-		podConfig.ID = uuid.Generate().String()
+		return false
 	}
 
 	return true

@@ -23,6 +23,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
@@ -39,6 +40,12 @@ var podConfigFlags = []cli.Flag{
 		Name:  "agent",
 		Value: new(vc.AgentType),
 		Usage: "the guest agent",
+	},
+
+	cli.StringFlag{
+		Name:  "id",
+		Value: "",
+		Usage: "the pod identifier (default: auto-generated)",
 	},
 
 	cli.GenericFlag{
@@ -228,7 +235,14 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		Memory: vmMemory,
 	}
 
+	id := context.String("id")
+	if id == "" {
+		// auto-generate pod name
+		id = uuid.Generate().String()
+	}
+
 	podConfig := vc.PodConfig{
+		ID:       id,
 		VMConfig: vmConfig,
 
 		HypervisorType:   vc.QemuHypervisor,
@@ -535,8 +549,14 @@ func createContainer(context *cli.Context) error {
 		interactive = true
 	}
 
+	id := context.String("id")
+	if id == "" {
+		// auto-generate container name
+		id = uuid.Generate().String()
+	}
+
 	containerConfig := vc.ContainerConfig{
-		ID:          context.String("id"),
+		ID:          id,
 		RootFs:      context.String("rootfs"),
 		Interactive: interactive,
 		Console:     console,

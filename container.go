@@ -21,8 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
-
-	"github.com/01org/ciao/ssntp/uuid"
 )
 
 // Process gathers data related to a container process.
@@ -59,7 +57,7 @@ type ContainerConfig struct {
 // valid checks that the container configuration is valid.
 func (containerConfig *ContainerConfig) valid() bool {
 	if containerConfig.ID == "" {
-		containerConfig.ID = uuid.Generate().String()
+		return false
 	}
 
 	return true
