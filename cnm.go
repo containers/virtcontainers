@@ -159,6 +159,9 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 
 // init initializes the network, setting a new network namespace for the CNM network.
 func (n *cnm) init(config *NetworkConfig) error {
+	if config == nil {
+		return fmt.Errorf("config cannot be empty")
+	}
 	if config.NetNSPath == "" {
 		path, err := createNetNS()
 		if err != nil {
@@ -173,6 +176,9 @@ func (n *cnm) init(config *NetworkConfig) error {
 
 // run runs a callback in the specified network namespace.
 func (n *cnm) run(networkNSPath string, cb func() error) error {
+	if networkNSPath == "" {
+		return fmt.Errorf("networkNSPath cannot be empty")
+	}
 	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
 		return cb()
 	})
