@@ -120,89 +120,54 @@ func newNetwork(networkType NetworkModel) network {
 	}
 }
 
-func createTAP(netHandle *netlink.Handle, tapName string) (netlink.Link, error) {
-	tap := &netlink.Tuntap{
-		LinkAttrs: netlink.LinkAttrs{Name: tapName},
-		Mode:      netlink.TUNTAP_MODE_TAP,
+func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, error) {
+	var newLink netlink.Link
+
+	switch expectedLink.Type() {
+	case (&netlink.Bridge{}).Type():
+		newLink = &netlink.Bridge{
+			LinkAttrs: netlink.LinkAttrs{Name: name},
+		}
+	case (&netlink.Tuntap{}).Type():
+		newLink = &netlink.Tuntap{
+			LinkAttrs: netlink.LinkAttrs{Name: name},
+			Mode:      netlink.TUNTAP_MODE_TAP,
+		}
+	default:
+		return nil, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
 	}
 
-	if err := netHandle.LinkAdd(tap); err != nil {
-		return nil, fmt.Errorf("LinkAdd() failed for TAP name %s: %s", tapName, err)
+	if err := netHandle.LinkAdd(newLink); err != nil {
+		return nil, fmt.Errorf("LinkAdd() failed for %s name %s: %s", expectedLink.Type(), name, err)
 	}
 
-	link, err := netHandle.LinkByName(tapName)
-	if err != nil {
-		return nil, fmt.Errorf("LinkByName() failed for TAP name %s: %s", tapName, err)
-	}
-
-	tapLink, ok := link.(*netlink.GenericLink)
-	if ok == false {
-		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
-	}
-
-	return tapLink, nil
+	return getLinkByName(netHandle, name, expectedLink)
 }
 
-func createBridge(netHandle *netlink.Handle, bridgeName string) (netlink.Link, error) {
-	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}
-
-	if err := netHandle.LinkAdd(bridge); err != nil {
-		return nil, fmt.Errorf("LinkAdd() failed for bridge name %s: %s", bridgeName, err)
-	}
-
-	link, err := netHandle.LinkByName(bridgeName)
+func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, error) {
+	link, err := netHandle.LinkByName(name)
 	if err != nil {
-		return nil, fmt.Errorf("LinkByName() failed for bridge name %s: %s", bridgeName, err)
+		return nil, fmt.Errorf("LinkByName() failed for %s name %s: %s", expectedLink.Type(), name, err)
 	}
 
-	bridgeLink, ok := link.(*netlink.Bridge)
-	if ok == false {
-		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	switch expectedLink.Type() {
+	case (&netlink.Bridge{}).Type():
+		if l, ok := link.(*netlink.Bridge); ok {
+			return l, nil
+		}
+	case (&netlink.Tuntap{}).Type():
+		if l, ok := link.(*netlink.GenericLink); ok {
+			return l, nil
+		}
+	case (&netlink.Veth{}).Type():
+		if l, ok := link.(*netlink.Veth); ok {
+			return l, nil
+		}
+	default:
+		return nil, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
 	}
 
-	return bridgeLink, nil
-}
-
-func getVeth(netHandle *netlink.Handle, vethName string) (netlink.Link, error) {
-	link, err := netHandle.LinkByName(vethName)
-	if err != nil {
-		return nil, fmt.Errorf("LinkByName() failed for veth name %s: %s", vethName, err)
-	}
-
-	vethLink, ok := link.(*netlink.Veth)
-	if ok == false {
-		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
-	}
-
-	return vethLink, nil
-}
-
-func getTAP(netHandle *netlink.Handle, tapName string) (netlink.Link, error) {
-	link, err := netHandle.LinkByName(tapName)
-	if err != nil {
-		return nil, fmt.Errorf("LinkByName() failed for TAP name %s: %s", tapName, err)
-	}
-
-	tapLink, ok := link.(*netlink.GenericLink)
-	if ok == false {
-		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
-	}
-
-	return tapLink, nil
-}
-
-func getBridge(netHandle *netlink.Handle, bridgeName string) (netlink.Link, error) {
-	link, err := netHandle.LinkByName(bridgeName)
-	if err != nil {
-		return nil, fmt.Errorf("LinkByName() failed for bridge name %s: %s", bridgeName, err)
-	}
-
-	bridgeLink, ok := link.(*netlink.Bridge)
-	if ok == false {
-		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
-	}
-
-	return bridgeLink, nil
+	return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
 }
 
 func bridgeNetworkPair(netPair NetworkInterfacePair) error {
@@ -212,12 +177,12 @@ func bridgeNetworkPair(netPair NetworkInterfacePair) error {
 	}
 	defer netHandle.Delete()
 
-	tapLink, err := createTAP(netHandle, netPair.TAPIface.Name)
+	tapLink, err := createLink(netHandle, netPair.TAPIface.Name, &netlink.Tuntap{})
 	if err != nil {
 		return fmt.Errorf("Could not create TAP interface: %s", err)
 	}
 
-	vethLink, err := getVeth(netHandle, netPair.VirtIface.Name)
+	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
 		return fmt.Errorf("Could not get veth interface: %s", err)
 	}
@@ -231,7 +196,7 @@ func bridgeNetworkPair(netPair NetworkInterfacePair) error {
 			netPair.VirtIface.HardAddr, netPair.VirtIface.Name, err)
 	}
 
-	bridgeLink, err := createBridge(netHandle, netPair.Name)
+	bridgeLink, err := createLink(netHandle, netPair.Name, &netlink.Bridge{})
 	if err != nil {
 		return fmt.Errorf("Could not create bridge: %s", err)
 	}
@@ -268,17 +233,17 @@ func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
 	}
 	defer netHandle.Delete()
 
-	tapLink, err := getTAP(netHandle, netPair.TAPIface.Name)
+	tapLink, err := getLinkByName(netHandle, netPair.TAPIface.Name, &netlink.Tuntap{})
 	if err != nil {
 		return fmt.Errorf("Could not get TAP interface: %s", err)
 	}
 
-	vethLink, err := getVeth(netHandle, netPair.VirtIface.Name)
+	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
 		return fmt.Errorf("Could not get veth interface: %s", err)
 	}
 
-	bridgeLink, err := getBridge(netHandle, netPair.Name)
+	bridgeLink, err := getLinkByName(netHandle, netPair.Name, &netlink.Bridge{})
 	if err != nil {
 		return fmt.Errorf("Could not get bridge interface: %s", err)
 	}
