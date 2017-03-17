@@ -22,11 +22,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/01org/ciao/networking/libsnnet"
 	"github.com/01org/ciao/ssntp/uuid"
 	"github.com/containernetworking/cni/pkg/ns"
 	types "github.com/containernetworking/cni/pkg/types/current"
-	"github.com/containers/virtcontainers/logger/gloginterface"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
@@ -121,169 +120,195 @@ func newNetwork(networkType NetworkModel) network {
 	}
 }
 
+func createTAP(netHandle *netlink.Handle, tapName string) (netlink.Link, error) {
+	tap := &netlink.Tuntap{
+		LinkAttrs: netlink.LinkAttrs{Name: tapName},
+		Mode:      netlink.TUNTAP_MODE_TAP,
+	}
+
+	if err := netHandle.LinkAdd(tap); err != nil {
+		return nil, fmt.Errorf("LinkAdd() failed for TAP name %s: %s", tapName, err)
+	}
+
+	link, err := netHandle.LinkByName(tapName)
+	if err != nil {
+		return nil, fmt.Errorf("LinkByName() failed for TAP name %s: %s", tapName, err)
+	}
+
+	tapLink, ok := link.(*netlink.GenericLink)
+	if ok == false {
+		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	}
+
+	return tapLink, nil
+}
+
+func createBridge(netHandle *netlink.Handle, bridgeName string) (netlink.Link, error) {
+	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}
+
+	if err := netHandle.LinkAdd(bridge); err != nil {
+		return nil, fmt.Errorf("LinkAdd() failed for bridge name %s: %s", bridgeName, err)
+	}
+
+	link, err := netHandle.LinkByName(bridgeName)
+	if err != nil {
+		return nil, fmt.Errorf("LinkByName() failed for bridge name %s: %s", bridgeName, err)
+	}
+
+	bridgeLink, ok := link.(*netlink.Bridge)
+	if ok == false {
+		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	}
+
+	return bridgeLink, nil
+}
+
+func getVeth(netHandle *netlink.Handle, vethName string) (netlink.Link, error) {
+	link, err := netHandle.LinkByName(vethName)
+	if err != nil {
+		return nil, fmt.Errorf("LinkByName() failed for veth name %s: %s", vethName, err)
+	}
+
+	vethLink, ok := link.(*netlink.Veth)
+	if ok == false {
+		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	}
+
+	return vethLink, nil
+}
+
+func getTAP(netHandle *netlink.Handle, tapName string) (netlink.Link, error) {
+	link, err := netHandle.LinkByName(tapName)
+	if err != nil {
+		return nil, fmt.Errorf("LinkByName() failed for TAP name %s: %s", tapName, err)
+	}
+
+	tapLink, ok := link.(*netlink.GenericLink)
+	if ok == false {
+		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	}
+
+	return tapLink, nil
+}
+
+func getBridge(netHandle *netlink.Handle, bridgeName string) (netlink.Link, error) {
+	link, err := netHandle.LinkByName(bridgeName)
+	if err != nil {
+		return nil, fmt.Errorf("LinkByName() failed for bridge name %s: %s", bridgeName, err)
+	}
+
+	bridgeLink, ok := link.(*netlink.Bridge)
+	if ok == false {
+		return nil, fmt.Errorf("Incorrect link type %s", link.Type())
+	}
+
+	return bridgeLink, nil
+}
+
 func bridgeNetworkPair(netPair NetworkInterfacePair) error {
-	libsnnet.Logger = gloginterface.CiaoGlogLogger{}
-
-	// new tap
-	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
+	netHandle, err := netlink.NewHandle()
 	if err != nil {
 		return err
 	}
-	tapVnic.LinkName = netPair.TAPIface.Name
+	defer netHandle.Delete()
 
-	// create tap
-	err = tapVnic.Create()
+	tapLink, err := createTAP(netHandle, netPair.TAPIface.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not create TAP interface: %s", err)
 	}
 
-	// new veth
-	virtVnic, err := libsnnet.NewContainerVnic(netPair.VirtIface.Name)
+	vethLink, err := getVeth(netHandle, netPair.VirtIface.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not get veth interface: %s", err)
 	}
 
-	// create veth
-	err = virtVnic.GetDeviceByName(netPair.VirtIface.Name)
-	if err != nil {
-		return err
-	}
-
-	// set veth MAC address
 	hardAddr, err := net.ParseMAC(netPair.VirtIface.HardAddr)
 	if err != nil {
 		return err
 	}
-	err = virtVnic.SetHardwareAddr(hardAddr)
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetHardwareAddr(vethLink, hardAddr); err != nil {
+		return fmt.Errorf("Could not set MAC address %s for veth interface %s: %s",
+			netPair.VirtIface.HardAddr, netPair.VirtIface.Name, err)
 	}
 
-	// new bridge
-	bridge, err := libsnnet.NewBridge(netPair.Name)
+	bridgeLink, err := createBridge(netHandle, netPair.Name)
 	if err != nil {
-		return err
-	}
-	bridge.LinkName = netPair.Name
-
-	// create bridge
-	err = bridge.Create()
-	if err != nil {
-		return err
+		return fmt.Errorf("Could not create bridge: %s", err)
 	}
 
-	// attach tap to bridge
-	err = tapVnic.Attach(bridge)
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetMaster(tapLink, bridgeLink.(*netlink.Bridge)); err != nil {
+		return fmt.Errorf("Could not attach TAP %s to the bridge %s: %s",
+			netPair.TAPIface.Name, netPair.Name, err)
 	}
 
-	// enable tap
-	err = tapVnic.Enable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetUp(tapLink); err != nil {
+		return fmt.Errorf("Could not enable TAP %s: %s", netPair.TAPIface.Name, err)
 	}
 
-	// attach veth to bridge
-	err = virtVnic.Attach(bridge)
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetMaster(vethLink, bridgeLink.(*netlink.Bridge)); err != nil {
+		return fmt.Errorf("Could not attach veth %s to the bridge %s: %s",
+			netPair.VirtIface.Name, netPair.Name, err)
 	}
 
-	// enable veth
-	err = virtVnic.Enable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetUp(vethLink); err != nil {
+		return fmt.Errorf("Could not enable veth %s: %s", netPair.VirtIface.Name, err)
 	}
 
-	// enable bridge
-	err = bridge.Enable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetUp(bridgeLink); err != nil {
+		return fmt.Errorf("Could not enable bridge %s: %s", netPair.Name, err)
 	}
 
 	return nil
 }
 
 func unBridgeNetworkPair(netPair NetworkInterfacePair) error {
-	libsnnet.Logger = gloginterface.CiaoGlogLogger{}
-
-	// new tap
-	tapVnic, err := libsnnet.NewVnic(netPair.TAPIface.Name)
+	netHandle, err := netlink.NewHandle()
 	if err != nil {
 		return err
 	}
+	defer netHandle.Delete()
 
-	// get tap
-	err = tapVnic.GetDevice()
+	tapLink, err := getTAP(netHandle, netPair.TAPIface.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not get TAP interface: %s", err)
 	}
 
-	// new veth
-	virtVnic, err := libsnnet.NewContainerVnic(netPair.VirtIface.Name)
+	vethLink, err := getVeth(netHandle, netPair.VirtIface.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not get veth interface: %s", err)
 	}
 
-	// get veth
-	err = virtVnic.GetDeviceByName(netPair.VirtIface.Name)
+	bridgeLink, err := getBridge(netHandle, netPair.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not get bridge interface: %s", err)
 	}
 
-	// new bridge
-	bridge, err := libsnnet.NewBridge(netPair.Name)
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetDown(bridgeLink); err != nil {
+		return fmt.Errorf("Could not disable bridge %s: %s", netPair.Name, err)
 	}
 
-	// get bridge
-	err = bridge.GetDevice()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetDown(vethLink); err != nil {
+		return fmt.Errorf("Could not disable veth %s: %s", netPair.VirtIface.Name, err)
 	}
 
-	// disable bridge
-	err = bridge.Disable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetNoMaster(vethLink); err != nil {
+		return fmt.Errorf("Could not detach veth %s: %s", netPair.VirtIface.Name, err)
 	}
 
-	// disable veth
-	err = virtVnic.Disable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetDown(tapLink); err != nil {
+		return fmt.Errorf("Could not disable TAP %s: %s", netPair.TAPIface.Name, err)
 	}
 
-	// detach veth from bridge
-	err = virtVnic.Detach(bridge)
-	if err != nil {
-		return err
+	if err := netHandle.LinkSetNoMaster(tapLink); err != nil {
+		return fmt.Errorf("Could not detach TAP %s: %s", netPair.TAPIface.Name, err)
 	}
 
-	// disable tap
-	err = tapVnic.Disable()
-	if err != nil {
-		return err
+	if err := netHandle.LinkDel(bridgeLink); err != nil {
+		return fmt.Errorf("Could not remove bridge %s: %s", netPair.Name, err)
 	}
 
-	// detach tap from bridge
-	err = tapVnic.Detach(bridge)
-	if err != nil {
-		return err
-	}
-
-	// destroy bridge
-	err = bridge.Destroy()
-	if err != nil {
-		return err
-	}
-
-	// destroy tap
-	err = tapVnic.Destroy()
-	if err != nil {
-		return err
+	if err := netHandle.LinkDel(tapLink); err != nil {
+		return fmt.Errorf("Could not remove TAP %s: %s", netPair.TAPIface.Name, err)
 	}
 
 	return nil
