@@ -105,7 +105,11 @@ func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 		return []ProxyInfo{}, "", fmt.Errorf("Wrong agent config type, should be HyperConfig type")
 	}
 
-	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, nil)
+	helloOptions := &api.HelloOptions{
+		Console: pod.config.Console,
+	}
+
+	_, err = p.client.Hello(pod.id, hyperConfig.SockCtlName, hyperConfig.SockTtyName, helloOptions)
 	if err != nil {
 		return []ProxyInfo{}, "", err
 	}
