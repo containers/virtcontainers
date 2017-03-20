@@ -138,7 +138,6 @@ type HyperNetIface struct {
 	Device      string           `json:"device,omitempty"`
 	NewDevice   string           `json:"newDeviceName,omitempty"`
 	IPAddresses []HyperIPAddress `json:"ipAddresses"`
-	NetMask     string           `json:"netMask"`
 	MTU         string           `json:"mtu"`
 	MACAddr     string           `json:"macAddr"`
 }
@@ -204,9 +203,11 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 
 		var ipAddrs []HyperIPAddress
 		for _, ipConfig := range endpoint.Properties.IPs {
+			netMask, _ := ipConfig.Address.Mask.Size()
+
 			ipAddr := HyperIPAddress{
 				IPAddress: ipConfig.Address.IP.String(),
-				NetMask:   ipConfig.Address.Mask.String(),
+				NetMask:   fmt.Sprintf("%d", netMask),
 			}
 
 			ipAddrs = append(ipAddrs, ipAddr)
@@ -222,9 +223,14 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 		ifaces = append(ifaces, iface)
 
 		for _, r := range endpoint.Properties.Routes {
+			gateway := r.GW.String()
+			if gateway == "<nil>" {
+				gateway = ""
+			}
+
 			route := hyperJson.Route{
 				Dest:    r.Dst.String(),
-				Gateway: r.GW.String(),
+				Gateway: gateway,
 				Device:  endpoint.NetPair.VirtIface.Name,
 			}
 
