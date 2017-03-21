@@ -24,7 +24,10 @@ import (
 	"path/filepath"
 )
 
-// podResource is an int representing a pod resource type
+// podResource is an int representing a pod resource type.
+//
+// Note that some are specific to the pod itself and others can apply to
+// pods and containers.
 type podResource int
 
 const (
@@ -34,13 +37,13 @@ const (
 	// stateFileType represents a state file type
 	stateFileType
 
-	// networkFileType represents a network file type
+	// networkFileType represents a network file type (pod only)
 	networkFileType
 
 	// processFileType represents a process file type
 	processFileType
 
-	// lockFileType represents a lock file type
+	// lockFileType represents a lock file type (pod only)
 	lockFileType
 )
 
