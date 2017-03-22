@@ -652,7 +652,7 @@ var createContainerCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "id",
 			Value: "",
-			Usage: "the container identifier",
+			Usage: "the container identifier (default: auto-generated)",
 		},
 		cli.StringFlag{
 			Name:  "pod-id",
