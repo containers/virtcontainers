@@ -250,6 +250,64 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	return podConfig, nil
 }
 
+// checkRequiredPodArgs checks to ensure the required command-line
+// arguments have been specified for the pod sub-command specified by
+// the context argument.
+func checkRequiredPodArgs(context *cli.Context) error {
+	if context == nil {
+		return fmt.Errorf("BUG: need Context")
+	}
+
+	// sub-sub-command name
+	name := context.Command.Name
+
+	switch name {
+	case "create":
+		fallthrough
+	case "list":
+		fallthrough
+	case "run":
+		// these commands don't require any arguments
+		return nil
+	}
+
+	id := context.String("id")
+	if id == "" {
+		return vc.ErrNeedPodID
+	}
+
+	return nil
+}
+
+// checkRequiredContainerArgs checks to ensure the required command-line
+// arguments have been specified for the container sub-command specified
+// by the context argument.
+func checkRequiredContainerArgs(context *cli.Context) error {
+	if context == nil {
+		return fmt.Errorf("BUG: need Context")
+	}
+
+	// sub-sub-command name
+	name := context.Command.Name
+
+	podID := context.String("pod-id")
+	if podID == "" {
+		return vc.ErrNeedPodID
+	}
+
+	rootfs := context.String("rootfs")
+	if name == "create" && rootfs == "" {
+		return fmt.Errorf("%s: need rootfs", name)
+	}
+
+	id := context.String("id")
+	if id == "" {
+		return vc.ErrNeedContainerID
+	}
+
+	return nil
+}
+
 func runPod(context *cli.Context) error {
 	podConfig, err := buildPodConfig(context)
 	if err != nil {
@@ -278,6 +336,22 @@ func createPod(context *cli.Context) error {
 	fmt.Printf("Created pod %s\n", p.ID())
 
 	return nil
+}
+
+func checkPodArgs(context *cli.Context, f func(context *cli.Context) error) error {
+	if err := checkRequiredPodArgs(context); err != nil {
+		return err
+	}
+
+	return f(context)
+}
+
+func checkContainerArgs(context *cli.Context, f func(context *cli.Context) error) error {
+	if err := checkRequiredContainerArgs(context); err != nil {
+		return err
+	}
+
+	return f(context)
 }
 
 func deletePod(context *cli.Context) error {
@@ -354,7 +428,7 @@ var runPodCommand = cli.Command{
 	Usage: "run a pod",
 	Flags: podConfigFlags,
 	Action: func(context *cli.Context) error {
-		return runPod(context)
+		return checkPodArgs(context, runPod)
 	},
 }
 
@@ -363,7 +437,7 @@ var createPodCommand = cli.Command{
 	Usage: "create a pod",
 	Flags: podConfigFlags,
 	Action: func(context *cli.Context) error {
-		return createPod(context)
+		return checkPodArgs(context, createPod)
 	},
 }
 
@@ -378,7 +452,7 @@ var deletePodCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return deletePod(context)
+		return checkPodArgs(context, deletePod)
 	},
 }
 
@@ -393,7 +467,7 @@ var startPodCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return startPod(context)
+		return checkPodArgs(context, startPod)
 	},
 }
 
@@ -408,7 +482,7 @@ var stopPodCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return stopPod(context)
+		return checkPodArgs(context, stopPod)
 	},
 }
 
@@ -416,7 +490,7 @@ var listPodsCommand = cli.Command{
 	Name:  "list",
 	Usage: "list all existing pods",
 	Action: func(context *cli.Context) error {
-		return listPods(context)
+		return checkPodArgs(context, listPods)
 	},
 }
 
@@ -431,7 +505,7 @@ var statusPodCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return statusPod(context)
+		return checkPodArgs(context, statusPod)
 	},
 }
 
@@ -577,7 +651,7 @@ var createContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return createContainer(context)
+		return checkContainerArgs(context, createContainer)
 	},
 }
 
@@ -597,7 +671,7 @@ var deleteContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return deleteContainer(context)
+		return checkContainerArgs(context, deleteContainer)
 	},
 }
 
@@ -617,7 +691,7 @@ var startContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return startContainer(context)
+		return checkContainerArgs(context, startContainer)
 	},
 }
 
@@ -637,7 +711,7 @@ var stopContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return stopContainer(context)
+		return checkContainerArgs(context, stopContainer)
 	},
 }
 
@@ -662,7 +736,7 @@ var enterContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return enterContainer(context)
+		return checkContainerArgs(context, enterContainer)
 	},
 }
 
@@ -682,7 +756,7 @@ var statusContainerCommand = cli.Command{
 		},
 	},
 	Action: func(context *cli.Context) error {
-		return statusContainer(context)
+		return checkContainerArgs(context, statusContainer)
 	},
 }
 
