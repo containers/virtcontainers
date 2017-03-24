@@ -18,7 +18,6 @@ package virtcontainers
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -120,11 +119,6 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperstart.
 		Args:     cmd.Args,
 		Envs:     envVars,
 		Workdir:  cmd.WorkDir,
-
-		// TODO: Remove when switching to new proxy.
-		// Temporary to get it still working with the current proxy.
-		Stdio:  uint64(rand.Int63()),
-		Stderr: uint64(rand.Int63()),
 	}
 
 	return process, nil
