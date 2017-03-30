@@ -260,13 +260,13 @@ func (h *hyper) unlinkPauseBinary(podID string) error {
 }
 
 func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string) error {
-	rootfsDest := filepath.Join(defaultSharedDir, podID, cID)
+	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 
 	return bindMount(cRootFs, rootfsDest)
 }
 
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
-	rootfsDest := filepath.Join(defaultSharedDir, podID, cID)
+	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 	syscall.Unmount(rootfsDest, 0)
 
 	return nil
