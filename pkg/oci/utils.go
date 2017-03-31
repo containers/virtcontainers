@@ -48,6 +48,8 @@ type RuntimeConfig struct {
 
 	ProxyType   vc.ProxyType
 	ProxyConfig interface{}
+
+	Console string
 }
 
 func cmdEnvs(spec spec.Spec, envs []vc.EnvVar) []vc.EnvVar {
@@ -154,7 +156,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	containerConfig := vc.ContainerConfig{
-		RootFs:      rootfs,
+		ID:          cid,
+		RootFs:      ocispec.Root.Path,
 		Interactive: ocispec.Process.Terminal,
 		Console:     console,
 		Cmd:         cmd,
@@ -185,6 +188,8 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		NetworkConfig: networkConfig,
 
 		Containers: []vc.ContainerConfig{containerConfig},
+
+		Console: runtime.Console,
 
 		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
