@@ -29,6 +29,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+type netIfaceAddrs struct {
+	iface net.Interface
+	addrs []net.Addr
+}
+
 // NetworkInterface defines a network interface.
 type NetworkInterface struct {
 	Name     string
@@ -380,33 +385,46 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	return endpoints, nil
 }
 
-func getIfacesFromNetNs(networkNSPath string) ([]net.Interface, error) {
-	var ifaces []net.Interface
-	var err error
+func getIfacesFromNetNs(networkNSPath string) ([]netIfaceAddrs, error) {
+	var netIfaces []netIfaceAddrs
 
 	if networkNSPath == "" {
-		return []net.Interface{}, fmt.Errorf("Network namespace path cannot be empty")
+		return []netIfaceAddrs{}, fmt.Errorf("Network namespace path cannot be empty")
 	}
 
-	err = doNetNS(networkNSPath, func(_ ns.NetNS) error {
-		ifaces, err = net.Interfaces()
+	err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		ifaces, err := net.Interfaces()
 		if err != nil {
 			return err
+		}
+
+		for _, iface := range ifaces {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				return err
+			}
+
+			netIface := netIfaceAddrs{
+				iface: iface,
+				addrs: addrs,
+			}
+
+			netIfaces = append(netIfaces, netIface)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return []net.Interface{}, err
+		return []netIfaceAddrs{}, err
 	}
 
-	return ifaces, nil
+	return netIfaces, nil
 }
 
-func getNetIfaceByName(name string, netIfaces []net.Interface) (net.Interface, error) {
+func getNetIfaceByName(name string, netIfaces []netIfaceAddrs) (net.Interface, error) {
 	for _, netIface := range netIfaces {
-		if netIface.Name == name {
-			return netIface, nil
+		if netIface.iface.Name == name {
+			return netIface.iface, nil
 		}
 	}
 
