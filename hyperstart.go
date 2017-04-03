@@ -26,7 +26,6 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/containers/virtcontainers/pkg/hyperstart"
-	hyperJson "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 var defaultSockPathTemplates = []string{"/tmp/hyper-pod-%s.sock", "/tmp/tty-pod%s.sock"}
@@ -96,64 +95,17 @@ type hyper struct {
 	proxy  proxy
 }
 
-// ExecInfo is the structure corresponding to the format
-// expected by hyperstart to execute a command on the guest.
-type ExecInfo struct {
-	Container string            `json:"container"`
-	Process   hyperJson.Process `json:"process"`
-}
-
-// KillCommand is the structure corresponding to the format
-// expected by hyperstart to kill a container on the guest.
-type KillCommand struct {
-	Container string         `json:"container"`
-	Signal    syscall.Signal `json:"signal"`
-}
-
-// RemoveContainer is the structure corresponding to the format
-// expected by hyperstart to remove a container on the guest.
-type RemoveContainer struct {
-	Container string `json:"container"`
-}
-
 type hyperstartProxyCmd struct {
 	cmd     string
 	message interface{}
 	token   string
 }
 
-// HyperPod is the structure corresponding to the format expected
-// by hyperstart to start the pod on the guest.
-type HyperPod struct {
-	Hostname   string                `json:"hostname"`
-	Containers []hyperJson.Container `json:"containers,omitempty"`
-	Interfaces []HyperNetIface       `json:"interfaces,omitempty"`
-	Routes     []hyperJson.Route     `json:"routes,omitempty"`
-	ShareDir   string                `json:"shareDir"`
-}
-
-// HyperNetIface is the structure corresponding to the format expected
-// by hyperstart to setup network interfaces on the guest.
-type HyperNetIface struct {
-	Device      string           `json:"device,omitempty"`
-	NewDevice   string           `json:"newDeviceName,omitempty"`
-	IPAddresses []HyperIPAddress `json:"ipAddresses"`
-	MTU         string           `json:"mtu"`
-	MACAddr     string           `json:"macAddr"`
-}
-
-// HyperIPAddress is the structure corresponding to the format expected
-// by hyperstart to describe an IP address.
-type HyperIPAddress struct {
-	IPAddress string `json:"ipAddress"`
-	NetMask   string `json:"netMask"`
-}
-
-func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.Process, error) {
-	var envVars []hyperJson.EnvironmentVar
+func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperstart.Process, error) {
+	var envVars []hyperstart.EnvironmentVar
 
 	for _, e := range cmd.Envs {
-		envVar := hyperJson.EnvironmentVar{
+		envVar := hyperstart.EnvironmentVar{
 			Env:   e.Var,
 			Value: e.Value,
 		}
@@ -161,7 +113,7 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.P
 		envVars = append(envVars, envVar)
 	}
 
-	process := &hyperJson.Process{
+	process := &hyperstart.Process{
 		User:     cmd.User,
 		Group:    cmd.Group,
 		Terminal: terminal,
@@ -178,30 +130,30 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperJson.P
 	return process, nil
 }
 
-func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyperJson.Route, error) {
+func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIface, []hyperstart.Route, error) {
 	networkNS, err := pod.storage.fetchPodNetwork(pod.id)
 	if err != nil {
-		return []HyperNetIface{}, []hyperJson.Route{}, err
+		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 	}
 
 	if networkNS.NetNsPath == "" {
-		return []HyperNetIface{}, []hyperJson.Route{}, nil
+		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, nil
 	}
 
 	netIfaces, err := getIfacesFromNetNs(networkNS.NetNsPath)
 	if err != nil {
-		return []HyperNetIface{}, []hyperJson.Route{}, err
+		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 	}
 
-	var ifaces []HyperNetIface
-	var routes []hyperJson.Route
+	var ifaces []hyperstart.NetworkIface
+	var routes []hyperstart.Route
 	for _, endpoint := range networkNS.Endpoints {
 		netIface, err := getNetIfaceByName(endpoint.NetPair.VirtIface.Name, netIfaces)
 		if err != nil {
-			return []HyperNetIface{}, []hyperJson.Route{}, err
+			return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 		}
 
-		var ipAddrs []HyperIPAddress
+		var ipAddrs []hyperstart.IPAddress
 		for _, ipConfig := range endpoint.Properties.IPs {
 			// Skip IPv6 because not supported by hyperstart
 			if ipConfig.Version == "6" || ipConfig.Address.IP.To4() == nil {
@@ -210,7 +162,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 
 			netMask, _ := ipConfig.Address.Mask.Size()
 
-			ipAddr := HyperIPAddress{
+			ipAddr := hyperstart.IPAddress{
 				IPAddress: ipConfig.Address.IP.String(),
 				NetMask:   fmt.Sprintf("%d", netMask),
 			}
@@ -218,7 +170,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 			ipAddrs = append(ipAddrs, ipAddr)
 		}
 
-		iface := HyperNetIface{
+		iface := hyperstart.NetworkIface{
 			NewDevice:   endpoint.NetPair.VirtIface.Name,
 			IPAddresses: ipAddrs,
 			MTU:         fmt.Sprintf("%d", netIface.MTU),
@@ -238,7 +190,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 				gateway = ""
 			}
 
-			route := hyperJson.Route{
+			route := hyperstart.Route{
 				Dest:    r.Dst.String(),
 				Gateway: gateway,
 				Device:  endpoint.NetPair.VirtIface.Name,
@@ -393,14 +345,14 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	execInfo := ExecInfo{
+	execCommand := hyperstart.ExecCommand{
 		Container: c.id,
 		Process:   *process,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.ExecCmd,
-		message: execInfo,
+		message: execCommand,
 		token:   proxyInfo.Token,
 	}
 
@@ -431,9 +383,9 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	hyperPod := HyperPod{
+	hyperPod := hyperstart.Pod{
 		Hostname:   pod.id,
-		Containers: []hyperJson.Container{},
+		Containers: []hyperstart.Container{},
 		Interfaces: ifaces,
 		Routes:     routes,
 		ShareDir:   mountTag,
@@ -510,8 +462,8 @@ func (h *hyper) startPauseContainer(podID, token string) error {
 		return err
 	}
 
-	container := hyperJson.Container{
-		Id:      pauseContainerName,
+	container := hyperstart.Container{
+		ID:      pauseContainerName,
 		Image:   pauseContainerName,
 		Rootfs:  rootfsDir,
 		Process: process,
@@ -540,8 +492,8 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		return err
 	}
 
-	container := hyperJson.Container{
-		Id:      c.id,
+	container := hyperstart.Container{
+		ID:      c.id,
 		Image:   c.id,
 		Rootfs:  rootfsDir,
 		Process: process,
@@ -628,13 +580,13 @@ func (h *hyper) stopContainer(pod Pod, c Container) error {
 }
 
 func (h *hyper) stopOneContainer(podID, cID string) error {
-	removeContainer := RemoveContainer{
+	removeCommand := hyperstart.RemoveCommand{
 		Container: cID,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.RemoveContainer,
-		message: removeContainer,
+		message: removeCommand,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
@@ -666,7 +618,7 @@ func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal) error
 }
 
 func (h *hyper) killOneContainer(cID string, signal syscall.Signal) error {
-	killCmd := KillCommand{
+	killCmd := hyperstart.KillCommand{
 		Container: cID,
 		Signal:    signal,
 	}
