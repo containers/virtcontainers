@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
+	hyper "github.com/containers/virtcontainers/pkg/hyperstart/api"
 	"github.com/containers/virtcontainers/pkg/hyperstart/mock"
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 const (
@@ -155,7 +155,7 @@ func TestSetDeadline(t *testing.T) {
 		t.Fatal()
 	}
 
-	mockHyper.SendMessage(hyper.INIT_READY, []byte{})
+	mockHyper.SendMessage(hyper.Ready, []byte{})
 
 	buf := make([]byte, 512)
 	_, err = h.ctl.Read(buf)
@@ -241,7 +241,7 @@ func TestReadCtlMessage(t *testing.T) {
 	defer disconnectHyperstart(h)
 
 	expected := &hyper.DecodedMessage{
-		Code:    hyper.INIT_READY,
+		Code:    hyper.Ready,
 		Message: []byte{},
 	}
 
@@ -266,7 +266,7 @@ func TestWriteCtlMessage(t *testing.T) {
 	defer disconnectHyperstart(h)
 
 	msg := hyper.DecodedMessage{
-		Code:    hyper.INIT_PING,
+		Code:    hyper.Ping,
 		Message: []byte{},
 	}
 
@@ -281,11 +281,11 @@ func TestWriteCtlMessage(t *testing.T) {
 			t.Fatal()
 		}
 
-		if reply.Code == hyper.INIT_NEXT {
+		if reply.Code == hyper.Next {
 			continue
 		}
 
-		err = h.checkReturnedCode(reply.Code, hyper.INIT_ACK)
+		err = h.checkReturnedCode(reply.Code, hyper.Ack)
 		if err != nil {
 			t.Fatal()
 		}
@@ -403,71 +403,75 @@ func testCodeFromCmd(t *testing.T, cmd string, expected uint32) {
 }
 
 func TestCodeFromCmdVersion(t *testing.T) {
-	testCodeFromCmd(t, Version, hyper.INIT_VERSION)
+	testCodeFromCmd(t, Version, hyper.Version)
 }
 
 func TestCodeFromCmdStartPod(t *testing.T) {
-	testCodeFromCmd(t, StartPod, hyper.INIT_STARTPOD)
+	testCodeFromCmd(t, StartPod, hyper.StartPod)
 }
 
 func TestCodeFromCmdDestroyPod(t *testing.T) {
-	testCodeFromCmd(t, DestroyPod, hyper.INIT_DESTROYPOD)
+	testCodeFromCmd(t, DestroyPod, hyper.DestroyPod)
 }
 
 func TestCodeFromCmdExecCmd(t *testing.T) {
-	testCodeFromCmd(t, ExecCmd, hyper.INIT_EXECCMD)
+	testCodeFromCmd(t, ExecCmd, hyper.ExecCmd)
 }
 
 func TestCodeFromCmdReady(t *testing.T) {
-	testCodeFromCmd(t, Ready, hyper.INIT_READY)
+	testCodeFromCmd(t, Ready, hyper.Ready)
 }
 
 func TestCodeFromCmdAck(t *testing.T) {
-	testCodeFromCmd(t, Ack, hyper.INIT_ACK)
+	testCodeFromCmd(t, Ack, hyper.Ack)
 }
 
 func TestCodeFromCmdError(t *testing.T) {
-	testCodeFromCmd(t, Error, hyper.INIT_ERROR)
+	testCodeFromCmd(t, Error, hyper.Error)
 }
 
 func TestCodeFromCmdWinSize(t *testing.T) {
-	testCodeFromCmd(t, WinSize, hyper.INIT_WINSIZE)
+	testCodeFromCmd(t, WinSize, hyper.Winsize)
 }
 
 func TestCodeFromCmdPing(t *testing.T) {
-	testCodeFromCmd(t, Ping, hyper.INIT_PING)
+	testCodeFromCmd(t, Ping, hyper.Ping)
 }
 
 func TestCodeFromCmdNext(t *testing.T) {
-	testCodeFromCmd(t, Next, hyper.INIT_NEXT)
+	testCodeFromCmd(t, Next, hyper.Next)
 }
 
 func TestCodeFromCmdWriteFile(t *testing.T) {
-	testCodeFromCmd(t, WriteFile, hyper.INIT_WRITEFILE)
+	testCodeFromCmd(t, WriteFile, hyper.WriteFile)
 }
 
 func TestCodeFromCmdReadFile(t *testing.T) {
-	testCodeFromCmd(t, ReadFile, hyper.INIT_READFILE)
+	testCodeFromCmd(t, ReadFile, hyper.ReadFile)
 }
 
 func TestCodeFromCmdNewContainer(t *testing.T) {
-	testCodeFromCmd(t, NewContainer, hyper.INIT_NEWCONTAINER)
+	testCodeFromCmd(t, NewContainer, hyper.NewContainer)
 }
 
 func TestCodeFromCmdKillContainer(t *testing.T) {
-	testCodeFromCmd(t, KillContainer, hyper.INIT_KILLCONTAINER)
+	testCodeFromCmd(t, KillContainer, hyper.KillContainer)
 }
 
 func TestCodeFromCmdOnlineCPUMem(t *testing.T) {
-	testCodeFromCmd(t, OnlineCPUMem, hyper.INIT_ONLINECPUMEM)
+	testCodeFromCmd(t, OnlineCPUMem, hyper.OnlineCPUMem)
 }
 
 func TestCodeFromCmdSetupInterface(t *testing.T) {
-	testCodeFromCmd(t, SetupInterface, hyper.INIT_SETUPINTERFACE)
+	testCodeFromCmd(t, SetupInterface, hyper.SetupInterface)
 }
 
 func TestCodeFromCmdSetupRoute(t *testing.T) {
-	testCodeFromCmd(t, SetupRoute, hyper.INIT_SETUPROUTE)
+	testCodeFromCmd(t, SetupRoute, hyper.SetupRoute)
+}
+
+func TestCodeFromCmdRemoveContainer(t *testing.T) {
+	testCodeFromCmd(t, RemoveContainer, hyper.RemoveContainer)
 }
 
 func TestCodeFromCmdUnknown(t *testing.T) {
@@ -503,10 +507,10 @@ func testCheckReturnedCodeFailure(t *testing.T, code, refCode uint32) {
 
 func TestCheckReturnedCodeListWrong(t *testing.T) {
 	for _, code := range codeList {
-		if code != hyper.INIT_READY {
-			testCheckReturnedCodeFailure(t, code, hyper.INIT_READY)
+		if code != hyper.Ready {
+			testCheckReturnedCodeFailure(t, code, hyper.Ready)
 		} else {
-			testCheckReturnedCodeFailure(t, code, hyper.INIT_PING)
+			testCheckReturnedCodeFailure(t, code, hyper.Ping)
 		}
 	}
 }
@@ -519,7 +523,7 @@ func TestWaitForReady(t *testing.T) {
 	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
 
-	mockHyper.SendMessage(int(hyper.INIT_READY), []byte{})
+	mockHyper.SendMessage(int(hyper.Ready), []byte{})
 
 	err = h.WaitForReady()
 	if err != nil {
@@ -535,7 +539,7 @@ func TestWaitForReadyError(t *testing.T) {
 	defer mockHyper.Stop()
 	defer disconnectHyperstart(h)
 
-	mockHyper.SendMessage(int(hyper.INIT_ERROR), []byte{})
+	mockHyper.SendMessage(int(hyper.Error), []byte{})
 
 	err = h.WaitForReady()
 	if err == nil {
@@ -574,7 +578,7 @@ func testSendCtlMessage(t *testing.T, cmd string) {
 		t.Fatal()
 	}
 
-	if msg.Code != hyper.INIT_ACK {
+	if msg.Code != hyper.Ack {
 		t.Fatal()
 	}
 }

@@ -24,8 +24,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 // Control command IDs
@@ -46,31 +44,31 @@ const (
 	ReadFile        = "readfile"
 	NewContainer    = "newcontainer"
 	KillContainer   = "killcontainer"
-	RemoveContainer = "removecontainer"
 	OnlineCPUMem    = "onlinecpumem"
 	SetupInterface  = "setupinterface"
 	SetupRoute      = "setuproute"
+	RemoveContainer = "removecontainer"
 )
 
 var codeList = map[string]uint32{
-	Version:         hyper.INIT_VERSION,
-	StartPod:        hyper.INIT_STARTPOD,
-	DestroyPod:      hyper.INIT_DESTROYPOD,
-	ExecCmd:         hyper.INIT_EXECCMD,
-	Ready:           hyper.INIT_READY,
-	Ack:             hyper.INIT_ACK,
-	Error:           hyper.INIT_ERROR,
-	WinSize:         hyper.INIT_WINSIZE,
-	Ping:            hyper.INIT_PING,
-	Next:            hyper.INIT_NEXT,
-	WriteFile:       hyper.INIT_WRITEFILE,
-	ReadFile:        hyper.INIT_READFILE,
-	NewContainer:    hyper.INIT_NEWCONTAINER,
-	KillContainer:   hyper.INIT_KILLCONTAINER,
-	RemoveContainer: hyper.INIT_REMOVECONTAINER,
-	OnlineCPUMem:    hyper.INIT_ONLINECPUMEM,
-	SetupInterface:  hyper.INIT_SETUPINTERFACE,
-	SetupRoute:      hyper.INIT_SETUPROUTE,
+	Version:         VersionCode,
+	StartPod:        StartPodCode,
+	DestroyPod:      DestroyPodCode,
+	ExecCmd:         ExecCmdCode,
+	Ready:           ReadyCode,
+	Ack:             AckCode,
+	Error:           ErrorCode,
+	WinSize:         WinsizeCode,
+	Ping:            PingCode,
+	Next:            NextCode,
+	WriteFile:       WriteFileCode,
+	ReadFile:        ReadFileCode,
+	NewContainer:    NewContainerCode,
+	KillContainer:   KillContainerCode,
+	OnlineCPUMem:    OnlineCPUMemCode,
+	SetupInterface:  SetupInterfaceCode,
+	SetupRoute:      SetupRouteCode,
+	RemoveContainer: RemoveContainerCode,
 }
 
 // Values related to the communication on control channel.
@@ -240,7 +238,7 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
+func ReadCtlMessage(conn net.Conn) (*DecodedMessage, error) {
 	needRead := ctlHdrSize
 	length := 0
 	read := 0
@@ -267,7 +265,7 @@ func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 		}
 	}
 
-	return &hyper.DecodedMessage{
+	return &DecodedMessage{
 		Code:    binary.BigEndian.Uint32(res[:ctlHdrLenOffset]),
 		Message: res[ctlHdrSize:],
 	}, nil
@@ -277,7 +275,7 @@ func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) error {
+func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *DecodedMessage) error {
 	length := len(m.Message) + ctlHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
@@ -299,7 +297,7 @@ func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) err
 }
 
 // ReadIoMessageWithConn returns data coming from the specified IO channel.
-func ReadIoMessageWithConn(conn net.Conn) (*hyper.TtyMessage, error) {
+func ReadIoMessageWithConn(conn net.Conn) (*TtyMessage, error) {
 	needRead := ttyHdrSize
 	length := 0
 	read := 0
@@ -326,19 +324,19 @@ func ReadIoMessageWithConn(conn net.Conn) (*hyper.TtyMessage, error) {
 		}
 	}
 
-	return &hyper.TtyMessage{
+	return &TtyMessage{
 		Session: binary.BigEndian.Uint64(res[:ttyHdrLenOffset]),
 		Message: res[ttyHdrSize:],
 	}, nil
 }
 
 // ReadIoMessage returns data coming from the IO channel.
-func (h *Hyperstart) ReadIoMessage() (*hyper.TtyMessage, error) {
+func (h *Hyperstart) ReadIoMessage() (*TtyMessage, error) {
 	return ReadIoMessageWithConn(h.io)
 }
 
 // SendIoMessageWithConn sends data to the specified IO channel.
-func SendIoMessageWithConn(conn net.Conn, ttyMsg *hyper.TtyMessage) error {
+func SendIoMessageWithConn(conn net.Conn, ttyMsg *TtyMessage) error {
 	length := len(ttyMsg.Message) + ttyHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
@@ -364,7 +362,7 @@ func SendIoMessageWithConn(conn net.Conn, ttyMsg *hyper.TtyMessage) error {
 }
 
 // SendIoMessage sends data to the IO channel.
-func (h *Hyperstart) SendIoMessage(ttyMsg *hyper.TtyMessage) error {
+func (h *Hyperstart) SendIoMessage(ttyMsg *TtyMessage) error {
 	return SendIoMessageWithConn(h.io, ttyMsg)
 }
 
@@ -379,7 +377,7 @@ func codeFromCmd(cmd string) (uint32, error) {
 
 func (h *Hyperstart) checkReturnedCode(recvCode, expectedCode uint32) error {
 	if recvCode != expectedCode {
-		if recvCode == hyper.INIT_ERROR {
+		if recvCode == ErrorCode {
 			return fmt.Errorf("ERROR received from Hyperstart")
 		}
 
@@ -402,7 +400,7 @@ func (h *Hyperstart) WaitForReady() error {
 
 	msg := <-channel
 
-	err = h.checkReturnedCode(msg.Code, hyper.INIT_READY)
+	err = h.checkReturnedCode(msg.Code, ReadyCode)
 	if err != nil {
 		return err
 	}
@@ -411,7 +409,7 @@ func (h *Hyperstart) WaitForReady() error {
 }
 
 // WaitForPAE waits for a PROCESSASYNCEVENT message on CTL channel.
-func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAsyncEvent, error) {
+func (h *Hyperstart) WaitForPAE(containerID, processID string) (*PAECommand, error) {
 	if h.ctlMulticast == nil {
 		return nil, fmt.Errorf("No multicast available for CTL channel")
 	}
@@ -423,7 +421,7 @@ func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAs
 
 	msg := <-channel
 
-	var paeData hyper.ProcessAsyncEvent
+	var paeData PAECommand
 	err = json.Unmarshal(msg.Message, paeData)
 	if err != nil {
 		return nil, err
@@ -442,7 +440,7 @@ func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAs
 // proper serialization of the communication by making the listener registration
 // and the command writing an atomic operation protected by a mutex.
 // Waiting for the reply from multicaster doesn't need to be protected by this mutex.
-func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMessage, error) {
+func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*DecodedMessage, error) {
 	if h.ctlMulticast == nil {
 		return nil, fmt.Errorf("No multicast available for CTL channel")
 	}
@@ -461,7 +459,7 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 		return nil, err
 	}
 
-	msgSend := &hyper.DecodedMessage{
+	msgSend := &DecodedMessage{
 		Code:    code,
 		Message: data,
 	}
@@ -475,7 +473,7 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 
 	msgRecv := <-channel
 
-	err = h.checkReturnedCode(msgRecv.Code, hyper.INIT_ACK)
+	err = h.checkReturnedCode(msgRecv.Code, AckCode)
 	if err != nil {
 		return nil, err
 	}
