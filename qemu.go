@@ -69,6 +69,10 @@ const (
 	defaultConsole = "console.sock"
 )
 
+const (
+	maxDevIDSize = 31
+)
+
 type qmpGlogLogger struct{}
 
 func (l qmpGlogLogger) V(level int32) bool {
@@ -149,11 +153,16 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 		return devices
 	}
 
+	devID := fmt.Sprintf("extra-9p-%s", volume.MountTag)
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
 	devices = append(devices,
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", volume.MountTag),
+			ID:            devID,
 			Path:          volume.HostPath,
 			MountTag:      volume.MountTag,
 			SecurityModel: ciaoQemu.None,
@@ -164,12 +173,17 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 }
 
 func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
+	devID := socket.ID
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
 	devices = append(devices,
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.VirtioSerialPort,
 			Backend:  ciaoQemu.Socket,
 			DeviceID: socket.DeviceID,
-			ID:       socket.ID,
+			ID:       devID,
 			Path:     socket.HostPath,
 			Name:     socket.Name,
 		},
@@ -179,12 +193,12 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 }
 
 func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
-	for _, endpoint := range endpoints {
+	for idx, endpoint := range endpoints {
 		devices = append(devices,
 			ciaoQemu.NetDevice{
 				Type:       ciaoQemu.TAP,
 				Driver:     ciaoQemu.VirtioNet,
-				ID:         fmt.Sprintf("network%s", endpoint.NetPair.ID),
+				ID:         fmt.Sprintf("network-%d", idx),
 				IFName:     endpoint.NetPair.TAPIface.Name,
 				MACAddress: endpoint.NetPair.VirtIface.HardAddr,
 			},
@@ -196,7 +210,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 
 func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	// Add the containers rootfs
-	for _, c := range podConfig.Containers {
+	for idx, c := range podConfig.Containers {
 		if c.RootFs == "" || c.ID == "" {
 			continue
 		}
@@ -205,9 +219,9 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 			ciaoQemu.FSDevice{
 				Driver:        ciaoQemu.Virtio9P,
 				FSDriver:      ciaoQemu.Local,
-				ID:            fmt.Sprintf("ctr-%s-9p", c.ID),
+				ID:            fmt.Sprintf("ctr-9p-%d", idx),
 				Path:          c.RootFs,
-				MountTag:      fmt.Sprintf("ctr-rootfs-%s", c.ID),
+				MountTag:      fmt.Sprintf("ctr-rootfs-%d", idx),
 				SecurityModel: ciaoQemu.None,
 			},
 		)

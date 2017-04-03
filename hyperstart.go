@@ -203,6 +203,11 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 
 		var ipAddrs []HyperIPAddress
 		for _, ipConfig := range endpoint.Properties.IPs {
+			// Skip IPv6 because not supported by hyperstart
+			if ipConfig.Version == "6" || ipConfig.Address.IP.To4() == nil {
+				continue
+			}
+
 			netMask, _ := ipConfig.Address.Mask.Size()
 
 			ipAddr := HyperIPAddress{
@@ -223,6 +228,11 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]HyperNetIface, []hyp
 		ifaces = append(ifaces, iface)
 
 		for _, r := range endpoint.Properties.Routes {
+			// Skip IPv6 because not supported by hyperstart
+			if r.Dst.IP.To4() == nil {
+				continue
+			}
+
 			gateway := r.GW.String()
 			if gateway == "<nil>" {
 				gateway = ""
@@ -260,13 +270,13 @@ func (h *hyper) unlinkPauseBinary(podID string) error {
 }
 
 func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string) error {
-	rootfsDest := filepath.Join(defaultSharedDir, podID, cID)
+	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 
 	return bindMount(cRootFs, rootfsDest)
 }
 
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
-	rootfsDest := filepath.Join(defaultSharedDir, podID, cID)
+	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 	syscall.Unmount(rootfsDest, 0)
 
 	return nil

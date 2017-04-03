@@ -95,6 +95,10 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netli
 
 	var resultRoutes []*cniTypes.Route
 	for _, route := range routes {
+		if route.Dst == nil {
+			continue
+		}
+
 		r := &cniTypes.Route{
 			Dst: *(route.Dst),
 			GW:  route.Gw,
@@ -115,7 +119,7 @@ func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netli
 func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
-	ifaces, err := getIfacesFromNetNs(networkNSPath)
+	netIfaces, err := getIfacesFromNetNs(networkNSPath)
 	if err != nil {
 		return []Endpoint{}, err
 	}
@@ -123,29 +127,24 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 	uniqueID := uuid.Generate().String()
 
 	idx := 0
-	for _, iface := range ifaces {
+	for _, netIface := range netIfaces {
 		var endpoint Endpoint
 
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return []Endpoint{}, err
-		}
-
-		if iface.Name == "lo" {
+		if netIface.iface.Name == "lo" {
 			continue
 		} else {
-			endpoint, err = createNetworkEndpoint(idx, uniqueID, iface.Name)
+			endpoint, err = createNetworkEndpoint(idx, uniqueID, netIface.iface.Name)
 			if err != nil {
 				return []Endpoint{}, err
 			}
 		}
 
-		routes, err := n.getNetIfaceRoutesWithinNetNs(networkNSPath, iface.Name)
+		routes, err := n.getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.iface.Name)
 		if err != nil {
 			return []Endpoint{}, err
 		}
 
-		endpoint.Properties, err = n.createResult(iface, addrs, routes)
+		endpoint.Properties, err = n.createResult(netIface.iface, netIface.addrs, routes)
 		if err != nil {
 			return []Endpoint{}, err
 		}

@@ -114,7 +114,7 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", devices, expected)
 	}
 }
 
@@ -126,7 +126,7 @@ func TestQemuAppendVolume(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", mountTag),
+			ID:            fmt.Sprintf("extra-9p-%s", mountTag),
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
@@ -179,23 +179,23 @@ func TestQemuAppendFSDevices(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.1", contID)),
+			ID:            "ctr-9p-0",
 			Path:          fmt.Sprintf("%s.1", contRootFs),
-			MountTag:      fmt.Sprintf("ctr-rootfs-%s.1", contID),
+			MountTag:      "ctr-rootfs-0",
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("ctr-%s-9p", fmt.Sprintf("%s.2", contID)),
+			ID:            "ctr-9p-1",
 			Path:          fmt.Sprintf("%s.2", contRootFs),
-			MountTag:      fmt.Sprintf("ctr-rootfs-%s.2", contID),
+			MountTag:      "ctr-rootfs-1",
 			SecurityModel: ciaoQemu.None,
 		},
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", fmt.Sprintf("%s.1", volMountTag)),
+			ID:            fmt.Sprintf("extra-9p-%s", fmt.Sprintf("%s.1", volMountTag)),
 			Path:          fmt.Sprintf("%s.1", volHostPath),
 			MountTag:      fmt.Sprintf("%s.1", volMountTag),
 			SecurityModel: ciaoQemu.None,
@@ -203,7 +203,7 @@ func TestQemuAppendFSDevices(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", fmt.Sprintf("%s.2", volMountTag)),
+			ID:            fmt.Sprintf("extra-9p-%s", fmt.Sprintf("%s.2", volMountTag)),
 			Path:          fmt.Sprintf("%s.2", volHostPath),
 			MountTag:      fmt.Sprintf("%s.2", volMountTag),
 			SecurityModel: ciaoQemu.None,
@@ -336,7 +336,7 @@ func TestQemuAppendImage(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(devices, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", devices, expectedOut)
 	}
 }
 
@@ -350,11 +350,11 @@ func TestQemuInit(t *testing.T) {
 	}
 
 	if reflect.DeepEqual(qemuConfig, q.config) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.config, qemuConfig)
 	}
 
 	if reflect.DeepEqual(qemuConfig.HypervisorPath, q.path) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.path, qemuConfig.HypervisorPath)
 	}
 
 	// non-debug is the default
@@ -388,7 +388,7 @@ func TestQemuSetCPUResources(t *testing.T) {
 	smp := q.setCPUResources(podConfig)
 
 	if reflect.DeepEqual(smp, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", smp, expectedOut)
 	}
 }
 
@@ -414,7 +414,7 @@ func TestQemuSetMemoryResources(t *testing.T) {
 	memory := q.setMemoryResources(podConfig)
 
 	if reflect.DeepEqual(memory, expectedOut) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", memory, expectedOut)
 	}
 }
 
@@ -427,7 +427,7 @@ func testQemuAddDevice(t *testing.T, devInfo interface{}, devType deviceType, ex
 	}
 
 	if reflect.DeepEqual(q.qemuConfig.Devices, expected) == false {
-		t.Fatal()
+		t.Fatalf("Got %v\nExpecting %v", q.qemuConfig.Devices, expected)
 	}
 }
 
@@ -439,7 +439,7 @@ func TestQemuAddDeviceFsDev(t *testing.T) {
 		ciaoQemu.FSDevice{
 			Driver:        ciaoQemu.Virtio9P,
 			FSDriver:      ciaoQemu.Local,
-			ID:            fmt.Sprintf("extra-%s-9p", mountTag),
+			ID:            fmt.Sprintf("extra-9p-%s", mountTag),
 			Path:          hostPath,
 			MountTag:      mountTag,
 			SecurityModel: ciaoQemu.None,
