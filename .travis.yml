@@ -4,6 +4,7 @@ go:
 - 1.7
 - 1.8
 - tip
+go_import_path: github.com/containers/virtcontainers
 
 env:
 - COVERALLS_TOKEN=3NUr5Z9zvjIoGRlKi6WIA3Q9em3x22rZp
