@@ -24,8 +24,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	hyper "github.com/hyperhq/runv/hyperstart/api/json"
 )
 
 // Control command IDs
@@ -46,43 +44,45 @@ const (
 	ReadFile        = "readfile"
 	NewContainer    = "newcontainer"
 	KillContainer   = "killcontainer"
-	RemoveContainer = "removecontainer"
 	OnlineCPUMem    = "onlinecpumem"
 	SetupInterface  = "setupinterface"
 	SetupRoute      = "setuproute"
+	RemoveContainer = "removecontainer"
 )
 
-var codeList = map[string]uint32{
-	Version:         hyper.INIT_VERSION,
-	StartPod:        hyper.INIT_STARTPOD,
-	DestroyPod:      hyper.INIT_DESTROYPOD,
-	ExecCmd:         hyper.INIT_EXECCMD,
-	Ready:           hyper.INIT_READY,
-	Ack:             hyper.INIT_ACK,
-	Error:           hyper.INIT_ERROR,
-	WinSize:         hyper.INIT_WINSIZE,
-	Ping:            hyper.INIT_PING,
-	Next:            hyper.INIT_NEXT,
-	WriteFile:       hyper.INIT_WRITEFILE,
-	ReadFile:        hyper.INIT_READFILE,
-	NewContainer:    hyper.INIT_NEWCONTAINER,
-	KillContainer:   hyper.INIT_KILLCONTAINER,
-	RemoveContainer: hyper.INIT_REMOVECONTAINER,
-	OnlineCPUMem:    hyper.INIT_ONLINECPUMEM,
-	SetupInterface:  hyper.INIT_SETUPINTERFACE,
-	SetupRoute:      hyper.INIT_SETUPROUTE,
+// CodeList is the map making the relation between a string command
+// and its corresponding code.
+var CodeList = map[string]uint32{
+	Version:         VersionCode,
+	StartPod:        StartPodCode,
+	DestroyPod:      DestroyPodCode,
+	ExecCmd:         ExecCmdCode,
+	Ready:           ReadyCode,
+	Ack:             AckCode,
+	Error:           ErrorCode,
+	WinSize:         WinsizeCode,
+	Ping:            PingCode,
+	Next:            NextCode,
+	WriteFile:       WriteFileCode,
+	ReadFile:        ReadFileCode,
+	NewContainer:    NewContainerCode,
+	KillContainer:   KillContainerCode,
+	OnlineCPUMem:    OnlineCPUMemCode,
+	SetupInterface:  SetupInterfaceCode,
+	SetupRoute:      SetupRouteCode,
+	RemoveContainer: RemoveContainerCode,
 }
 
 // Values related to the communication on control channel.
 const (
-	ctlHdrSize      = 8
-	ctlHdrLenOffset = 4
+	CtlHdrSize      = 8
+	CtlHdrLenOffset = 4
 )
 
 // Values related to the communication on tty channel.
 const (
-	ttyHdrSize      = 12
-	ttyHdrLenOffset = 8
+	TtyHdrSize      = 12
+	TtyHdrLenOffset = 8
 )
 
 type connState struct {
@@ -134,8 +134,34 @@ func NewHyperstart(ctlSerial, ioSerial, sockType string) *Hyperstart {
 	}
 }
 
-// OpenSockets opens both CTL and IO sockets.
-func (h *Hyperstart) OpenSockets() error {
+// GetCtlSock returns the internal CTL sock.
+func (h *Hyperstart) GetCtlSock() net.Conn {
+	return h.ctl
+}
+
+// GetIoSock returns the internal IO sock.
+func (h *Hyperstart) GetIoSock() net.Conn {
+	return h.io
+}
+
+// GetCtlSockPath returns the internal CTL sock path.
+func (h *Hyperstart) GetCtlSockPath() string {
+	return h.ctlSerial
+}
+
+// GetIoSockPath returns the internal IO sock path.
+func (h *Hyperstart) GetIoSockPath() string {
+	return h.ioSerial
+}
+
+// GetSockType returns the internal sock type.
+func (h *Hyperstart) GetSockType() string {
+	return h.sockType
+}
+
+// OpenSocketsNoMulticast opens both CTL and IO sockets, without
+// starting the multicast.
+func (h *Hyperstart) OpenSocketsNoMulticast() error {
 	var err error
 
 	h.ctl, err = net.Dial(h.sockType, h.ctlSerial)
@@ -150,6 +176,15 @@ func (h *Hyperstart) OpenSockets() error {
 		return err
 	}
 	h.ioState.open()
+
+	return nil
+}
+
+// OpenSockets opens both CTL and IO sockets.
+func (h *Hyperstart) OpenSockets() error {
+	if err := h.OpenSocketsNoMulticast(); err != nil {
+		return err
+	}
 
 	h.ctlMulticast = startCtlMonitor(h.ctl)
 
@@ -240,8 +275,8 @@ func FormatMessage(payload interface{}) ([]byte, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
-	needRead := ctlHdrSize
+func ReadCtlMessage(conn net.Conn) (*DecodedMessage, error) {
+	needRead := CtlHdrSize
 	length := 0
 	read := 0
 	buf := make([]byte, 512)
@@ -259,17 +294,17 @@ func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 		res = append(res, buf[:nr]...)
 		read = read + nr
 
-		if length == 0 && read >= ctlHdrSize {
-			length = int(binary.BigEndian.Uint32(res[ctlHdrLenOffset:ctlHdrSize]))
-			if length > ctlHdrSize {
+		if length == 0 && read >= CtlHdrSize {
+			length = int(binary.BigEndian.Uint32(res[CtlHdrLenOffset:CtlHdrSize]))
+			if length > CtlHdrSize {
 				needRead = length
 			}
 		}
 	}
 
-	return &hyper.DecodedMessage{
-		Code:    binary.BigEndian.Uint32(res[:ctlHdrLenOffset]),
-		Message: res[ctlHdrSize:],
+	return &DecodedMessage{
+		Code:    binary.BigEndian.Uint32(res[:CtlHdrLenOffset]),
+		Message: res[CtlHdrSize:],
 	}, nil
 }
 
@@ -277,8 +312,8 @@ func ReadCtlMessage(conn net.Conn) (*hyper.DecodedMessage, error) {
 //
 // This is a low level function, for a full and safe transaction on the
 // hyperstart control serial link, use SendCtlMessage.
-func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) error {
-	length := len(m.Message) + ctlHdrSize
+func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *DecodedMessage) error {
+	length := len(m.Message) + CtlHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
 	// hyper_channel_ops, rbuf_size.
@@ -287,8 +322,8 @@ func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) err
 	}
 	msg := make([]byte, length)
 	binary.BigEndian.PutUint32(msg[:], uint32(m.Code))
-	binary.BigEndian.PutUint32(msg[ctlHdrLenOffset:], uint32(length))
-	copy(msg[ctlHdrSize:], m.Message)
+	binary.BigEndian.PutUint32(msg[CtlHdrLenOffset:], uint32(length))
+	copy(msg[CtlHdrSize:], m.Message)
 
 	_, err := conn.Write(msg)
 	if err != nil {
@@ -299,8 +334,8 @@ func (h *Hyperstart) WriteCtlMessage(conn net.Conn, m *hyper.DecodedMessage) err
 }
 
 // ReadIoMessageWithConn returns data coming from the specified IO channel.
-func ReadIoMessageWithConn(conn net.Conn) (*hyper.TtyMessage, error) {
-	needRead := ttyHdrSize
+func ReadIoMessageWithConn(conn net.Conn) (*TtyMessage, error) {
+	needRead := TtyHdrSize
 	length := 0
 	read := 0
 	buf := make([]byte, 512)
@@ -318,28 +353,28 @@ func ReadIoMessageWithConn(conn net.Conn) (*hyper.TtyMessage, error) {
 		res = append(res, buf[:nr]...)
 		read = read + nr
 
-		if length == 0 && read >= ttyHdrSize {
-			length = int(binary.BigEndian.Uint32(res[ttyHdrLenOffset:ttyHdrSize]))
-			if length > ttyHdrSize {
+		if length == 0 && read >= TtyHdrSize {
+			length = int(binary.BigEndian.Uint32(res[TtyHdrLenOffset:TtyHdrSize]))
+			if length > TtyHdrSize {
 				needRead = length
 			}
 		}
 	}
 
-	return &hyper.TtyMessage{
-		Session: binary.BigEndian.Uint64(res[:ttyHdrLenOffset]),
-		Message: res[ttyHdrSize:],
+	return &TtyMessage{
+		Session: binary.BigEndian.Uint64(res[:TtyHdrLenOffset]),
+		Message: res[TtyHdrSize:],
 	}, nil
 }
 
 // ReadIoMessage returns data coming from the IO channel.
-func (h *Hyperstart) ReadIoMessage() (*hyper.TtyMessage, error) {
+func (h *Hyperstart) ReadIoMessage() (*TtyMessage, error) {
 	return ReadIoMessageWithConn(h.io)
 }
 
 // SendIoMessageWithConn sends data to the specified IO channel.
-func SendIoMessageWithConn(conn net.Conn, ttyMsg *hyper.TtyMessage) error {
-	length := len(ttyMsg.Message) + ttyHdrSize
+func SendIoMessageWithConn(conn net.Conn, ttyMsg *TtyMessage) error {
+	length := len(ttyMsg.Message) + TtyHdrSize
 	// XXX: Support sending messages by chunks to support messages over
 	// 10240 bytes. That limit is from hyperstart src/init.c,
 	// hyper_channel_ops, rbuf_size.
@@ -348,8 +383,8 @@ func SendIoMessageWithConn(conn net.Conn, ttyMsg *hyper.TtyMessage) error {
 	}
 	msg := make([]byte, length)
 	binary.BigEndian.PutUint64(msg[:], ttyMsg.Session)
-	binary.BigEndian.PutUint32(msg[ttyHdrLenOffset:], uint32(length))
-	copy(msg[ttyHdrSize:], ttyMsg.Message)
+	binary.BigEndian.PutUint32(msg[TtyHdrLenOffset:], uint32(length))
+	copy(msg[TtyHdrSize:], ttyMsg.Message)
 
 	n, err := conn.Write(msg)
 	if err != nil {
@@ -364,22 +399,24 @@ func SendIoMessageWithConn(conn net.Conn, ttyMsg *hyper.TtyMessage) error {
 }
 
 // SendIoMessage sends data to the IO channel.
-func (h *Hyperstart) SendIoMessage(ttyMsg *hyper.TtyMessage) error {
+func (h *Hyperstart) SendIoMessage(ttyMsg *TtyMessage) error {
 	return SendIoMessageWithConn(h.io, ttyMsg)
 }
 
-func codeFromCmd(cmd string) (uint32, error) {
-	_, ok := codeList[cmd]
+// CodeFromCmd translates a string command to its corresponding code.
+func (h *Hyperstart) CodeFromCmd(cmd string) (uint32, error) {
+	_, ok := CodeList[cmd]
 	if ok == false {
 		return math.MaxUint32, fmt.Errorf("unknown command '%s'", cmd)
 	}
 
-	return codeList[cmd], nil
+	return CodeList[cmd], nil
 }
 
-func (h *Hyperstart) checkReturnedCode(recvCode, expectedCode uint32) error {
+// CheckReturnedCode ensures we did not receive an ERROR code.
+func (h *Hyperstart) CheckReturnedCode(recvCode, expectedCode uint32) error {
 	if recvCode != expectedCode {
-		if recvCode == hyper.INIT_ERROR {
+		if recvCode == ErrorCode {
 			return fmt.Errorf("ERROR received from Hyperstart")
 		}
 
@@ -402,7 +439,7 @@ func (h *Hyperstart) WaitForReady() error {
 
 	msg := <-channel
 
-	err = h.checkReturnedCode(msg.Code, hyper.INIT_READY)
+	err = h.CheckReturnedCode(msg.Code, ReadyCode)
 	if err != nil {
 		return err
 	}
@@ -411,7 +448,7 @@ func (h *Hyperstart) WaitForReady() error {
 }
 
 // WaitForPAE waits for a PROCESSASYNCEVENT message on CTL channel.
-func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAsyncEvent, error) {
+func (h *Hyperstart) WaitForPAE(containerID, processID string) (*PAECommand, error) {
 	if h.ctlMulticast == nil {
 		return nil, fmt.Errorf("No multicast available for CTL channel")
 	}
@@ -423,7 +460,7 @@ func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAs
 
 	msg := <-channel
 
-	var paeData hyper.ProcessAsyncEvent
+	var paeData PAECommand
 	err = json.Unmarshal(msg.Message, paeData)
 	if err != nil {
 		return nil, err
@@ -442,7 +479,7 @@ func (h *Hyperstart) WaitForPAE(containerID, processID string) (*hyper.ProcessAs
 // proper serialization of the communication by making the listener registration
 // and the command writing an atomic operation protected by a mutex.
 // Waiting for the reply from multicaster doesn't need to be protected by this mutex.
-func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMessage, error) {
+func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*DecodedMessage, error) {
 	if h.ctlMulticast == nil {
 		return nil, fmt.Errorf("No multicast available for CTL channel")
 	}
@@ -455,13 +492,13 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 		return nil, err
 	}
 
-	code, err := codeFromCmd(cmd)
+	code, err := h.CodeFromCmd(cmd)
 	if err != nil {
 		h.ctlMutex.Unlock()
 		return nil, err
 	}
 
-	msgSend := &hyper.DecodedMessage{
+	msgSend := &DecodedMessage{
 		Code:    code,
 		Message: data,
 	}
@@ -475,7 +512,7 @@ func (h *Hyperstart) SendCtlMessage(cmd string, data []byte) (*hyper.DecodedMess
 
 	msgRecv := <-channel
 
-	err = h.checkReturnedCode(msgRecv.Code, hyper.INIT_ACK)
+	err = h.CheckReturnedCode(msgRecv.Code, AckCode)
 	if err != nil {
 		return nil, err
 	}
