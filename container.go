@@ -23,7 +23,7 @@ import (
 	"syscall"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 )
 
 // Process gathers data related to a container process.
@@ -130,7 +130,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	glog.Infof("Info structure:\n%+v\n", config)
+	log.Infof("Info structure:\n%+v\n", config)
 
 	return createContainer(pod, config)
 }
