@@ -9,7 +9,7 @@ binaries: pause
 
 clean:
 	make -C pause clean
-	rm hack/virtc/virtc
+	rm -f hack/virtc/virtc
 
 install:
 	install -D -m 755 pause/pause /usr/bin/pause
