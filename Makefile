@@ -1,6 +1,6 @@
 all: binaries
 	go build ./...
-	cd hack/virtc && go build && cd ../..
+	cd hack/virtc && go build
 
 pause:
 	make -C $@
