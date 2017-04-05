@@ -49,7 +49,7 @@ func newMulticast(ctlConn net.Conn) *multicast {
 	}
 }
 
-func startCtlMonitor(ctlConn net.Conn) *multicast {
+func startCtlMonitor(ctlConn net.Conn, done chan<- interface{}) *multicast {
 	ctlMulticast := newMulticast(ctlConn)
 
 	go func() {
@@ -66,6 +66,8 @@ func startCtlMonitor(ctlConn net.Conn) *multicast {
 				break
 			}
 		}
+
+		close(done)
 	}()
 
 	return ctlMulticast
