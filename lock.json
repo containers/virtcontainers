@@ -1,5 +1,5 @@
 {
-    "memo": "5b4082febe8fcc8aea4c4719faaf7d17b89b16213bff22a3bd52689c4a174dd0",
+    "memo": "4c76a118baef92b9fb5a98916d713b34f82809485387e5e398bbdef152b74a71",
     "projects": [
         {
             "name": "github.com/01org/ciao",
@@ -61,8 +61,7 @@
         },
         {
             "name": "github.com/opencontainers/runtime-spec",
-            "branch": "master",
-            "revision": "db14059635eb7b48047a701c1e7671e58baebf3e",
+            "revision": "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4",
             "packages": [
                 "specs-go"
             ]

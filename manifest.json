@@ -19,7 +19,7 @@
             "revision": "dcbcdf2470421e911211604c61ea3e8ca740d346"
         },
         "github.com/opencontainers/runtime-spec": {
-            "branch": "master"
+            "revision": "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
         },
         "github.com/stretchr/testify": {
             "branch": "master"
