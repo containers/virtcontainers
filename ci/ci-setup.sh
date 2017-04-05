@@ -65,7 +65,7 @@ make
 cp pause /tmp/bundles/pause_bundle/rootfs/bin/
 popd
 pushd cni
-./build
+./build.sh
 cp ./bin/bridge /tmp/cni/bin/cni-bridge
 cp ./bin/loopback /tmp/cni/bin/loopback
 cp ./bin/host-local /tmp/cni/bin/host-local
