@@ -123,6 +123,8 @@ type Hyperstart struct {
 	ctlMutex sync.Mutex
 
 	ctlMulticast *multicast
+
+	ctlChDone chan interface{}
 }
 
 // NewHyperstart returns a new hyperstart structure.
@@ -186,7 +188,8 @@ func (h *Hyperstart) OpenSockets() error {
 		return err
 	}
 
-	h.ctlMulticast = startCtlMonitor(h.ctl)
+	h.ctlChDone = make(chan interface{})
+	h.ctlMulticast = startCtlMonitor(h.ctl, h.ctlChDone)
 
 	return nil
 }
@@ -194,6 +197,16 @@ func (h *Hyperstart) OpenSockets() error {
 // CloseSockets closes both CTL and IO sockets.
 func (h *Hyperstart) CloseSockets() error {
 	if !h.ctlState.closed() {
+		if h.ctlChDone != nil {
+			// Wait for the CTL channel to be terminated.
+			select {
+			case <-h.ctlChDone:
+				break
+			case <-time.After(time.Duration(3) * time.Second):
+				return fmt.Errorf("CTL channel did not end as expected")
+			}
+		}
+
 		err := h.ctl.Close()
 		if err != nil {
 			return err

@@ -393,10 +393,11 @@ func (h *Hyperstart) Start() {
 func (h *Hyperstart) Stop() {
 	h.wgConnected.Wait()
 
-	h.ctlListener.Close()
-	h.ioListener.Close()
 	h.ctl.Close()
 	h.io.Close()
+
+	h.ctlListener.Close()
+	h.ioListener.Close()
 
 	h.wg.Wait()
 
