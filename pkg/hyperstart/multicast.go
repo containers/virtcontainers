@@ -22,7 +22,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 )
 
 type ctlDataType string
@@ -56,13 +56,13 @@ func startCtlMonitor(ctlConn net.Conn) *multicast {
 		for {
 			msg, err := ReadCtlMessage(ctlMulticast.ctl)
 			if err != nil {
-				glog.Infof("Read on CTL channel ended: %s\n", err)
+				log.Infof("Read on CTL channel ended: %s\n", err)
 				break
 			}
 
 			err = ctlMulticast.write(msg)
 			if err != nil {
-				glog.Errorf("Multicaster write error: %s\n", err)
+				log.Errorf("Multicaster write error: %s\n", err)
 				break
 			}
 		}

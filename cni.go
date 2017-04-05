@@ -17,9 +17,9 @@
 package virtcontainers
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/containernetworking/cni/pkg/ns"
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
-	"github.com/golang/glog"
 )
 
 // cni is a network implementation for the CNI plugin.
@@ -39,7 +39,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 
 		networkNS.Endpoints[idx].Properties = *result
 
-		glog.Infof("AddNetwork results %v\n", *result)
+		log.Infof("AddNetwork results %v\n", *result)
 	}
 
 	return nil

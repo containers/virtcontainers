@@ -27,7 +27,7 @@ import (
 
 	ciaoQemu "github.com/01org/ciao/qemu"
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 )
 
 type qmpChannel struct {
@@ -73,22 +73,26 @@ const (
 	maxDevIDSize = 31
 )
 
-type qmpGlogLogger struct{}
+type qmpLogger struct{}
 
-func (l qmpGlogLogger) V(level int32) bool {
-	return bool(glog.V(glog.Level(level)))
+func (l qmpLogger) V(level int32) bool {
+	if level != 0 {
+		return true
+	}
+
+	return false
 }
 
-func (l qmpGlogLogger) Infof(format string, v ...interface{}) {
-	glog.InfoDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Infof(format string, v ...interface{}) {
+	log.Infof(format, v...)
 }
 
-func (l qmpGlogLogger) Warningf(format string, v ...interface{}) {
-	glog.WarningDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Warningf(format string, v ...interface{}) {
+	log.Warnf(format, v...)
 }
 
-func (l qmpGlogLogger) Errorf(format string, v ...interface{}) {
-	glog.ErrorDepth(2, fmt.Sprintf(format, v...))
+func (l qmpLogger) Errorf(format string, v ...interface{}) {
+	log.Errorf(format, v...)
 }
 
 var kernelDefaultParams = []Param{
@@ -365,21 +369,21 @@ func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
 		q.qmpMonitorCh.wg.Done()
 	}(q)
 
-	cfg := ciaoQemu.QMPConfig{Logger: qmpGlogLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	qmp, ver, err := ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, q.qmpMonitorCh.disconnectCh)
 	if err != nil {
-		glog.Errorf("Failed to connect to QEMU instance %v", err)
+		log.Errorf("Failed to connect to QEMU instance %v", err)
 		return
 	}
 
 	q.qmpMonitorCh.qmp = qmp
 
-	glog.Infof("QMP version %d.%d.%d", ver.Major, ver.Minor, ver.Micro)
-	glog.Infof("QMP capabilities %s", ver.Capabilities)
+	log.Infof("QMP version %d.%d.%d", ver.Major, ver.Minor, ver.Micro)
+	log.Infof("QMP capabilities %s", ver.Capabilities)
 
 	err = q.qmpMonitorCh.qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		glog.Errorf("Unable to send qmp_capabilities command: %v", err)
+		log.Errorf("Unable to send qmp_capabilities command: %v", err)
 		return
 	}
 
@@ -507,7 +511,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 // startPod will start the Pod's VM.
 func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
-	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, qmpGlogLogger{})
+	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, qmpLogger{})
 	if err != nil {
 		return fmt.Errorf("%s", strErr)
 	}
@@ -522,18 +526,18 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 
 // stopPod will stop the Pod's VM.
 func (q *qemu) stopPod() error {
-	cfg := ciaoQemu.QMPConfig{Logger: qmpGlogLogger{}}
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
 
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
 	if err != nil {
-		glog.Errorf("Failed to connect to QEMU instance %v", err)
+		log.Errorf("Failed to connect to QEMU instance %v", err)
 		return err
 	}
 
 	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
 	if err != nil {
-		glog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		log.Errorf("Failed to negotiate capabilities with QEMU %v", err)
 		return err
 	}
 
