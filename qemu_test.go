@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -245,7 +246,6 @@ func TestQemuAppendConsoles(t *testing.T) {
 	podID := "testPodID"
 	cID1 := "100"
 	cID2 := "200"
-	podConsolePath := "testPodConsolePath"
 	contConsolePath := "testContConsolePath"
 
 	expectedOut := []ciaoQemu.Device{
@@ -258,7 +258,7 @@ func TestQemuAppendConsoles(t *testing.T) {
 			Backend:  ciaoQemu.Socket,
 			DeviceID: "console0",
 			ID:       "charconsole0",
-			Path:     podConsolePath,
+			Path:     filepath.Join(runStoragePath, podID, defaultConsole),
 		},
 		ciaoQemu.CharDevice{
 			Driver:   ciaoQemu.Console,
@@ -292,7 +292,6 @@ func TestQemuAppendConsoles(t *testing.T) {
 	podConfig := PodConfig{
 		ID:         podID,
 		Containers: containers,
-		Console:    podConsolePath,
 	}
 
 	testQemuAppend(t, podConfig, expectedOut, consoleDev)
@@ -479,4 +478,14 @@ func TestQemuAddDeviceSerialPordDev(t *testing.T) {
 	}
 
 	testQemuAddDevice(t, socket, serialPortDev, expectedOut)
+}
+
+func TestQemuGetPodConsole(t *testing.T) {
+	q := &qemu{}
+	podID := "testPodID"
+	expected := filepath.Join(runStoragePath, podID, defaultConsole)
+
+	if result := q.getPodConsole(podID); result != expected {
+		t.Fatalf("Got %s\nExpecting %s", result, expected)
+	}
 }

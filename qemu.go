@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -249,24 +250,19 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 
 	var console ciaoQemu.CharDevice
 
-	offset := 0
-	if podConfig.Console != "" {
-		console = ciaoQemu.CharDevice{
-			Driver:   ciaoQemu.Console,
-			Backend:  ciaoQemu.Socket,
-			DeviceID: "console0",
-			ID:       "charconsole0",
-			Path:     podConfig.Console,
-		}
-
-		devices = append(devices, console)
-
-		offset++
+	console = ciaoQemu.CharDevice{
+		Driver:   ciaoQemu.Console,
+		Backend:  ciaoQemu.Socket,
+		DeviceID: "console0",
+		ID:       "charconsole0",
+		Path:     q.getPodConsole(podConfig.ID),
 	}
 
+	devices = append(devices, console)
+
 	for i, c := range podConfig.Containers {
-		// Need to add an offset because of the console created for the pod.
-		idx := i + offset
+		// Need to add an offset of 1 because of the console created for the pod.
+		idx := i + 1
 
 		if c.Interactive == false || c.Console == "" {
 			console = ciaoQemu.CharDevice{
@@ -561,4 +557,10 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	}
 
 	return nil
+}
+
+// getPodConsole builds the path of the console where we can read
+// logs coming from the pod.
+func (q *qemu) getPodConsole(podID string) string {
+	return filepath.Join(runStoragePath, podID, defaultConsole)
 }
