@@ -273,10 +273,6 @@ type PodConfig struct {
 	// Annotations keys must be unique strings an must be name-spaced
 	// with e.g. reverse domain notation (org.clearlinux.key).
 	Annotations map[string]string
-
-	// Console is a console path provided by the caller to create
-	// a console connected to the VM.
-	Console string
 }
 
 // valid checks that the pod configuration is valid.

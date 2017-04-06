@@ -242,8 +242,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		ProxyConfig: proxyConfig,
 
 		Containers: []vc.ContainerConfig{},
-
-		Console: "/tmp/virtcontainers/console.sock",
 	}
 
 	return podConfig, nil
