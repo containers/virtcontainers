@@ -24,6 +24,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Control command IDs
@@ -125,6 +127,13 @@ type Hyperstart struct {
 	ctlMulticast *multicast
 
 	ctlChDone chan interface{}
+}
+
+var hyperLog = logrus.New()
+
+// SetLog sets the logger for hyperstart package.
+func SetLog(logger *logrus.Logger) {
+	hyperLog = logger
 }
 
 // NewHyperstart returns a new hyperstart structure.

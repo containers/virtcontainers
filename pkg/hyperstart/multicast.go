@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 type ctlDataType string
@@ -56,13 +54,13 @@ func startCtlMonitor(ctlConn net.Conn, done chan<- interface{}) *multicast {
 		for {
 			msg, err := ReadCtlMessage(ctlMulticast.ctl)
 			if err != nil {
-				log.Infof("Read on CTL channel ended: %s\n", err)
+				hyperLog.Infof("Read on CTL channel ended: %s", err)
 				break
 			}
 
 			err = ctlMulticast.write(msg)
 			if err != nil {
-				log.Errorf("Multicaster write error: %s\n", err)
+				hyperLog.Errorf("Multicaster write error: %s", err)
 				break
 			}
 		}
