@@ -89,7 +89,7 @@ func (p *ccProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 	}
 
 	registerVMOptions := &client.RegisterVMOptions{
-		Console:      pod.config.Console,
+		Console:      pod.hypervisor.getPodConsole(pod.id),
 		NumIOStreams: len(pod.containers),
 	}
 
