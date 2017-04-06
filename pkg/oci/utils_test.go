@@ -100,8 +100,6 @@ func TestMinimalPodConfig(t *testing.T) {
 
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
 
-		Console: consolePath,
-
 		Annotations: map[string]string{ociConfigPathKey: configPath},
 	}
 
