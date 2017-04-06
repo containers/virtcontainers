@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
 )
 
@@ -53,7 +52,7 @@ type HyperConfig struct {
 
 func (c *HyperConfig) validate(pod Pod) bool {
 	if len(c.Sockets) == 0 {
-		log.Infof("No sockets from configuration\n")
+		virtLog.Infof("No sockets from configuration")
 
 		podSocketPaths := []string{
 			fmt.Sprintf(defaultSockPathTemplates[0], pod.id),
@@ -82,7 +81,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
-	log.Infof("Hyperstart config %v\n", c)
+	virtLog.Infof("Hyperstart config %v", c)
 
 	return true
 }

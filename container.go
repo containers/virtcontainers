@@ -23,7 +23,6 @@ import (
 	"syscall"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	log "github.com/Sirupsen/logrus"
 )
 
 // Process gathers data related to a container process.
@@ -130,7 +129,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	log.Infof("Info structure:\n%+v\n", config)
+	virtLog.Infof("Info structure: %+v", config)
 
 	return createContainer(pod, config)
 }

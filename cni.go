@@ -17,7 +17,6 @@
 package virtcontainers
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/containernetworking/cni/pkg/ns"
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
 )
@@ -39,7 +38,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 
 		networkNS.Endpoints[idx].Properties = *result
 
-		log.Infof("AddNetwork results %v\n", *result)
+		virtLog.Infof("AddNetwork results %v", *result)
 	}
 
 	return nil
