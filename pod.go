@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	log "github.com/Sirupsen/logrus"
 )
 
 // controlSocket is the pod control socket.
@@ -500,7 +499,7 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	log.Infof("Info structure:\n%+v\n", config)
+	virtLog.Infof("Info structure: %+v", config)
 
 	return createPod(config)
 }
@@ -591,7 +590,7 @@ func (p *Pod) startVM() error {
 		return err
 	}
 
-	log.Infof("VM started\n")
+	virtLog.Infof("VM started")
 
 	return nil
 }
@@ -615,7 +614,7 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	log.Infof("Started Pod %s\n", p.ID())
+	virtLog.Infof("Started Pod %s", p.ID())
 
 	return nil
 }
