@@ -1,11 +1,11 @@
 # virtc
 
-`virtc` is a simple command-line tool that serves to demonstrate typical usage of the `virt` API.
-This is example software; unlike other projects like runc, runv, or rkt, `virt` is not a full container runtime.
+`virtc` is a simple command-line tool that serves to demonstrate typical usage of the virtcontainers API.
+This is example software; unlike other projects like runc, runv, or rkt, virtcontainers is not a full container runtime.
 
 ## Virtc example
 
-Here we explain how to use the pod API from __virtc__ command line.
+Here we explain how to use the pod and container API from `virtc` command line.
 
 ### Prepare your environment
 
@@ -25,59 +25,43 @@ $ sudo apt install linux-container
 
 #### Get your image
 
-It has to be a recent Clear Linux image to make sure it contains hyperstart binary.
-You can dowload the following tested [image](https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz), or any version more recent.
+Retrieve a recent Clear Containers image to make sure it contains a recent version of hyperstart agent.
+You can dowload the following tested [image](https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz), or any version more recent.
 
 ```
-$ wget https://download.clearlinux.org/releases/12210/clear/clear-12210-containers.img.xz
-$ unxz clear-12210-containers.img.xz
-$ sudo cp clear-12210-containers.img /usr/share/clear-containers/clear-containers.img
+$ wget https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz
+$ unxz clear-14230-containers.img.xz
+$ sudo cp clear-14230-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
 
-_Download virtc_
+_Download virtcontainers project_
 ```
 $ go get github.com/containers/virtcontainers
 ```
 
-_Build and install pause binary_
+_Build and setup your environment_
 ```
 $ cd $GOPATH/src/github.com/containers/virtcontainers
-$ make
-$ make install
+$ go build -o virtc hack/virtc/main.go
+$ sudo su
+# ./utils/virtcontainers-setup.sh 
 ```
 
-_Go to virtc_
-```
-$ cd hack/virtc
-```
+`virtcontainers-setup.sh` setup your environment performing different tasks. Particularly, it creates a __busybox__ bundle, and it creates CNI configuration files needed to run `virtc` with CNI plugins.
 
 ### Run virtc
 
-All following commands needs to be run as root. Currently, __virtc__ only starts single container pods.
-
-_Create your container bundle_
-
-As an example we will create a busybox bundle:
-
-```
-$ mkdir -p /tmp/bundles/busybox/
-$ docker pull busybox
-$ cd /tmp/bundles/busybox/
-$ mkdir rootfs
-$ docker export $(docker create busybox) | tar -C rootfs -xvf -
-$ echo -e '#!/bin/sh\ncd "\"\n"sh"' > rootfs/.containerexec
-$ echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nTERM=xterm' > rootfs/.containerenv
-```
+All following commands __MUST__ be run as root. By default, and unless you decide to modify it and rebuild it, `virtc` starts empty pods (no container started).
 
 #### Run a new pod (Create + Start)
 ```
-./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy"
+# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 #### Create a new pod
 ```
-./virtc pod create --agent="hyperstart" --network="CNI" --proxy="ccProxy"
+# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 This should generate that kind of output
 ```
@@ -86,19 +70,19 @@ Created pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 
 #### Start an existing pod
 ```
-./virtc pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod start -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### Stop an existing pod
 ```
-./virtc pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod stop -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### Get the status of an existing pod and its containers
 ```
-./virtc pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod status -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output:
+This should generate the following output (assuming the pod has been started):
 ```
 POD ID                                  STATE   HYPERVISOR      AGENT
 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
@@ -108,12 +92,12 @@ CONTAINER ID    STATE
 
 #### Delete an existing pod
 ```
-./virtc pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod delete -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 
 #### List all existing pods
 ```
-./virtc pod list
+# ./virtc pod list
 ```
 This should generate that kind of output
 ```
@@ -122,4 +106,59 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 92d73f74-4514-4a0d-81df-db1cc4c59100    running qemu            hyperstart
 7088148c-049b-4be7-b1be-89b3ae3c551c    ready   qemu            hyperstart
 6d57654e-4804-4a91-b72d-b5fe375ed3e1    ready   qemu            hyperstart
+```
+
+#### Create a new container
+```
+# ./virtc container create -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -rootfs="/tmp/bundles/busybox/rootfs" -cmd="/bin/ifconfig"
+```
+This should generate the following output:
+```
+Created container 1
+```
+
+#### Start an existing container
+```
+# ./virtc container start -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This should generate the following output:
+```
+Container 1 started
+```
+
+#### Run a new process on an existing container
+```
+# ./virtc container enter -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cmd="/bin/ps"
+```
+This should generate the following output:
+```
+Container 1 entered
+```
+
+#### Stop an existing container
+```
+# ./virtc container stop -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This should generate the following output:
+```
+Container 1 stopped
+```
+
+#### Delete an existing container
+```
+# ./virtc container delete -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This should generate the following output:
+```
+Container 1 deleted
+```
+
+#### Get the status of an existing container
+```
+# ./virtc container status -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This should generate the following output (assuming the container has been started):
+```
+CONTAINER ID    STATE
+1               running
 ```
