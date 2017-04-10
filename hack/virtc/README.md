@@ -51,6 +51,27 @@ $ sudo su
 
 `virtcontainers-setup.sh` setup your environment performing different tasks. Particularly, it creates a __busybox__ bundle, and it creates CNI configuration files needed to run `virtc` with CNI plugins.
 
+### Get cc-proxy (optional)
+
+If you plan to start `virtc` with the hyperstart agent, you will have to use [cc-proxy](https://github.com/clearcontainers/proxy) as a proxy, meaning you have to perform extra steps to setup your environment.
+
+```
+$ go get github.com/clearcontainers/proxy
+$ make
+$ sudo make install
+```
+If you want to see the traces from the proxy when `virtc` will run, you can manually start it with appropriate debug level:
+
+```
+$ sudo /usr/libexec/clearcontainers/cc-proxy -v 3
+```
+This will generate output similar to the following:
+```
+I0410 08:58:49.058881    5384 proxy.go:521] listening on /var/run/clearcontainers/proxy.sock
+I0410 08:58:49.059044    5384 proxy.go:566] proxy started
+```
+The proxy socket specified in the example log output has to be used as `virtc`'s `--proxy-url` option.
+
 ### Run virtc
 
 All following commands __MUST__ be run as root. By default, and unless you decide to modify it and rebuild it, `virtc` starts empty pods (no container started).
