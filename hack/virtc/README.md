@@ -63,26 +63,34 @@ All following commands __MUST__ be run as root. By default, and unless you decid
 ```
 # ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
-This should generate that kind of output
+This will generate output similar to the following:
 ```
-Created pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 created
 ```
 
 #### Start an existing pod
 ```
 # ./virtc pod start -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 started
+```
 
 #### Stop an existing pod
 ```
 # ./virtc pod stop -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 stopped
 ```
 
 #### Get the status of an existing pod and its containers
 ```
 # ./virtc pod status -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output (assuming the pod has been started):
+This will generate output similar to the following (assuming the pod has been started):
 ```
 POD ID                                  STATE   HYPERVISOR      AGENT
 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8    running qemu            hyperstart
@@ -93,6 +101,10 @@ CONTAINER ID    STATE
 #### Delete an existing pod
 ```
 # ./virtc pod delete -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+This will generate output similar to the following:
+```
+Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 deleted
 ```
 
 #### List all existing pods
@@ -112,16 +124,16 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 ```
 # ./virtc container create -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -rootfs="/tmp/bundles/busybox/rootfs" -cmd="/bin/ifconfig"
 ```
-This should generate the following output:
+This will generate output similar to the following:
 ```
-Created container 1
+Container 1 created
 ```
 
 #### Start an existing container
 ```
 # ./virtc container start -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output:
+This will generate output similar to the following:
 ```
 Container 1 started
 ```
@@ -130,7 +142,7 @@ Container 1 started
 ```
 # ./virtc container enter -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cmd="/bin/ps"
 ```
-This should generate the following output:
+This will generate output similar to the following:
 ```
 Container 1 entered
 ```
@@ -139,7 +151,7 @@ Container 1 entered
 ```
 # ./virtc container stop -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output:
+This will generate output similar to the following:
 ```
 Container 1 stopped
 ```
@@ -148,7 +160,7 @@ Container 1 stopped
 ```
 # ./virtc container delete -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output:
+This will generate output similar to the following:
 ```
 Container 1 deleted
 ```
@@ -157,7 +169,7 @@ Container 1 deleted
 ```
 # ./virtc container status -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-This should generate the following output (assuming the container has been started):
+This will generate output similar to the following (assuming the container has been started):
 ```
 CONTAINER ID    STATE
 1               running

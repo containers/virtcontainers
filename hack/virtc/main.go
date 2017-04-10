@@ -23,11 +23,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
 	vc "github.com/containers/virtcontainers"
 )
+
+var virtcLog = logrus.New()
 
 var listFormat = "%s\t%s\t%s\t%s\n"
 var statusFormat = "%s\t%s\n"
@@ -330,7 +332,7 @@ func createPod(context *cli.Context) error {
 		return fmt.Errorf("Could not create pod: %s", err)
 	}
 
-	fmt.Printf("Created pod %s\n", p.ID())
+	fmt.Printf("Pod %s created\n", p.ID())
 
 	return nil
 }
@@ -352,28 +354,34 @@ func checkContainerArgs(context *cli.Context, f func(context *cli.Context) error
 }
 
 func deletePod(context *cli.Context) error {
-	_, err := vc.DeletePod(context.String("id"))
+	p, err := vc.DeletePod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not delete pod: %s", err)
 	}
+
+	fmt.Printf("Pod %s deleted\n", p.ID())
 
 	return nil
 }
 
 func startPod(context *cli.Context) error {
-	_, err := vc.StartPod(context.String("id"))
+	p, err := vc.StartPod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not start pod: %s", err)
 	}
+
+	fmt.Printf("Pod %s started\n", p.ID())
 
 	return nil
 }
 
 func stopPod(context *cli.Context) error {
-	_, err := vc.StopPod(context.String("id"))
+	p, err := vc.StopPod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not stop pod: %s", err)
 	}
+
+	fmt.Printf("Pod %s stopped\n", p.ID())
 
 	return nil
 }
@@ -540,7 +548,7 @@ func createContainer(context *cli.Context) error {
 		return fmt.Errorf("Could not create container: %s", err)
 	}
 
-	fmt.Printf("Created container %s\n", c.ID())
+	fmt.Printf("Container %s created\n", c.ID())
 
 	return nil
 }
@@ -767,6 +775,23 @@ func main() {
 	virtc.Name = "VirtContainers CLI"
 	virtc.Version = "0.0.1"
 
+	virtc.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "enable debug output for logging",
+		},
+		cli.StringFlag{
+			Name:  "log",
+			Value: "",
+			Usage: "set the log file path where internal debug information is written",
+		},
+		cli.StringFlag{
+			Name:  "log-format",
+			Value: "text",
+			Usage: "set the format used by logs ('text' (default), or 'json')",
+		},
+	}
+
 	virtc.Commands = []cli.Command{
 		{
 			Name:  "pod",
@@ -795,8 +820,38 @@ func main() {
 		},
 	}
 
+	virtc.Before = func(context *cli.Context) error {
+		if context.GlobalBool("debug") {
+			virtcLog.Level = logrus.DebugLevel
+		}
+
+		if path := context.GlobalString("log"); path != "" {
+			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0640)
+			if err != nil {
+				return err
+			}
+			virtcLog.Out = f
+		}
+
+		switch context.GlobalString("log-format") {
+		case "text":
+			// retain logrus's default.
+		case "json":
+			virtcLog.Formatter = new(logrus.JSONFormatter)
+		default:
+			return fmt.Errorf("unknown log-format %q", context.GlobalString("log-format"))
+		}
+
+		// Set virtcontainers logger.
+		vc.SetLog(virtcLog)
+
+		return nil
+	}
+
 	err := virtc.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		virtcLog.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
