@@ -13,13 +13,13 @@ Here we explain how to use the pod and container API from `virtc` command line.
 
 _Fedora_
 ```
-$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/Fedora_24/home:clearlinux:preview:clear-containers-2.0.repo
+$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.1/Fedora_25/home:clearlinux:preview:clear-containers-2.1.repo
 $ sudo dnf install linux-container 
 ```
 
 _Ubuntu_
 ```
-$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.0/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/xUbuntu_16.10/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
 $ sudo apt install linux-container
 ```
 
