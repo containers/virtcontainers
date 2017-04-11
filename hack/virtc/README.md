@@ -49,8 +49,7 @@ _Build and setup your environment_
 ```
 $ cd $GOPATH/src/github.com/containers/virtcontainers
 $ go build -o virtc hack/virtc/main.go
-$ sudo su
-# ./utils/virtcontainers-setup.sh 
+$ sudo ./utils/virtcontainers-setup.sh
 ```
 
 `virtcontainers-setup.sh` setup your environment performing different tasks. Particularly, it creates a __busybox__ bundle, and it creates CNI configuration files needed to run `virtc` with CNI plugins.
