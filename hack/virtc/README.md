@@ -26,12 +26,16 @@ $ sudo apt install linux-container
 #### Get your image
 
 Retrieve a recent Clear Containers image to make sure it contains a recent version of hyperstart agent.
-You can dowload the following tested [image](https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz), or any version more recent.
+
+To download and install the latest image:
 
 ```
-$ wget https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz
-$ unxz clear-14230-containers.img.xz
-$ sudo cp clear-14230-containers.img /usr/share/clear-containers/clear-containers.img
+$ latest_version=$(curl -sL https://download.clearlinux.org/latest)
+$ curl -LO "https://download.clearlinux.org/current/clear-${latest_version}-containers.img.xz"
+$ unxz clear-${latest_version}-containers.img.xz
+$ sudo mkdir -p /usr/share/clear-containers/
+$ sudo install --owner root --group root --mode 0644 clear-${latest_version}-containers.img /usr/share/clear-containers/
+$ sudo ln -fs /usr/share/clear-containers/clear-${latest_version}-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
