@@ -13,25 +13,29 @@ Here we explain how to use the pod and container API from `virtc` command line.
 
 _Fedora_
 ```
-$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.0/Fedora_24/home:clearlinux:preview:clear-containers-2.0.repo
+$ sudo -E dnf config-manager --add-repo http://download.opensuse.org/repositories/home:clearlinux:preview:clear-containers-2.1/Fedora_25/home:clearlinux:preview:clear-containers-2.1.repo
 $ sudo dnf install linux-container 
 ```
 
 _Ubuntu_
 ```
-$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.0/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/xUbuntu_16.10/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
 $ sudo apt install linux-container
 ```
 
 #### Get your image
 
 Retrieve a recent Clear Containers image to make sure it contains a recent version of hyperstart agent.
-You can dowload the following tested [image](https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz), or any version more recent.
+
+To download and install the latest image:
 
 ```
-$ wget https://download.clearlinux.org/releases/14230/clear/clear-14230-containers.img.xz
-$ unxz clear-14230-containers.img.xz
-$ sudo cp clear-14230-containers.img /usr/share/clear-containers/clear-containers.img
+$ latest_version=$(curl -sL https://download.clearlinux.org/latest)
+$ curl -LO "https://download.clearlinux.org/current/clear-${latest_version}-containers.img.xz"
+$ unxz clear-${latest_version}-containers.img.xz
+$ sudo mkdir -p /usr/share/clear-containers/
+$ sudo install --owner root --group root --mode 0644 clear-${latest_version}-containers.img /usr/share/clear-containers/
+$ sudo ln -fs /usr/share/clear-containers/clear-${latest_version}-containers.img /usr/share/clear-containers/clear-containers.img
 ```
 
 #### Get virtc
@@ -45,8 +49,7 @@ _Build and setup your environment_
 ```
 $ cd $GOPATH/src/github.com/containers/virtcontainers
 $ go build -o virtc hack/virtc/main.go
-$ sudo su
-# ./utils/virtcontainers-setup.sh 
+$ sudo ./utils/virtcontainers-setup.sh
 ```
 
 `virtcontainers-setup.sh` setup your environment performing different tasks. Particularly, it creates a __busybox__ bundle, and it creates CNI configuration files needed to run `virtc` with CNI plugins.
