@@ -295,7 +295,10 @@ func (h *hyper) start(pod *Pod) error {
 		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(pod.containers))
 	}
 
-	pod.url = url
+	pod.state.URL = url
+	if err := pod.setPodState(pod.state); err != nil {
+		return err
+	}
 
 	for idx := range pod.containers {
 		pod.containers[idx].process = Process{
@@ -330,7 +333,9 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	pod.url = url
+	if pod.state.URL != url {
+		return nil, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
+	}
 
 	process, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
 	if err != nil {
@@ -515,7 +520,9 @@ func (h *hyper) createContainer(pod *Pod, c *Container) error {
 		return err
 	}
 
-	pod.url = url
+	if pod.state.URL != url {
+		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
+	}
 
 	c.process = Process{
 		Token: proxyInfo.Token,

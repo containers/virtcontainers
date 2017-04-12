@@ -453,7 +453,8 @@ func TestPodSetPodStateFailingStorePodResource(t *testing.T) {
 		storage: fs,
 	}
 
-	err := pod.setPodState(StateReady)
+	pod.state.State = StateReady
+	err := pod.setPodState(pod.state)
 	if err == nil {
 		t.Fatal()
 	}
