@@ -21,8 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
-
-	"github.com/01org/ciao/ssntp/uuid"
 )
 
 // Process gathers data related to a container process.
@@ -58,8 +56,12 @@ type ContainerConfig struct {
 
 // valid checks that the container configuration is valid.
 func (containerConfig *ContainerConfig) valid() bool {
+	if containerConfig == nil {
+		return false
+	}
+
 	if containerConfig.ID == "" {
-		containerConfig.ID = uuid.Generate().String()
+		return false
 	}
 
 	return true
@@ -123,6 +125,14 @@ func (c *Container) fetchProcess() (Process, error) {
 
 // fetchContainer fetches a container config from a pod ID and returns a Container.
 func fetchContainer(pod *Pod, containerID string) (*Container, error) {
+	if pod == nil {
+		return nil, ErrNeedPod
+	}
+
+	if containerID == "" {
+		return nil, ErrNeedContainerID
+	}
+
 	fs := filesystem{}
 	config, err := fs.fetchContainerConfig(pod.id, containerID)
 	if err != nil {
@@ -146,6 +156,10 @@ func (c *Container) storeContainer() error {
 }
 
 func (c *Container) setContainerState(state stateString) error {
+	if state == "" {
+		return ErrNeedState
+	}
+
 	c.state = State{
 		State: state,
 	}
@@ -174,6 +188,10 @@ func (c *Container) createContainersDirs() error {
 }
 
 func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
+	if pod == nil {
+		return nil, ErrNeedPod
+	}
+
 	var containers []*Container
 
 	for _, contConfig := range contConfigs {
@@ -211,6 +229,10 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 }
 
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
+	if pod == nil {
+		return nil, ErrNeedPod
+	}
+
 	if contConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid container configuration")
 	}
@@ -285,6 +307,10 @@ func (c *Container) delete() error {
 // for and is only used to make the returned error as descriptive as
 // possible.
 func (c *Container) fetchState(cmd string) (State, error) {
+	if cmd == "" {
+		return State{}, fmt.Errorf("Cmd cannot be empty")
+	}
+
 	state, err := c.pod.storage.fetchPodState(c.pod.id)
 	if err != nil {
 		return State{}, err
