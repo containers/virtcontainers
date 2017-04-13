@@ -75,6 +75,29 @@ I0410 08:58:49.059044    5384 proxy.go:566] proxy started
 ```
 The proxy socket specified in the example log output has to be used as `virtc`'s `--proxy-url` option.
 
+### Get cc-shim (optional)
+
+If you plan to start `virtc` with the hyperstart agent (implying the use of `cc-proxy` as a proxy), you will have the possibility to enable [cc-shim](https://github.com/clearcontainers/shim) in order to interact with the process running inside your container. First, you will have to perform extra steps to setup your environment.
+
+```
+$ go get github.com/clearcontainers/shim
+$ make
+$ sudo make install
+```
+
+The shim will be installed at the following location: `/usr/libexec/cc-shim`. There will be two cases where you will be able to enable `cc-shim`:
+
+_Start a new container_
+
+```
+# ./virtc container start --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cc-shim --cc-shim-path="/usr/libexec/cc-shim"
+```
+_Execute a new process on a running container_
+```
+# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cmd="/bin/ifconfig" --cc-shim --cc-shim-path="/usr/libexec/cc-shim"
+```
+Notice that in both cases, the `--pod-id` and `--id` options have been defined when creating a pod and a container respectively. 
+
 ### Run virtc
 
 All following commands __MUST__ be run as root. By default, and unless you decide to modify it and rebuild it, `virtc` starts empty pods (no container started).

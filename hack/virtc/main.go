@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"strings"
 	"text/tabwriter"
@@ -592,6 +593,12 @@ func startContainer(context *cli.Context) error {
 
 	fmt.Printf("Container %s started\n", c.ID())
 
+	if context.Bool("cc-shim") == true {
+		// Start cc-shim and wait for the end of it.
+		process := c.Process()
+		return startCCShim(&process, context.String("cc-shim-path"), c.URL())
+	}
+
 	return nil
 }
 
@@ -620,12 +627,17 @@ func enterContainer(context *cli.Context) error {
 		WorkDir: "/",
 	}
 
-	_, c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
+	_, c, process, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
 	if err != nil {
 		return fmt.Errorf("Could not enter container: %s", err)
 	}
 
 	fmt.Printf("Container %s entered\n", c.ID())
+
+	if context.Bool("cc-shim") == true {
+		// Start cc-shim and wait for the end of it.
+		return startCCShim(process, context.String("cc-shim-path"), c.URL())
+	}
 
 	return nil
 }
@@ -714,6 +726,15 @@ var startContainerCommand = cli.Command{
 			Value: "",
 			Usage: "the pod identifier",
 		},
+		cli.BoolFlag{
+			Name:  "cc-shim",
+			Usage: "enable cc-shim",
+		},
+		cli.StringFlag{
+			Name:  "cc-shim-path",
+			Value: "",
+			Usage: "the cc-shim binary path",
+		},
 	},
 	Action: func(context *cli.Context) error {
 		return checkContainerArgs(context, startContainer)
@@ -759,6 +780,15 @@ var enterContainerCommand = cli.Command{
 			Value: "echo",
 			Usage: "the command executed inside the container",
 		},
+		cli.BoolFlag{
+			Name:  "cc-shim",
+			Usage: "enable cc-shim",
+		},
+		cli.StringFlag{
+			Name:  "cc-shim-path",
+			Value: "",
+			Usage: "the cc-shim binary path",
+		},
 	},
 	Action: func(context *cli.Context) error {
 		return checkContainerArgs(context, enterContainer)
@@ -783,6 +813,32 @@ var statusContainerCommand = cli.Command{
 	Action: func(context *cli.Context) error {
 		return checkContainerArgs(context, statusContainer)
 	},
+}
+
+func startCCShim(process *vc.Process, shimPath, url string) error {
+	if process.Token == "" {
+		return fmt.Errorf("Token cannot be empty")
+	}
+
+	if url == "" {
+		return fmt.Errorf("URL cannot be empty")
+	}
+
+	if shimPath == "" {
+		return fmt.Errorf("Shim path cannot be empty")
+	}
+
+	cmd := exec.Command(shimPath, "-t", process.Token, "-u", url)
+	cmd.Env = os.Environ()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {

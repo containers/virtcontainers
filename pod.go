@@ -53,6 +53,7 @@ const (
 // State is a pod state structure.
 type State struct {
 	State stateString `json:"state"`
+	URL   string      `json:"url,omitempty"`
 }
 
 // valid checks that the pod state is valid.
@@ -353,8 +354,6 @@ type Pod struct {
 	runPath    string
 	configPath string
 
-	url string
-
 	state State
 
 	lockFile *os.File
@@ -377,7 +376,7 @@ func (p *Pod) Annotations(key string) (string, error) {
 
 // URL returns the pod URL for any runtime to connect to the proxy.
 func (p *Pod) URL() string {
-	return p.url
+	return p.state.URL
 }
 
 // GetContainers returns a container config list.
@@ -386,7 +385,8 @@ func (p *Pod) GetContainers() []*Container {
 }
 
 func (p *Pod) createSetStates() error {
-	err := p.setPodState(StateReady)
+	p.state.State = StateReady
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -568,7 +568,8 @@ func (p *Pod) startCheckStates() error {
 }
 
 func (p *Pod) startSetStates() error {
-	err := p.setPodState(StateRunning)
+	p.state.State = StateRunning
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -657,7 +658,8 @@ func (p *Pod) stopSetStates() error {
 		return err
 	}
 
-	err = p.setPodState(StateStopped)
+	p.state.State = StateStopped
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -711,12 +713,8 @@ func (p *Pod) enter(args []string) error {
 	return nil
 }
 
-func (p *Pod) setPodState(state stateString) error {
-	p.state = State{
-		State: state,
-	}
-
-	err := p.storage.storePodResource(p.id, stateFileType, p.state)
+func (p *Pod) setPodState(state State) error {
+	err := p.storage.storePodResource(p.id, stateFileType, state)
 	if err != nil {
 		return err
 	}

@@ -115,6 +115,11 @@ func (c *Container) SetPid(pid int) error {
 	return c.storeProcess()
 }
 
+// URL returns the URL related to the pod.
+func (c *Container) URL() string {
+	return c.pod.URL()
+}
+
 func (c *Container) storeProcess() error {
 	return c.pod.storage.storeContainerProcess(c.podID, c.id, c.process)
 }
