@@ -81,11 +81,11 @@ All following commands __MUST__ be run as root. By default, and unless you decid
 
 #### Run a new pod (Create + Start)
 ```
-# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 #### Create a new pod
 ```
-# ./virtc pod run -agent="hyperstart" -network="CNI" -proxy="ccProxy" -proxy-url="unix:///var/run/clearcontainers/proxy.sock" -pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 This will generate output similar to the following:
 ```
@@ -94,7 +94,7 @@ Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 created
 
 #### Start an existing pod
 ```
-# ./virtc pod start -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -103,7 +103,7 @@ Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 started
 
 #### Stop an existing pod
 ```
-# ./virtc pod stop -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod stop --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -112,7 +112,7 @@ Pod 306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 stopped
 
 #### Get the status of an existing pod and its containers
 ```
-# ./virtc pod status -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod status --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following (assuming the pod has been started):
 ```
@@ -124,7 +124,7 @@ CONTAINER ID    STATE
 
 #### Delete an existing pod
 ```
-# ./virtc pod delete -id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc pod delete --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -146,7 +146,7 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 
 #### Create a new container
 ```
-# ./virtc container create -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -rootfs="/tmp/bundles/busybox/rootfs" -cmd="/bin/ifconfig"
+# ./virtc container create --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --rootfs="/tmp/bundles/busybox/rootfs" --cmd="/bin/ifconfig"
 ```
 This will generate output similar to the following:
 ```
@@ -155,7 +155,7 @@ Container 1 created
 
 #### Start an existing container
 ```
-# ./virtc container start -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc container start --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -164,7 +164,7 @@ Container 1 started
 
 #### Run a new process on an existing container
 ```
-# ./virtc container enter -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 -cmd="/bin/ps"
+# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cmd="/bin/ps"
 ```
 This will generate output similar to the following:
 ```
@@ -173,7 +173,7 @@ Container 1 entered
 
 #### Stop an existing container
 ```
-# ./virtc container stop -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc container stop --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -182,7 +182,7 @@ Container 1 stopped
 
 #### Delete an existing container
 ```
-# ./virtc container delete -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc container delete --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following:
 ```
@@ -191,7 +191,7 @@ Container 1 deleted
 
 #### Get the status of an existing container
 ```
-# ./virtc container status -id=1 -pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+# ./virtc container status --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 This will generate output similar to the following (assuming the container has been started):
 ```
