@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -358,5 +359,66 @@ func TestGetNetIfaceByNameSuccessful(t *testing.T) {
 
 	if reflect.DeepEqual(result, expected) == false {
 		t.Fatalf("Got %+v\nExpecting %+v", result, expected)
+	}
+}
+
+func TestDoNetNS(t *testing.T) {
+	currentNS, err := ns.GetCurrentNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer currentNS.Close()
+
+	tmpNetNS, err := createNetNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = doNetNS(tmpNetNS, func(n ns.NetNS) error {
+		ns, e := ns.GetCurrentNS()
+		if e != nil {
+			return e
+		}
+
+		if n.Path() != ns.Path() {
+			return fmt.Errorf("namespaces unexectedly different: doNetNS() passed %v, current NS=%v",
+				n.Path(), ns.Path())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSafeDoNetNS(t *testing.T) {
+	currentNS, err := ns.GetCurrentNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer currentNS.Close()
+
+	tmpNetNS, err := createNetNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = safeDoNetNS(tmpNetNS, func(n ns.NetNS) error {
+		ns, e := ns.GetCurrentNS()
+		if e != nil {
+			return e
+		}
+
+		if n.Path() == ns.Path() {
+			return fmt.Errorf("namespaces unexpected identical: safeDoNetNS() passed %v, current NS=%v", n.Path(), ns.Path())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatal(err)
 	}
 }
