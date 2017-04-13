@@ -18,10 +18,15 @@ package virtcontainers
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 )
+
+func init() {
+	runtime.LockOSThread()
+}
 
 var virtLog = logrus.New()
 

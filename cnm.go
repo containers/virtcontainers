@@ -181,7 +181,7 @@ func (n *cnm) run(networkNSPath string, cb func() error) error {
 		return fmt.Errorf("networkNSPath cannot be empty")
 	}
 
-	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
+	return safeDoNetNS(networkNSPath, func(_ ns.NetNS) error {
 		return cb()
 	})
 }
