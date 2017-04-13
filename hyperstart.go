@@ -365,7 +365,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
-	proxyInfo, _, err := h.proxy.connect(pod, true)
+	_, _, err := h.proxy.connect(pod, false)
 	if err != nil {
 		return err
 	}
@@ -392,7 +392,7 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	if err := h.startPauseContainer(pod.id, proxyInfo.Token); err != nil {
+	if err := h.startPauseContainer(pod.id); err != nil {
 		return err
 	}
 
@@ -442,7 +442,7 @@ func (h *hyper) stopPod(pod Pod) error {
 }
 
 // startPauseContainer starts a specific container running the pause binary provided.
-func (h *hyper) startPauseContainer(podID, token string) error {
+func (h *hyper) startPauseContainer(podID string) error {
 	cmd := Cmd{
 		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
 		Envs:    []EnvVar{},
@@ -468,7 +468,6 @@ func (h *hyper) startPauseContainer(podID, token string) error {
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,
 		message: container,
-		token:   token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
