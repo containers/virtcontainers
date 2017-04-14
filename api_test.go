@@ -1377,11 +1377,6 @@ func createAndStartPod(config PodConfig) (pod *Pod, podDir string,
 		return nil, "", err
 	}
 
-	// Start the VM
-	if err := pod.startVM(); err != nil {
-		return nil, "", err
-	}
-
 	// Start pod
 	pod, err = StartPod(pod.id)
 	if pod == nil || err != nil {
