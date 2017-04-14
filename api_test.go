@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	testHyperstartPausePath    = "/tmp/bundles/pause_bundle/rootfs/bin"
 	testHyperstartPauseBinName = "pause"
 	containerID                = "1"
 )
@@ -1463,9 +1464,13 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	}
 }
 
+var benchmarkHyperConfig = HyperConfig{
+	PauseBinPath: filepath.Join(testHyperstartPausePath, testHyperstartPauseBinName),
+}
+
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, CNINetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, CNINetworkModel)
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1479,7 +1484,7 @@ func BenchmarkCreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI(b *testi
 
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1500,7 +1505,7 @@ func BenchmarkCreateStartStopDeletePodMockHypervisorNoopAgentNetworkNoop(b *test
 
 func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(1)
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
@@ -1508,7 +1513,7 @@ func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *tes
 
 func BenchmarkStartStop10ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, benchmarkHyperConfig, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(10)
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
