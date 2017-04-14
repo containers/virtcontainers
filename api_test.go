@@ -1389,19 +1389,19 @@ func createAndStartPod(config PodConfig) (pod *Pod, podDir string,
 func createStartStopDeletePod(b *testing.B, podConfig PodConfig) {
 	p, _, err := createAndStartPod(podConfig)
 	if p == nil || err != nil {
-		b.Logf("Could not create and start pod: %s", err)
+		b.Fatalf("Could not create and start pod: %s", err)
 	}
 
 	// Stop pod
 	_, err = StopPod(p.id)
 	if err != nil {
-		b.Logf("Could not stop pod: %s", err)
+		b.Fatalf("Could not stop pod: %s", err)
 	}
 
 	// Delete pod
 	_, err = DeletePod(p.id)
 	if err != nil {
-		b.Logf("Could not delete pod: %s", err)
+		b.Fatalf("Could not delete pod: %s", err)
 	}
 }
 
@@ -1409,20 +1409,20 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	// Create pod
 	p, err := CreatePod(podConfig)
 	if err != nil {
-		b.Logf("Could not create pod: %s", err)
+		b.Fatalf("Could not create pod: %s", err)
 	}
 
 	// Start pod
 	_, err = StartPod(p.id)
 	if err != nil {
-		b.Logf("Could not start pod: %s", err)
+		b.Fatalf("Could not start pod: %s", err)
 	}
 
 	// Create containers
 	for _, contConfig := range contConfigs {
 		_, _, err := CreateContainer(p.id, contConfig)
 		if err != nil {
-			b.Logf("Could not create container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not create container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1430,7 +1430,7 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := StartContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not start container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not start container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1438,7 +1438,7 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := StopContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not stop container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not stop container %s: %s", contConfig.ID, err)
 		}
 	}
 
@@ -1446,20 +1446,20 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 	for _, contConfig := range contConfigs {
 		_, err := DeleteContainer(p.id, contConfig.ID)
 		if err != nil {
-			b.Logf("Could not delete container %s: %s", contConfig.ID, err)
+			b.Fatalf("Could not delete container %s: %s", contConfig.ID, err)
 		}
 	}
 
 	// Stop pod
 	_, err = StopPod(p.id)
 	if err != nil {
-		b.Logf("Could not stop pod: %s", err)
+		b.Fatalf("Could not stop pod: %s", err)
 	}
 
 	// Delete pod
 	_, err = DeletePod(p.id)
 	if err != nil {
-		b.Logf("Could not delete pod: %s", err)
+		b.Fatalf("Could not delete pod: %s", err)
 	}
 }
 
