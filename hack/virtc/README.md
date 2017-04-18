@@ -77,7 +77,8 @@ The proxy socket specified in the example log output has to be used as `virtc`'s
 
 ### Get cc-shim (optional)
 
-If you plan to start `virtc` with the hyperstart agent (implying the use of `cc-proxy` as a proxy), you will have the possibility to enable [cc-shim](https://github.com/clearcontainers/shim) in order to interact with the process running inside your container. First, you will have to perform extra steps to setup your environment.
+If you plan to start `virtc` with the hyperstart agent (implying the use of `cc-proxy` as a proxy), you will have to rely on [cc-shim](https://github.com/clearcontainers/shim) in order to interact with the process running inside your container.
+First, you will have to perform extra steps to setup your environment.
 
 ```
 $ go get github.com/clearcontainers/shim
@@ -85,18 +86,22 @@ $ make
 $ sudo make install
 ```
 
-The shim will be installed at the following location: `/usr/libexec/cc-shim`. There will be two cases where you will be able to enable `cc-shim`:
+The shim will be installed at the following location: `/usr/libexec/cc-shim`. There will be three cases where you will be able to interact with your container's process through `cc-shim`:
 
 _Start a new container_
 
 ```
-# ./virtc container start --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cc-shim --cc-shim-path="/usr/libexec/cc-shim"
+# ./virtc container start --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
 _Execute a new process on a running container_
 ```
-# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --cmd="/bin/ifconfig" --cc-shim --cc-shim-path="/usr/libexec/cc-shim"
+# ./virtc container enter --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
 ```
-Notice that in both cases, the `--pod-id` and `--id` options have been defined when creating a pod and a container respectively. 
+_Start a pod with container(s) previously created_
+```
+# ./virtc pod start --id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8
+```
+Notice that in both cases, the `--pod-id` and `--id` options have been defined when previously creating a pod and a container. 
 
 ### Run virtc
 
@@ -104,11 +109,11 @@ All following commands __MUST__ be run as root. By default, and unless you decid
 
 #### Run a new pod (Create + Start)
 ```
-# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 #### Create a new pod
 ```
-# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
 ```
 This will generate output similar to the following:
 ```
