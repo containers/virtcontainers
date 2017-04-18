@@ -90,6 +90,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 type hyper struct {
 	config HyperConfig
 	proxy  proxy
+	shim   shim
 }
 
 type hyperstartProxyCmd struct {
@@ -281,6 +282,11 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 		return err
 	}
 
+	h.shim, err = newShim(pod.config.ShimType)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -301,8 +307,14 @@ func (h *hyper) start(pod *Pod) error {
 	}
 
 	for idx := range pod.containers {
+		pid, err := h.startShim(*pod, proxyInfos[idx].Token, url)
+		if err != nil {
+			return err
+		}
+
 		pod.containers[idx].process = Process{
 			Token: proxyInfos[idx].Token,
+			Pid:   pid,
 		}
 
 		if err := pod.containers[idx].storeProcess(); err != nil {
@@ -353,6 +365,11 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		token:   proxyInfo.Token,
 	}
 
+	pid, err := h.startShim(*pod, proxyInfo.Token, url)
+	if err != nil {
+		return nil, err
+	}
+
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
 		return nil, err
 	}
@@ -363,6 +380,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 
 	processInfo := &Process{
 		Token: proxyInfo.Token,
+		Pid:   pid,
 	}
 
 	return processInfo, nil
@@ -524,8 +542,14 @@ func (h *hyper) createContainer(pod *Pod, c *Container) error {
 		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
 	}
 
+	pid, err := h.startShim(*pod, proxyInfo.Token, url)
+	if err != nil {
+		return err
+	}
+
 	c.process = Process{
 		Token: proxyInfo.Token,
+		Pid:   pid,
 	}
 
 	if err := c.storeProcess(); err != nil {
@@ -631,4 +655,13 @@ func (h *hyper) killOneContainer(cID string, signal syscall.Signal) error {
 	}
 
 	return nil
+}
+
+func (h *hyper) startShim(pod Pod, token, url string) (int, error) {
+	shimParams := ShimParams{
+		Token: token,
+		URL:   url,
+	}
+
+	return h.shim.start(pod, shimParams)
 }
