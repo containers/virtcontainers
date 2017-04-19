@@ -30,6 +30,8 @@ type CCShimConfig struct {
 	Path string
 }
 
+var consoleFileMode = os.FileMode(0660)
+
 // start is the ccShim start implementation.
 // It starts the cc-shim binary with URL and token flags provided by
 // the proxy.
@@ -57,9 +59,28 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 
 	cmd := exec.Command(config.Path, "-t", params.Token, "-u", params.URL)
 	cmd.Env = os.Environ()
+
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	var f *os.File
+	var err error
+	if params.Console != "" {
+		f, err = os.OpenFile(params.Console, os.O_RDWR, consoleFileMode)
+		if err != nil {
+			return -1, err
+		}
+
+		cmd.Stdin = f
+		cmd.Stdout = f
+		cmd.Stderr = f
+	}
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
 
 	if err := cmd.Start(); err != nil {
 		return -1, err

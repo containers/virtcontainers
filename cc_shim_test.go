@@ -17,11 +17,15 @@
 package virtcontainers
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 var testShimPath = "/tmp/bin/cc-shim-mock"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
+var testWrongConsolePath = "/foo/wrong-console"
+var testConsolePath = "tty-console"
 
 func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {
 	s := &ccShim{}
@@ -111,6 +115,53 @@ func TestCCShimStartSuccessful(t *testing.T) {
 	params := ShimParams{
 		Token: "testToken",
 		URL:   testProxyURL,
+	}
+
+	testCCShimStart(t, pod, params, false)
+}
+
+func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {
+	pod := Pod{
+		config: &PodConfig{
+			ShimType: CCShimType,
+			ShimConfig: CCShimConfig{
+				Path: testShimPath,
+			},
+		},
+	}
+
+	params := ShimParams{
+		Token:   "testToken",
+		URL:     testProxyURL,
+		Console: testWrongConsolePath,
+	}
+
+	testCCShimStart(t, pod, params, true)
+}
+
+func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
+	cleanUp()
+
+	consolePath := filepath.Join(testDir, testConsolePath)
+	f, err := os.Create(consolePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	pod := Pod{
+		config: &PodConfig{
+			ShimType: CCShimType,
+			ShimConfig: CCShimConfig{
+				Path: testShimPath,
+			},
+		},
+	}
+
+	params := ShimParams{
+		Token:   "testToken",
+		URL:     testProxyURL,
+		Console: consolePath,
 	}
 
 	testCCShimStart(t, pod, params, false)

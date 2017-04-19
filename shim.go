@@ -36,8 +36,9 @@ const (
 // ShimParams is the structure providing specific parameters needed
 // for the execution of the shim binary.
 type ShimParams struct {
-	Token string
-	URL   string
+	Token   string
+	URL     string
+	Console string
 }
 
 // Set sets a shim type based on the input string.
