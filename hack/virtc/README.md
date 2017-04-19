@@ -174,12 +174,17 @@ POD ID                                  STATE   HYPERVISOR      AGENT
 
 #### Create a new container
 ```
-# ./virtc container create --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --rootfs="/tmp/bundles/busybox/rootfs" --cmd="/bin/ifconfig"
+# ./virtc container create --id=1 --pod-id=306ecdcf-0a6f-4a06-a03e-86a7b868ffc8 --rootfs="/tmp/bundles/busybox/rootfs" --cmd="/bin/ifconfig" --console="/dev/pts/30"
 ```
 This will generate output similar to the following:
 ```
 Container 1 created
 ```
+__Note:__ The option `--console` can be any existing console.
+Don't try to provide `$(tty)` as it is your current console, and you would not be
+able to get your console back as the shim would be listening to this indefinitely.
+Instead, you would prefer to open a new shell and get the `$(tty)` from this shell.
+That way, you make sure you have a dedicated input/output terminal. 
 
 #### Start an existing container
 ```

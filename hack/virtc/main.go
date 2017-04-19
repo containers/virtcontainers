@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
-	"sync"
 	"text/tabwriter"
 
 	"github.com/01org/ciao/ssntp/uuid"
@@ -427,40 +426,10 @@ func deletePod(context *cli.Context) error {
 }
 
 func startPod(context *cli.Context) error {
-	var wg sync.WaitGroup
-
 	p, err := vc.StartPod(context.String("id"))
 	if err != nil {
 		return fmt.Errorf("Could not start pod: %s", err)
 	}
-
-	for _, c := range p.GetContainers() {
-		process := c.Process()
-		if process.Pid <= 0 {
-			continue
-		}
-
-		wg.Add(1)
-
-		go func(pid int) {
-			defer wg.Done()
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				virtcLog.Errorf("Error finding shim process: %s", err)
-				return
-			}
-
-			procState, err := proc.Wait()
-			if err != nil {
-				virtcLog.Errorf("Error while waiting for shim to finish: %+v: %s",
-					procState, err)
-				return
-			}
-		}(process.Pid)
-	}
-
-	wg.Wait()
 
 	fmt.Printf("Pod %s started\n", p.ID())
 
@@ -668,20 +637,6 @@ func startContainer(context *cli.Context) error {
 		return fmt.Errorf("Could not start container: %s", err)
 	}
 
-	process := c.Process()
-	if process.Pid > 0 {
-		proc, err := os.FindProcess(process.Pid)
-		if err != nil {
-			return err
-		}
-
-		procState, err := proc.Wait()
-		if err != nil {
-			return fmt.Errorf("Error while waiting for shim to finish: %+v: %s",
-				procState, err)
-		}
-	}
-
 	fmt.Printf("Container %s started\n", c.ID())
 
 	return nil
@@ -712,22 +667,9 @@ func enterContainer(context *cli.Context) error {
 		WorkDir: "/",
 	}
 
-	_, c, process, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
+	_, c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
 	if err != nil {
 		return fmt.Errorf("Could not enter container: %s", err)
-	}
-
-	if process.Pid > 0 {
-		proc, err := os.FindProcess(process.Pid)
-		if err != nil {
-			return err
-		}
-
-		procState, err := proc.Wait()
-		if err != nil {
-			return fmt.Errorf("Error while waiting for shim to finish: %+v: %s",
-				procState, err)
-		}
 	}
 
 	fmt.Printf("Container %s entered\n", c.ID())
