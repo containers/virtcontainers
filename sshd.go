@@ -52,7 +52,7 @@ func (c SshdConfig) validate() bool {
 
 func publicKeyAuth(file string) (ssh.AuthMethod, error) {
 	if file == "" {
-		return nil, ErrNeedFile
+		return nil, errNeedFile
 	}
 
 	privateBytes, err := ioutil.ReadFile(file)
@@ -87,7 +87,7 @@ func execCmd(session *ssh.Session, cmd string) error {
 // init is the agent initialization implementation for sshd.
 func (s *sshd) init(pod *Pod, config interface{}) error {
 	if pod == nil {
-		return ErrNeedPod
+		return errNeedPod
 	}
 
 	if config == nil {
@@ -108,7 +108,7 @@ func (s *sshd) init(pod *Pod, config interface{}) error {
 // start is the agent starting implementation for sshd.
 func (s *sshd) start(pod *Pod) error {
 	if pod == nil {
-		return ErrNeedPod
+		return errNeedPod
 	}
 
 	if s.client != nil {
@@ -157,7 +157,7 @@ func (s *sshd) stop(pod Pod) error {
 // exec is the agent command execution implementation for sshd.
 func (s *sshd) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 	if pod == nil {
-		return nil, ErrNeedPod
+		return nil, errNeedPod
 	}
 
 	session, err := s.client.NewSession()
