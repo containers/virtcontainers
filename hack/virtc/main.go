@@ -584,6 +584,11 @@ var statusPodCommand = cli.Command{
 func createContainer(context *cli.Context) error {
 	console := context.String("console")
 
+	interactive := false
+	if console != "" {
+		interactive = true
+	}
+
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -592,14 +597,11 @@ func createContainer(context *cli.Context) error {
 	}
 
 	cmd := vc.Cmd{
-		Args:    strings.Split(context.String("cmd"), " "),
-		Envs:    envs,
-		WorkDir: "/",
-	}
-
-	interactive := false
-	if console != "" {
-		interactive = true
+		Args:        strings.Split(context.String("cmd"), " "),
+		Envs:        envs,
+		WorkDir:     "/",
+		Interactive: interactive,
+		Console:     console,
 	}
 
 	id := context.String("id")
@@ -609,11 +611,9 @@ func createContainer(context *cli.Context) error {
 	}
 
 	containerConfig := vc.ContainerConfig{
-		ID:          id,
-		RootFs:      context.String("rootfs"),
-		Interactive: interactive,
-		Console:     console,
-		Cmd:         cmd,
+		ID:     id,
+		RootFs: context.String("rootfs"),
+		Cmd:    cmd,
 	}
 
 	_, c, err := vc.CreateContainer(context.String("pod-id"), containerConfig)
@@ -660,6 +660,13 @@ func stopContainer(context *cli.Context) error {
 }
 
 func enterContainer(context *cli.Context) error {
+	console := context.String("console")
+
+	interactive := false
+	if console != "" {
+		interactive = true
+	}
+
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -668,9 +675,11 @@ func enterContainer(context *cli.Context) error {
 	}
 
 	cmd := vc.Cmd{
-		Args:    strings.Split(context.String("cmd"), " "),
-		Envs:    envs,
-		WorkDir: "/",
+		Args:        strings.Split(context.String("cmd"), " "),
+		Envs:        envs,
+		WorkDir:     "/",
+		Interactive: interactive,
+		Console:     console,
 	}
 
 	_, c, _, err := vc.EnterContainer(context.String("pod-id"), context.String("id"), cmd)
@@ -811,6 +820,11 @@ var enterContainerCommand = cli.Command{
 			Name:  "cmd",
 			Value: "echo",
 			Usage: "the command executed inside the container",
+		},
+		cli.StringFlag{
+			Name:  "console",
+			Value: "",
+			Usage: "the process console",
 		},
 	},
 	Action: func(context *cli.Context) error {

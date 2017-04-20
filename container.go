@@ -44,12 +44,6 @@ type ContainerConfig struct {
 	// RootFs is the container workload image on the host.
 	RootFs string
 
-	// Interactive specifies if the container runs in the foreground.
-	Interactive bool
-
-	// Console is a console path provided by the caller.
-	Console string
-
 	// Cmd specifies the command to run on a container
 	Cmd Cmd
 }
@@ -137,7 +131,7 @@ func (c *Container) startShim() error {
 	shimParams := ShimParams{
 		Token:   proxyInfo.Token,
 		URL:     url,
-		Console: c.config.Console,
+		Console: c.config.Cmd.Console,
 	}
 
 	pid, err := c.pod.shim.start(*(c.pod), shimParams)
@@ -468,7 +462,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 	shimParams := ShimParams{
 		Token:   proxyInfo.Token,
 		URL:     url,
-		Console: c.config.Console,
+		Console: cmd.Console,
 	}
 
 	pid, err := c.pod.shim.start(*(c.pod), shimParams)

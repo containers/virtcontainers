@@ -98,7 +98,7 @@ type hyperstartProxyCmd struct {
 	token   string
 }
 
-func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperstart.Process, error) {
+func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error) {
 	var envVars []hyperstart.EnvironmentVar
 
 	for _, e := range cmd.Envs {
@@ -113,7 +113,7 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd, terminal bool) (*hyperstart.
 	process := &hyperstart.Process{
 		User:     cmd.User,
 		Group:    cmd.Group,
-		Terminal: terminal,
+		Terminal: cmd.Interactive,
 		Args:     cmd.Args,
 		Envs:     envVars,
 		Workdir:  cmd.WorkDir,
@@ -283,7 +283,7 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 
 // exec is the agent command execution implementation for hyperstart.
 func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
-	hyperProcess, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
+	hyperProcess, err := h.buildHyperContainerProcess(cmd)
 	if err != nil {
 		return err
 	}
@@ -374,12 +374,13 @@ func (h *hyper) stopPod(pod Pod) error {
 // startPauseContainer starts a specific container running the pause binary provided.
 func (h *hyper) startPauseContainer(podID string) error {
 	cmd := Cmd{
-		Args:    []string{fmt.Sprintf("./%s", pauseBinName)},
-		Envs:    []EnvVar{},
-		WorkDir: "/",
+		Args:        []string{fmt.Sprintf("./%s", pauseBinName)},
+		Envs:        []EnvVar{},
+		WorkDir:     "/",
+		Interactive: false,
 	}
 
-	process, err := h.buildHyperContainerProcess(cmd, false)
+	process, err := h.buildHyperContainerProcess(cmd)
 	if err != nil {
 		return err
 	}
@@ -408,7 +409,7 @@ func (h *hyper) startPauseContainer(podID string) error {
 }
 
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
-	process, err := h.buildHyperContainerProcess(c.config.Cmd, c.config.Interactive)
+	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
 		return err
 	}
