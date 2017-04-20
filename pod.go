@@ -300,7 +300,7 @@ func (podConfig *PodConfig) valid() bool {
 // lock locks any pod to prevent it from being accessed by other processes.
 func lockPod(podID string) (*os.File, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	fs := filesystem{}
@@ -511,7 +511,7 @@ func (p *Pod) storePod() error {
 // fetchPod fetches a pod config from a pod ID and returns a pod.
 func fetchPod(podID string) (*Pod, error) {
 	if podID == "" {
-		return nil, ErrNeedPodID
+		return nil, errNeedPodID
 	}
 
 	fs := filesystem{}
@@ -732,7 +732,7 @@ func (p *Pod) endSession() error {
 
 func (p *Pod) setContainerState(containerID string, state stateString) error {
 	if containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	contState := State{
@@ -749,7 +749,7 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 
 func (p *Pod) setContainersState(state stateString) error {
 	if state == "" {
-		return ErrNeedState
+		return errNeedState
 	}
 
 	for _, container := range p.config.Containers {
@@ -764,7 +764,7 @@ func (p *Pod) setContainersState(state stateString) error {
 
 func (p *Pod) deleteContainerState(containerID string) error {
 	if containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	err := p.storage.deleteContainerResources(p.id, containerID, []podResource{stateFileType})
@@ -788,7 +788,7 @@ func (p *Pod) deleteContainersState() error {
 
 func (p *Pod) checkContainerState(containerID string, expectedState stateString) error {
 	if containerID == "" {
-		return ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	if expectedState == "" {
@@ -809,7 +809,7 @@ func (p *Pod) checkContainerState(containerID string, expectedState stateString)
 
 func (p *Pod) checkContainersState(state stateString) error {
 	if state == "" {
-		return ErrNeedState
+		return errNeedState
 	}
 
 	for _, container := range p.config.Containers {

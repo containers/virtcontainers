@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -35,6 +36,11 @@ var virtcLog = logrus.New()
 
 var listFormat = "%s\t%s\t%s\t%s\n"
 var statusFormat = "%s\t%s\n"
+
+var (
+	errNeedContainerID = errors.New("Container ID cannot be empty")
+	errNeedPodID       = errors.New("Pod ID cannot be empty")
+)
 
 var podConfigFlags = []cli.Flag{
 	cli.GenericFlag{
@@ -333,7 +339,7 @@ func checkRequiredPodArgs(context *cli.Context) error {
 
 	id := context.String("id")
 	if id == "" {
-		return vc.ErrNeedPodID
+		return errNeedPodID
 	}
 
 	return nil
@@ -352,7 +358,7 @@ func checkRequiredContainerArgs(context *cli.Context) error {
 
 	podID := context.String("pod-id")
 	if podID == "" {
-		return vc.ErrNeedPodID
+		return errNeedPodID
 	}
 
 	rootfs := context.String("rootfs")
@@ -362,7 +368,7 @@ func checkRequiredContainerArgs(context *cli.Context) error {
 
 	id := context.String("id")
 	if id == "" {
-		return vc.ErrNeedContainerID
+		return errNeedContainerID
 	}
 
 	return nil

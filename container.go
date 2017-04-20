@@ -131,11 +131,11 @@ func (c *Container) fetchProcess() (Process, error) {
 // fetchContainer fetches a container config from a pod ID and returns a Container.
 func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 	if pod == nil {
-		return nil, ErrNeedPod
+		return nil, errNeedPod
 	}
 
 	if containerID == "" {
-		return nil, ErrNeedContainerID
+		return nil, errNeedContainerID
 	}
 
 	fs := filesystem{}
@@ -162,7 +162,7 @@ func (c *Container) storeContainer() error {
 
 func (c *Container) setContainerState(state stateString) error {
 	if state == "" {
-		return ErrNeedState
+		return errNeedState
 	}
 
 	c.state = State{
@@ -194,7 +194,7 @@ func (c *Container) createContainersDirs() error {
 
 func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
 	if pod == nil {
-		return nil, ErrNeedPod
+		return nil, errNeedPod
 	}
 
 	var containers []*Container
@@ -235,7 +235,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if pod == nil {
-		return nil, ErrNeedPod
+		return nil, errNeedPod
 	}
 
 	if contConfig.valid() == false {
