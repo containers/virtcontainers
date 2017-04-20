@@ -30,16 +30,6 @@ func (n *noopAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
-// start is the Noop agent starting implementation. It does nothing.
-func (n *noopAgent) start(pod *Pod) error {
-	return nil
-}
-
-// stop is the Noop agent stopping implementation. It does nothing.
-func (n *noopAgent) stop(pod Pod) error {
-	return nil
-}
-
 // exec is the Noop agent command execution implementation. It does nothing.
 func (n *noopAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	return nil

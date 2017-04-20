@@ -281,16 +281,6 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	return nil
 }
 
-// start is the agent starting implementation for hyperstart.
-func (h *hyper) start(pod *Pod) error {
-	return nil
-}
-
-// stop is the agent stopping implementation for hyperstart.
-func (h *hyper) stop(pod Pod) error {
-	return nil
-}
-
 // exec is the agent command execution implementation for hyperstart.
 func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	hyperProcess, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
