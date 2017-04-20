@@ -82,6 +82,11 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Start shims
+	if err := p.startShims(); err != nil {
+		return nil, err
+	}
+
 	err = p.endSession()
 	if err != nil {
 		return nil, err
@@ -289,6 +294,11 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	// Start the VM
 	err = p.startVM()
 	if err != nil {
+		return nil, err
+	}
+
+	// Start shims
+	if err := p.startShims(); err != nil {
 		return nil, err
 	}
 

@@ -90,7 +90,6 @@ func (c *HyperConfig) validate(pod Pod) bool {
 type hyper struct {
 	config HyperConfig
 	proxy  proxy
-	shim   shim
 }
 
 type hyperstartProxyCmd struct {
@@ -277,123 +276,48 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 		return err
 	}
 
-	h.proxy, err = newProxy(pod.config.ProxyType)
-	if err != nil {
-		return err
-	}
-
-	h.shim, err = newShim(pod.config.ShimType)
-	if err != nil {
-		return err
-	}
+	h.proxy = pod.proxy
 
 	return nil
 }
 
 // start is the agent starting implementation for hyperstart.
 func (h *hyper) start(pod *Pod) error {
-	proxyInfos, url, err := h.proxy.register(*pod)
-	if err != nil {
-		return err
-	}
-
-	if len(proxyInfos) != len(pod.containers) {
-		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(pod.containers))
-	}
-
-	pod.state.URL = url
-	if err := pod.setPodState(pod.state); err != nil {
-		return err
-	}
-
-	for idx := range pod.containers {
-		pid, err := h.startShim(*pod, proxyInfos[idx].Token, url,
-			pod.containers[idx].config.Console)
-		if err != nil {
-			return err
-		}
-
-		pod.containers[idx].process = Process{
-			Token: proxyInfos[idx].Token,
-			Pid:   pid,
-		}
-
-		if err := pod.containers[idx].storeProcess(); err != nil {
-			return err
-		}
-	}
-
-	return h.proxy.disconnect()
+	return nil
 }
 
 // stop is the agent stopping implementation for hyperstart.
 func (h *hyper) stop(pod Pod) error {
-	if _, _, err := h.proxy.connect(pod, false); err != nil {
-		return err
-	}
-
-	if err := h.proxy.unregister(pod); err != nil {
-		return err
-	}
-
-	return h.proxy.disconnect()
+	return nil
 }
 
 // exec is the agent command execution implementation for hyperstart.
-func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
-	proxyInfo, url, err := h.proxy.connect(*pod, true)
+func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
+	hyperProcess, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
 	if err != nil {
-		return nil, err
-	}
-
-	if pod.state.URL != url {
-		return nil, fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
-	}
-
-	process, err := h.buildHyperContainerProcess(cmd, c.config.Interactive)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	execCommand := hyperstart.ExecCommand{
 		Container: c.id,
-		Process:   *process,
+		Process:   *hyperProcess,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.ExecCmd,
 		message: execCommand,
-		token:   proxyInfo.Token,
-	}
-
-	pid, err := h.startShim(*pod, proxyInfo.Token, url, c.config.Console)
-	if err != nil {
-		return nil, err
+		token:   process.Token,
 	}
 
 	if _, err := h.proxy.sendCmd(proxyCmd); err != nil {
-		return nil, err
+		return err
 	}
 
-	if err := h.proxy.disconnect(); err != nil {
-		return nil, err
-	}
-
-	processInfo := &Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
-	}
-
-	return processInfo, nil
+	return nil
 }
 
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
-	_, _, err := h.proxy.connect(pod, false)
-	if err != nil {
-		return err
-	}
-
 	ifaces, routes, err := h.buildNetworkInterfacesAndRoutes(pod)
 	if err != nil {
 		return err
@@ -426,15 +350,11 @@ func (h *hyper) startPod(pod Pod) error {
 		}
 	}
 
-	return h.proxy.disconnect()
+	return nil
 }
 
 // stopPod is the agent Pod stopping implementation for hyperstart.
 func (h *hyper) stopPod(pod Pod) error {
-	if _, _, err := h.proxy.connect(pod, false); err != nil {
-		return err
-	}
-
 	for _, c := range pod.containers {
 		state, err := pod.storage.fetchContainerState(pod.id, c.id)
 		if err != nil {
@@ -455,10 +375,6 @@ func (h *hyper) stopPod(pod Pod) error {
 	}
 
 	if err := h.stopPauseContainer(pod.id); err != nil {
-		return err
-	}
-
-	if err := h.proxy.disconnect(); err != nil {
 		return err
 	}
 
@@ -534,43 +450,12 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 
 // createContainer is the agent Container creation implementation for hyperstart.
 func (h *hyper) createContainer(pod *Pod, c *Container) error {
-	proxyInfo, url, err := h.proxy.connect(*pod, true)
-	if err != nil {
-		return err
-	}
-
-	if pod.state.URL != url {
-		return fmt.Errorf("Pod URL %s and URL from proxy %s MUST be similar", pod.state.URL, url)
-	}
-
-	pid, err := h.startShim(*pod, proxyInfo.Token, url, c.config.Console)
-	if err != nil {
-		return err
-	}
-
-	c.process = Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
-	}
-
-	if err := c.storeProcess(); err != nil {
-		return err
-	}
-
-	return h.proxy.disconnect()
+	return nil
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.
 func (h *hyper) startContainer(pod Pod, c Container) error {
-	if _, _, err := h.proxy.connect(pod, false); err != nil {
-		return err
-	}
-
-	if err := h.startOneContainer(pod, c); err != nil {
-		return err
-	}
-
-	return h.proxy.disconnect()
+	return h.startOneContainer(pod, c)
 }
 
 func (h *hyper) stopPauseContainer(podID string) error {
@@ -587,19 +472,7 @@ func (h *hyper) stopPauseContainer(podID string) error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
-	if _, _, err := h.proxy.connect(pod, false); err != nil {
-		return err
-	}
-
-	if err := h.stopOneContainer(pod.id, c.id); err != nil {
-		return err
-	}
-
-	if err := h.proxy.disconnect(); err != nil {
-		return err
-	}
-
-	return nil
+	return h.stopOneContainer(pod.id, c.id)
 }
 
 func (h *hyper) stopOneContainer(podID, cID string) error {
@@ -625,19 +498,7 @@ func (h *hyper) stopOneContainer(podID, cID string) error {
 
 // killContainer is the agent process signal implementation for hyperstart.
 func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal) error {
-	if _, _, err := h.proxy.connect(pod, false); err != nil {
-		return err
-	}
-
-	if err := h.killOneContainer(c.id, signal); err != nil {
-		return err
-	}
-
-	if err := h.proxy.disconnect(); err != nil {
-		return err
-	}
-
-	return nil
+	return h.killOneContainer(c.id, signal)
 }
 
 func (h *hyper) killOneContainer(cID string, signal syscall.Signal) error {
@@ -656,14 +517,4 @@ func (h *hyper) killOneContainer(cID string, signal syscall.Signal) error {
 	}
 
 	return nil
-}
-
-func (h *hyper) startShim(pod Pod, token, url, console string) (int, error) {
-	shimParams := ShimParams{
-		Token:   token,
-		URL:     url,
-		Console: console,
-	}
-
-	return h.shim.start(pod, shimParams)
 }

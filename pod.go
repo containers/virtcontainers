@@ -345,6 +345,8 @@ type Pod struct {
 
 	hypervisor hypervisor
 	agent      agent
+	proxy      proxy
+	shim       shim
 	storage    resourceStorage
 	network    network
 
@@ -419,7 +421,16 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	err = hypervisor.init(podConfig.HypervisorConfig)
+	if err := hypervisor.init(podConfig.HypervisorConfig); err != nil {
+		return nil, err
+	}
+
+	proxy, err := newProxy(podConfig.ProxyType)
+	if err != nil {
+		return nil, err
+	}
+
+	shim, err := newShim(podConfig.ShimType)
 	if err != nil {
 		return nil, err
 	}
@@ -430,6 +441,8 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		id:         podConfig.ID,
 		hypervisor: hypervisor,
 		agent:      agent,
+		proxy:      proxy,
+		shim:       shim,
 		storage:    &filesystem{},
 		network:    network,
 		config:     &podConfig,
@@ -446,32 +459,17 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	p.containers = containers
 
-	err = p.storage.createAllResources(*p)
-	if err != nil {
+	if err := p.storage.createAllResources(*p); err != nil {
 		return nil, err
 	}
 
-	err = p.hypervisor.createPod(podConfig)
-	if err != nil {
+	if err := p.hypervisor.createPod(podConfig); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
-	var agentConfig interface{}
-
-	if podConfig.AgentConfig != nil {
-		switch podConfig.AgentConfig.(type) {
-		case (map[string]interface{}):
-			agentConfig = newAgentConfig(podConfig)
-		default:
-			agentConfig = podConfig.AgentConfig.(interface{})
-		}
-	} else {
-		agentConfig = nil
-	}
-
-	err = p.agent.init(p, agentConfig)
-	if err != nil {
+	agentConfig := newAgentConfig(podConfig)
+	if err := p.agent.init(p, agentConfig); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
@@ -482,8 +480,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return p, nil
 	}
 
-	err = p.createSetStates()
-	if err != nil {
+	if err := p.createSetStates(); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
@@ -606,13 +603,55 @@ func (p *Pod) startVM() error {
 		return fmt.Errorf("Did not receive the pod started notification")
 	}
 
-	err := p.agent.start(p)
+	virtLog.Infof("VM started")
+
+	return nil
+}
+
+// startShims registers all containers to the proxy and starts one
+// shim per container.
+func (p *Pod) startShims() error {
+	proxyInfos, url, err := p.proxy.register(*p)
 	if err != nil {
-		p.stop()
 		return err
 	}
 
-	virtLog.Infof("VM started")
+	if err := p.proxy.disconnect(); err != nil {
+		return err
+	}
+
+	if len(proxyInfos) != len(p.containers) {
+		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(p.containers))
+	}
+
+	p.state.URL = url
+	if err := p.setPodState(p.state); err != nil {
+		return err
+	}
+
+	for idx := range p.containers {
+		shimParams := ShimParams{
+			Token:   proxyInfos[idx].Token,
+			URL:     url,
+			Console: p.containers[idx].config.Console,
+		}
+
+		pid, err := p.shim.start(*p, shimParams)
+		if err != nil {
+			return err
+		}
+
+		p.containers[idx].process = Process{
+			Token: proxyInfos[idx].Token,
+			Pid:   pid,
+		}
+
+		if err := p.containers[idx].storeProcess(); err != nil {
+			return err
+		}
+	}
+
+	virtLog.Infof("Shim(s) started")
 
 	return nil
 }
@@ -620,19 +659,20 @@ func (p *Pod) startVM() error {
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
-	err := p.startCheckStates()
-	if err != nil {
+	if err := p.startCheckStates(); err != nil {
 		return err
 	}
 
-	err = p.agent.startPod(*p)
-	if err != nil {
-		p.stop()
+	if _, _, err := p.proxy.connect(*p, false); err != nil {
+		return err
+	}
+	defer p.proxy.disconnect()
+
+	if err := p.agent.startPod(*p); err != nil {
 		return err
 	}
 
-	err = p.startSetStates()
-	if err != nil {
+	if err := p.startSetStates(); err != nil {
 		return err
 	}
 
@@ -672,13 +712,19 @@ func (p *Pod) stopSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
-	err := p.agent.stop(*p)
-	if err != nil {
+	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
 
-	err = p.hypervisor.stopPod()
-	if err != nil {
+	if err := p.proxy.unregister(*p); err != nil {
+		return err
+	}
+
+	if err := p.proxy.disconnect(); err != nil {
+		return err
+	}
+
+	if err := p.hypervisor.stopPod(); err != nil {
 		return err
 	}
 
@@ -688,18 +734,20 @@ func (p *Pod) stopVM() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	err := p.stopCheckStates()
-	if err != nil {
+	if err := p.stopCheckStates(); err != nil {
 		return err
 	}
 
-	err = p.agent.stopPod(*p)
-	if err != nil {
+	if _, _, err := p.proxy.connect(*p, false); err != nil {
+		return err
+	}
+	defer p.proxy.disconnect()
+
+	if err := p.agent.stopPod(*p); err != nil {
 		return err
 	}
 
-	err = p.stopSetStates()
-	if err != nil {
+	if err := p.stopSetStates(); err != nil {
 		return err
 	}
 

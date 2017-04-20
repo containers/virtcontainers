@@ -155,27 +155,27 @@ func (s *sshd) stop(pod Pod) error {
 }
 
 // exec is the agent command execution implementation for sshd.
-func (s *sshd) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
+func (s *sshd) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	if pod == nil {
-		return nil, errNeedPod
+		return errNeedPod
 	}
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create session")
+		return fmt.Errorf("Failed to create session")
 	}
 	defer session.Close()
 
 	if s.spawner != nil {
 		cmd.Args, err = s.spawner.formatArgs(cmd.Args)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	strCmd := strings.Join(cmd.Args, " ")
 
-	return nil, execCmd(session, strCmd)
+	return execCmd(session, strCmd)
 }
 
 // startPod is the agent Pod starting implementation for sshd.
