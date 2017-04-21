@@ -526,14 +526,14 @@ func TestListPodSuccessful(t *testing.T) {
 	}
 }
 
-func TestListPodFailing(t *testing.T) {
+func TestListPodNoPodDirectory(t *testing.T) {
 	cleanUp()
 
 	os.RemoveAll(configStoragePath)
 
 	_, err := ListPod()
-	if err == nil {
-		t.Fatal()
+	if err != nil {
+		t.Fatal(fmt.Sprintf("unexpected ListPod error from non-existent pod directory: %v", err))
 	}
 }
 

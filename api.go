@@ -319,6 +319,10 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 func ListPod() ([]PodStatus, error) {
 	dir, err := os.Open(configStoragePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// No pod directory is not an error
+			return []PodStatus{}, nil
+		}
 		return []PodStatus{}, err
 	}
 
