@@ -226,6 +226,9 @@ type Cmd struct {
 
 	User  string
 	Group string
+
+	Interactive bool
+	Console     string
 }
 
 // Resources describes VM resources configuration.
@@ -633,7 +636,7 @@ func (p *Pod) startShims() error {
 		shimParams := ShimParams{
 			Token:   proxyInfos[idx].Token,
 			URL:     url,
-			Console: p.containers[idx].config.Console,
+			Console: p.containers[idx].config.Cmd.Console,
 		}
 
 		pid, err := p.shim.start(*p, shimParams)
