@@ -553,7 +553,7 @@ func TestStatusPodSuccessful(t *testing.T) {
 	}
 }
 
-func TestListPodFailingFetchPodConfig(t *testing.T) {
+func TestStatusPodFailingFetchPodConfig(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigNoop()
@@ -572,7 +572,7 @@ func TestListPodFailingFetchPodConfig(t *testing.T) {
 	}
 }
 
-func TestListPodFailingFetchPodState(t *testing.T) {
+func TestStatusPodPodFailingFetchPodState(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigNoop()
