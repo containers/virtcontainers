@@ -81,6 +81,7 @@ func TestMinimalPodConfig(t *testing.T) {
 
 	expectedContainerConfig := vc.ContainerConfig{
 		ID:     containerID,
+		Bundle: tempBundlePath,
 		RootFs: path.Join(tempBundlePath, "rootfs"),
 		Cmd:    expectedCmd,
 	}
@@ -143,6 +144,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		{
 			State:  state,
 			PID:    testPID,
+			Bundle: tempBundlePath,
 			RootFs: testRootFs,
 		},
 	}
@@ -158,7 +160,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		ID:      testPodID,
 		Status:  "created",
 		Pid:     testPID,
-		Bundle:  testRootFs,
+		Bundle:  tempBundlePath,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -177,6 +179,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		{
 			State:  state,
 			PID:    testPID,
+			Bundle: tempBundlePath,
 			RootFs: testRootFs,
 		},
 	}
@@ -192,7 +195,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		ID:      testPodID,
 		Status:  "running",
 		Pid:     testPID,
-		Bundle:  testRootFs,
+		Bundle:  tempBundlePath,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -211,6 +214,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		{
 			State:  state,
 			PID:    testPID,
+			Bundle: tempBundlePath,
 			RootFs: testRootFs,
 		},
 	}
@@ -226,7 +230,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		ID:      testPodID,
 		Status:  "stopped",
 		Pid:     testPID,
-		Bundle:  testRootFs,
+		Bundle:  tempBundlePath,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -240,6 +244,7 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 	cStatuses := []vc.ContainerStatus{
 		{
 			PID:    testPID,
+			Bundle: tempBundlePath,
 			RootFs: testRootFs,
 		},
 	}
@@ -255,7 +260,7 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 		ID:      testPodID,
 		Status:  "",
 		Pid:     testPID,
-		Bundle:  testRootFs,
+		Bundle:  tempBundlePath,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)

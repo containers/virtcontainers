@@ -172,6 +172,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 	containerConfig := vc.ContainerConfig{
 		ID:     cid,
+		Bundle: bundlePath,
 		RootFs: rootfs,
 		Cmd:    cmd,
 	}
@@ -224,7 +225,7 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 		ID:      status.ID,
 		Status:  stateToOCIState(status.ContainersStatus[0].State),
 		Pid:     status.ContainersStatus[0].PID,
-		Bundle:  status.ContainersStatus[0].RootFs,
+		Bundle:  status.ContainersStatus[0].Bundle,
 	}
 
 	return state, nil

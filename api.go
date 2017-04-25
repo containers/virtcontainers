@@ -639,6 +639,7 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 				ID:     container.id,
 				State:  container.state,
 				PID:    container.process.Pid,
+				Bundle: container.config.Bundle,
 				RootFs: container.config.RootFs,
 			}, nil
 		}
