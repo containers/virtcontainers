@@ -370,11 +370,9 @@ func StatusPod(podID string) (PodStatus, error) {
 
 	var contStatusList []ContainerStatus
 	for _, container := range pod.containers {
-		contStatus := ContainerStatus{
-			ID:     container.id,
-			State:  container.state,
-			PID:    container.process.Pid,
-			RootFs: container.config.RootFs,
+		contStatus, err := StatusContainer(podID, container.id)
+		if err != nil {
+			return PodStatus{}, err
 		}
 
 		contStatusList = append(contStatusList, contStatus)
