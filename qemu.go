@@ -206,6 +206,8 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				ID:         fmt.Sprintf("network-%d", idx),
 				IFName:     endpoint.NetPair.TAPIface.Name,
 				MACAddress: endpoint.NetPair.VirtIface.HardAddr,
+				DownScript: "no",
+				Script:     "no",
 			},
 		)
 	}
