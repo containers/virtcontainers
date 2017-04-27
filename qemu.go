@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	ciaoQemu "github.com/01org/ciao/qemu"
 	"github.com/01org/ciao/ssntp/uuid"
@@ -206,6 +207,8 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				ID:         fmt.Sprintf("network-%d", idx),
 				IFName:     endpoint.NetPair.TAPIface.Name,
 				MACAddress: endpoint.NetPair.VirtIface.HardAddr,
+				DownScript: "no",
+				Script:     "no",
 			},
 		)
 	}
@@ -512,7 +515,19 @@ func (q *qemu) stopPod() error {
 		return err
 	}
 
-	return qmp.ExecuteQuit(q.qmpMonitorCh.ctx)
+	if err := qmp.ExecuteQuit(q.qmpMonitorCh.ctx); err != nil {
+		return err
+	}
+
+	// Wait for the VM disconnection notification
+	select {
+	case <-q.qmpControlCh.disconnectCh:
+		break
+	case <-time.After(time.Second):
+		return fmt.Errorf("Did not receive the VM disconnection notification")
+	}
+
+	return nil
 }
 
 // addDevice will add extra devices to Qemu command line.
