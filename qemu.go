@@ -55,6 +55,33 @@ type qemu struct {
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
+const defaultQemuMachineType = "pc-lite"
+
+const (
+	// QemuPCLite is the QEMU pc-lite machine type
+	QemuPCLite = defaultQemuMachineType
+
+	// QemuQ35 is the QEMU Q35 machine type
+	QemuQ35 = "q35"
+)
+
+// Mapping between machine types and QEMU binary paths.
+var qemuPaths = map[string]string{
+	QemuPCLite: "/usr/bin/qemu-lite-system-x86_64",
+	QemuQ35:    defaultQemuPath,
+}
+
+var supportedQemuMachines = []ciaoQemu.Machine{
+	{
+		Type:         QemuPCLite,
+		Acceleration: "kvm,kernel_irqchip,nvdimm",
+	},
+	{
+		Type:         QemuQ35,
+		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit,nofw",
+	},
+}
+
 const (
 	defaultSockets uint32 = 1
 	defaultThreads uint32 = 1
@@ -311,6 +338,45 @@ func (q *qemu) forceUUIDFormat(str string) string {
 	return uuidSlice.String()
 }
 
+func (q *qemu) getMachine(name string) (ciaoQemu.Machine, error) {
+	for _, m := range supportedQemuMachines {
+		if m.Type == name {
+			return m, nil
+		}
+	}
+
+	return ciaoQemu.Machine{}, fmt.Errorf("unrecognised machine type: %v", name)
+}
+
+// Build the QEMU binary path
+func (q *qemu) buildPath() error {
+	p := q.config.HypervisorPath
+	if p != "" {
+		q.path = p
+		return nil
+	}
+
+	// We do not have a configured path, let's try to map one from the machine type
+	machineType := q.config.HypervisorMachineType
+	if machineType == "" {
+		machineType = defaultQemuMachineType
+	}
+
+	p, ok := qemuPaths[machineType]
+	if !ok {
+		virtLog.Warnf("Unknown machine type %s", machineType)
+		p = defaultQemuPath
+	}
+
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		return fmt.Errorf("QEMU path (%s) does not exist", p)
+	}
+
+	q.path = p
+
+	return nil
+}
+
 // init intializes the Qemu structure.
 func (q *qemu) init(config HypervisorConfig) error {
 	valid, err := config.valid()
@@ -318,16 +384,13 @@ func (q *qemu) init(config HypervisorConfig) error {
 		return err
 	}
 
-	p := config.HypervisorPath
-	if p == "" {
-		p = defaultQemuPath
+	q.config = config
+
+	if err = q.buildPath(); err != nil {
+		return err
 	}
 
-	q.config = config
-	q.path = p
-
-	err = q.buildKernelParams(config)
-	if err != nil {
+	if err = q.buildKernelParams(config); err != nil {
 		return err
 	}
 
@@ -402,9 +465,14 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 func (q *qemu) createPod(podConfig PodConfig) error {
 	var devices []ciaoQemu.Device
 
-	machine := ciaoQemu.Machine{
-		Type:         "pc-lite",
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+	machineType := q.config.HypervisorMachineType
+	if machineType == "" {
+		machineType = defaultQemuMachineType
+	}
+
+	machine, err := q.getMachine(machineType)
+	if err != nil {
+		return err
 	}
 
 	smp := q.setCPUResources(podConfig)
@@ -455,7 +523,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.appendFSDevices(devices, podConfig)
 	devices = q.appendConsoles(devices, podConfig)
-	devices, err := q.appendImage(devices, podConfig)
+	devices, err = q.appendImage(devices, podConfig)
 	if err != nil {
 		return err
 	}
