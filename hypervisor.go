@@ -136,10 +136,6 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 		return false, fmt.Errorf("Missing image path")
 	}
 
-	if conf.HypervisorPath == "" {
-		return false, fmt.Errorf("Missing hypervisor path")
-	}
-
 	return true, nil
 }
 
