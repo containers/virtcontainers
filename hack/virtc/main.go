@@ -63,7 +63,7 @@ var podConfigFlags = []cli.Flag{
 
 	cli.StringFlag{
 		Name:  "machine-type",
-		Value: "",
+		Value: vc.QemuPCLite,
 		Usage: "hypervisor machine type",
 	},
 
@@ -221,7 +221,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hypervisorConfig := vc.HypervisorConfig{
 		KernelPath:            "/usr/share/clear-containers/vmlinux.container",
 		ImagePath:             "/usr/share/clear-containers/clear-containers.img",
-		HypervisorPath:        "/usr/bin/qemu-lite-system-x86_64",
 		HypervisorMachineType: context.String("machine-type"),
 	}
 
