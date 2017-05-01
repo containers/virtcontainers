@@ -82,6 +82,7 @@ First, you will have to perform extra steps to setup your environment.
 
 ```
 $ go get github.com/clearcontainers/shim
+$ cd $GOPATH/src/github.com/clearcontainers/shim && ./autogen.sh
 $ make
 $ sudo make install
 ```
