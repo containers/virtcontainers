@@ -6,7 +6,7 @@
 
 # Community Sync Meeting
 
-The CNI community is aiming to hold a community sync meeting for users and developers every 1-2 months. The next (and first) meeting will help on a Google Hangout and link is in the [agenda](https://docs.google.com/document/d/10ECyT2mBGewsJUcmYmS8QNo1AcNgy2ZIe2xS7lShYhE/edit?usp=sharing) (Please add to it). It will be held on *March 15th* at *3:00pm UTC* [Add to Calendar](http://bit.ly/2nfWIJd).
+There is a community sync meeting for users and developers every 1-2 months. The next meeting will help on a Google Hangout and the link is in the [agenda](https://docs.google.com/document/d/10ECyT2mBGewsJUcmYmS8QNo1AcNgy2ZIe2xS7lShYhE/edit?usp=sharing) (Notes from previous meeting are also in this doc). The next meeting will be held on *April 12th* at *3:00pm UTC* [Add to Calendar](https://www.worldtimebuddy.com/?qm=1&lid=100,5,2643743,5391959&h=100&date=2017-4-12&sln=15-16).
 
 ---
 
@@ -47,6 +47,7 @@ To avoid duplication, we think it is prudent to define a common interface betwee
 - [Infoblox - enterprise IP address management for containers](https://github.com/infobloxopen/cni-infoblox)
 - [Multus - a Multi plugin](https://github.com/Intel-Corp/multus-cni)
 - [Romana - Layer 3 CNI plugin supporting network policy for Kubernetes](https://github.com/romana/kube)
+- [CNI-Genie - generic CNI network plugin](https://github.com/Huawei-PaaS/CNI-Genie)
 
 The CNI team also maintains some [core plugins](plugins).
 
@@ -110,7 +111,7 @@ The directory `/etc/cni/net.d` is the default location in which the scripts will
 Next, build the plugins:
 
 ```bash
-$ ./build
+$ ./build.sh
 ```
 
 Finally, execute a command (`ifconfig` in this example) in a private network namespace that has joined the `mynet` network:
