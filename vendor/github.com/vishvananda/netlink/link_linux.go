@@ -58,6 +58,44 @@ func (h *Handle) ensureIndex(link *LinkAttrs) {
 	}
 }
 
+func (h *Handle) LinkSetARPOff(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags |= syscall.IFF_NOARP
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOff(link Link) error {
+	return pkgHandle.LinkSetARPOff(link)
+}
+
+func (h *Handle) LinkSetARPOn(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags &= ^uint32(syscall.IFF_NOARP)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOn(link Link) error {
+	return pkgHandle.LinkSetARPOn(link)
+}
+
 func (h *Handle) SetPromiscOn(link Link) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
@@ -65,12 +103,22 @@ func (h *Handle) SetPromiscOn(link Link) error {
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_PROMISC
-	msg.Flags = syscall.IFF_UP
+	msg.Flags = syscall.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	return err
+}
+
+func BridgeSetMcastSnoop(link Link, on bool) error {
+	return pkgHandle.BridgeSetMcastSnoop(link, on)
+}
+
+func (h *Handle) BridgeSetMcastSnoop(link Link, on bool) error {
+	bridge := link.(*Bridge)
+	bridge.MulticastSnooping = &on
+	return h.linkModify(bridge, syscall.NLM_F_ACK)
 }
 
 func SetPromiscOn(link Link) error {
@@ -84,7 +132,7 @@ func (h *Handle) SetPromiscOff(link Link) error {
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_PROMISC
-	msg.Flags = 0 & ^syscall.IFF_UP
+	msg.Flags = 0 & ^syscall.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -634,6 +682,10 @@ func LinkAdd(link Link) error {
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
 func (h *Handle) LinkAdd(link Link) error {
+	return h.linkModify(link, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+}
+
+func (h *Handle) linkModify(link Link, flags int) error {
 	// TODO: set mtu and hardware address
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
@@ -681,7 +733,7 @@ func (h *Handle) LinkAdd(link Link) error {
 		return nil
 	}
 
-	req := h.newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(syscall.RTM_NEWLINK, flags)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	// TODO: make it shorter
@@ -792,6 +844,8 @@ func (h *Handle) LinkAdd(link Link) error {
 		addVtiAttrs(vti, linkInfo)
 	} else if vrf, ok := link.(*Vrf); ok {
 		addVrfAttrs(vrf, linkInfo)
+	} else if bridge, ok := link.(*Bridge); ok {
+		addBridgeAttrs(bridge, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1054,6 +1108,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						parseVtiData(link, data)
 					case "vrf":
 						parseVrfData(link, data)
+					case "bridge":
+						parseBridgeData(link, data)
 					}
 				}
 			}
@@ -1250,6 +1306,22 @@ func (h *Handle) LinkSetFlood(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
 }
 
+func LinkSetBrProxyArp(link Link, mode bool) error {
+	return pkgHandle.LinkSetBrProxyArp(link, mode)
+}
+
+func (h *Handle) LinkSetBrProxyArp(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROXYARP)
+}
+
+func LinkSetBrProxyArpWiFi(link Link, mode bool) error {
+	return pkgHandle.LinkSetBrProxyArpWiFi(link, mode)
+}
+
+func (h *Handle) LinkSetBrProxyArpWiFi(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROXYARP_WIFI)
+}
+
 func (h *Handle) setProtinfoAttr(link Link, mode bool, attr int) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
@@ -1332,7 +1404,7 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 }
 
 func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
-	bond := NewLinkBond(NewLinkAttrs())
+	bond := link.(*Bond)
 	for i := range data {
 		switch data[i].Attr.Type {
 		case nl.IFLA_BOND_MODE:
@@ -1637,6 +1709,30 @@ func parseVrfData(link Link, data []syscall.NetlinkRouteAttr) {
 		switch datum.Attr.Type {
 		case nl.IFLA_VRF_TABLE:
 			vrf.Table = native.Uint32(datum.Value[0:4])
+		}
+	}
+}
+
+func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+	if bridge.MulticastSnooping != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_BR_MCAST_SNOOPING, boolToByte(*bridge.MulticastSnooping))
+	}
+	if bridge.HelloTime != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_BR_HELLO_TIME, nl.Uint32Attr(*bridge.HelloTime))
+	}
+}
+
+func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
+	br := bridge.(*Bridge)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_BR_HELLO_TIME:
+			helloTime := native.Uint32(datum.Value[0:4])
+			br.HelloTime = &helloTime
+		case nl.IFLA_BR_MCAST_SNOOPING:
+			mcastSnooping := datum.Value[0] == 1
+			br.MulticastSnooping = &mcastSnooping
 		}
 	}
 }
