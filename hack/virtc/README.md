@@ -60,6 +60,7 @@ If you plan to start `virtc` with the hyperstart agent, you will have to use [cc
 
 ```
 $ go get github.com/clearcontainers/proxy
+$ cd $GOPATH/src/github.com/clearcontainers/proxy
 $ make
 $ sudo make install
 ```
@@ -82,6 +83,7 @@ First, you will have to perform extra steps to setup your environment.
 
 ```
 $ go get github.com/clearcontainers/shim
+$ cd $GOPATH/src/github.com/clearcontainers/shim && ./autogen.sh
 $ make
 $ sudo make install
 ```
