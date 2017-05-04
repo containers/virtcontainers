@@ -88,7 +88,7 @@ $ make
 $ sudo make install
 ```
 
-The shim will be installed at the following location: `/usr/libexec/cc-shim`. There will be three cases where you will be able to interact with your container's process through `cc-shim`:
+The shim will be installed at the following location: `/usr/libexec/clear-containers/cc-shim`. There will be three cases where you will be able to interact with your container's process through `cc-shim`:
 
 _Start a new container_
 
