@@ -132,7 +132,8 @@ func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Lin
 	switch expectedLink.Type() {
 	case (&netlink.Bridge{}).Type():
 		newLink = &netlink.Bridge{
-			LinkAttrs: netlink.LinkAttrs{Name: name},
+			LinkAttrs:         netlink.LinkAttrs{Name: name},
+			MulticastSnooping: expectedLink.(*netlink.Bridge).MulticastSnooping,
 		}
 	case (&netlink.Tuntap{}).Type():
 		newLink = &netlink.Tuntap{
@@ -202,7 +203,8 @@ func bridgeNetworkPair(netPair NetworkInterfacePair) error {
 			netPair.VirtIface.HardAddr, netPair.VirtIface.Name, err)
 	}
 
-	bridgeLink, err := createLink(netHandle, netPair.Name, &netlink.Bridge{})
+	mcastSnoop := false
+	bridgeLink, err := createLink(netHandle, netPair.Name, &netlink.Bridge{MulticastSnooping: &mcastSnoop})
 	if err != nil {
 		return fmt.Errorf("Could not create bridge: %s", err)
 	}
