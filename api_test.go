@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -29,6 +30,11 @@ const (
 	testHyperstartPauseBinName = "pause"
 	containerID                = "1"
 )
+
+var podAnnotations = map[string]string{
+	"pod.foo":   "pod.bar",
+	"pod.hello": "pod.world",
+}
 
 func newBasicTestCmd() Cmd {
 	envs := []EnvVar{
@@ -70,6 +76,8 @@ func newTestPodConfigNoop() PodConfig {
 		AgentType: NoopAgentType,
 
 		Containers: []ContainerConfig{container},
+
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -106,7 +114,8 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 		AgentType:   HyperstartAgent,
 		AgentConfig: agentConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -150,7 +159,8 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 		NetworkModel:  CNINetworkModel,
 		NetworkConfig: netConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -207,7 +217,8 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 		NetworkModel:  CNMNetworkModel,
 		NetworkConfig: netConfig,
 
-		Containers: []ContainerConfig{container},
+		Containers:  []ContainerConfig{container},
+		Annotations: podAnnotations,
 	}
 
 	return podConfig
@@ -547,9 +558,13 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = StatusPod(p.id)
+	status, err := StatusPod(p.id)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(config.Annotations, status.Annotations) == false {
+		t.Fatalf("Got annotations %v\n expecting %v", status.Annotations, config.Annotations)
 	}
 }
 

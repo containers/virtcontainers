@@ -386,6 +386,7 @@ func StatusPod(podID string) (PodStatus, error) {
 		Hypervisor:       pod.config.HypervisorType,
 		Agent:            pod.config.AgentType,
 		ContainersStatus: contStatusList,
+		Annotations:      pod.config.Annotations,
 	}
 
 	return podStatus, nil
