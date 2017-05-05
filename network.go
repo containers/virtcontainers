@@ -126,6 +126,63 @@ func newNetwork(networkType NetworkModel) network {
 	}
 }
 
+func initNetworkCommon(config *NetworkConfig) error {
+	if config == nil {
+		return fmt.Errorf("config cannot be empty")
+	}
+
+	if config.NetNSPath == "" {
+		path, err := createNetNS()
+		if err != nil {
+			return err
+		}
+
+		config.NetNSPath = path
+	}
+
+	return nil
+}
+
+func runNetworkCommon(networkNSPath string, cb func() error) error {
+	if networkNSPath == "" {
+		return fmt.Errorf("networkNSPath cannot be empty")
+	}
+
+	return doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		return cb()
+	})
+}
+
+func addNetworkCommon(pod Pod, networkNS *NetworkNamespace) error {
+	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
+		for idx := range networkNS.Endpoints {
+			if err := bridgeNetworkPair(&(networkNS.Endpoints[idx].NetPair)); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return addNetDevHypervisor(pod, networkNS.Endpoints)
+}
+
+func removeNetworkCommon(networkNS NetworkNamespace) error {
+	return doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
+		for _, endpoint := range networkNS.Endpoints {
+			err := unBridgeNetworkPair(endpoint.NetPair)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 func createLink(netHandle *netlink.Handle, name string, expectedLink netlink.Link) (netlink.Link, error) {
 	var newLink netlink.Link
 
@@ -177,7 +234,7 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 	return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
 }
 
-func bridgeNetworkPair(netPair NetworkInterfacePair) error {
+func bridgeNetworkPair(netPair *NetworkInterfacePair) error {
 	netHandle, err := netlink.NewHandle()
 	if err != nil {
 		return err
@@ -192,6 +249,19 @@ func bridgeNetworkPair(netPair NetworkInterfacePair) error {
 	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
 		return fmt.Errorf("Could not get veth interface: %s", err)
+	}
+
+	vethLinkAttrs := vethLink.Attrs()
+
+	// Save the veth MAC address to the TAP so that it can later be used
+	// to build the hypervisor command line. This MAC address has to be
+	// the one inside the VM in order to avoid any firewall issues. The
+	// bridge created by the network plugin on the host actually expects
+	// to see traffic from this MAC address and not another one.
+	netPair.TAPIface.HardAddr = vethLinkAttrs.HardwareAddr.String()
+
+	if err := netHandle.LinkSetMTU(tapLink, vethLinkAttrs.MTU); err != nil {
+		return fmt.Errorf("Could not set TAP MTU %d: %s", vethLinkAttrs.MTU, err)
 	}
 
 	hardAddr, err := net.ParseMAC(netPair.VirtIface.HardAddr)
