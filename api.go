@@ -639,10 +639,11 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	for _, container := range pod.containers {
 		if container.id == containerID {
 			return ContainerStatus{
-				ID:     container.id,
-				State:  container.state,
-				PID:    container.process.Pid,
-				RootFs: container.config.RootFs,
+				ID:          container.id,
+				State:       container.state,
+				PID:         container.process.Pid,
+				RootFs:      container.config.RootFs,
+				Annotations: container.config.Annotations,
 			}, nil
 		}
 	}

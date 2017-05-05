@@ -36,6 +36,11 @@ var podAnnotations = map[string]string{
 	"pod.hello": "pod.world",
 }
 
+var containerAnnotations = map[string]string{
+	"container.foo":   "container.bar",
+	"container.hello": "container.world",
+}
+
 func newBasicTestCmd() Cmd {
 	envs := []EnvVar{
 		{
@@ -56,9 +61,10 @@ func newBasicTestCmd() Cmd {
 func newTestPodConfigNoop() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -86,9 +92,10 @@ func newTestPodConfigNoop() PodConfig {
 func newTestPodConfigHyperstartAgent() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -124,9 +131,10 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -169,9 +177,10 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     containerID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          containerID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	// Sets the hypervisor configuration.
@@ -608,9 +617,10 @@ func TestStatusPodPodFailingFetchPodState(t *testing.T) {
 func newTestContainerConfigNoop(contID string) ContainerConfig {
 	// Define the container command and bundle.
 	container := ContainerConfig{
-		ID:     contID,
-		RootFs: filepath.Join(testDir, testBundle),
-		Cmd:    newBasicTestCmd(),
+		ID:          contID,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Cmd:         newBasicTestCmd(),
+		Annotations: containerAnnotations,
 	}
 
 	return container
@@ -1292,9 +1302,13 @@ func TestStatusContainerSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = StatusContainer(p.id, contID)
+	status, err := StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(p.config.Containers[0].Annotations, status.Annotations) == false {
+		t.Fatalf("Got annotations %v\n expecting %v", status.Annotations, p.config.Containers[0].Annotations)
 	}
 }
 
