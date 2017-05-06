@@ -170,6 +170,11 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		Console:     console,
 	}
 
+	cmd.SupplementaryGroups = []string{}
+	for _, gid := range ocispec.Process.User.AdditionalGids {
+		cmd.SupplementaryGroups = append(cmd.SupplementaryGroups, strconv.FormatUint(uint64(gid), 10))
+	}
+
 	containerConfig := vc.ContainerConfig{
 		ID:     cid,
 		RootFs: rootfs,
