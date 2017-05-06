@@ -225,7 +225,7 @@ type Cmd struct {
 	WorkDir string
 
 	User                string
-	Group               string
+	PrimaryGroup        string
 	SupplementaryGroups []string
 
 	Interactive bool
