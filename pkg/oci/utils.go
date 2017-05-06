@@ -161,13 +161,18 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
-		Args:        ocispec.Process.Args,
-		Envs:        cmdEnvs(ocispec, []vc.EnvVar{}),
-		WorkDir:     ocispec.Process.Cwd,
-		User:        strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
-		Group:       strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
-		Interactive: ocispec.Process.Terminal,
-		Console:     console,
+		Args:         ocispec.Process.Args,
+		Envs:         cmdEnvs(ocispec, []vc.EnvVar{}),
+		WorkDir:      ocispec.Process.Cwd,
+		User:         strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Interactive:  ocispec.Process.Terminal,
+		Console:      console,
+	}
+
+	cmd.SupplementaryGroups = []string{}
+	for _, gid := range ocispec.Process.User.AdditionalGids {
+		cmd.SupplementaryGroups = append(cmd.SupplementaryGroups, strconv.FormatUint(uint64(gid), 10))
 	}
 
 	containerConfig := vc.ContainerConfig{

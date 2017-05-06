@@ -72,11 +72,12 @@ func TestMinimalPodConfig(t *testing.T) {
 				Value: "xterm",
 			},
 		},
-		WorkDir:     "/",
-		User:        "0",
-		Group:       "0",
-		Interactive: true,
-		Console:     consolePath,
+		WorkDir:             "/",
+		User:                "0",
+		PrimaryGroup:        "0",
+		SupplementaryGroups: []string{"10", "29"},
+		Interactive:         true,
+		Console:             consolePath,
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
