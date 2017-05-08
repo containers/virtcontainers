@@ -236,7 +236,7 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 		ID:          status.ID,
 		Status:      stateToOCIState(status.ContainersStatus[0].State),
 		Pid:         status.ContainersStatus[0].PID,
-		Bundle:      status.ContainersStatus[0].RootFs,
+		Bundle:      status.ContainersStatus[0].Annotations[ociBundlePathKey],
 		Annotations: status.ContainersStatus[0].Annotations,
 	}
 

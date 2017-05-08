@@ -175,7 +175,7 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		ID:          testPodID,
 		Status:      "created",
 		Pid:         testPID,
-		Bundle:      testRootFs,
+		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
@@ -226,7 +226,7 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		ID:          testPodID,
 		Status:      "running",
 		Pid:         testPID,
-		Bundle:      testRootFs,
+		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
@@ -277,7 +277,7 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		ID:          testPodID,
 		Status:      "stopped",
 		Pid:         testPID,
-		Bundle:      testRootFs,
+		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
@@ -323,7 +323,7 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 		ID:          testPodID,
 		Status:      "",
 		Pid:         testPID,
-		Bundle:      testRootFs,
+		Bundle:      tempBundlePath,
 		Annotations: containerAnnotations,
 	}
 
