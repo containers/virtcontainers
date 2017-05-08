@@ -34,12 +34,16 @@ type ContainerStatus struct {
 	ID     string
 	State  State
 	PID    int
+	Bundle string
 	RootFs string
 }
 
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string
+
+	// Bundle is the full path to the OCI bundle directory.
+	Bundle string
 
 	// RootFs is the container workload image on the host.
 	RootFs string
