@@ -52,8 +52,9 @@ const (
 
 // State is a pod state structure.
 type State struct {
-	State stateString `json:"state"`
-	URL   string      `json:"url,omitempty"`
+	State        stateString `json:"state"`
+	URL          string      `json:"url,omitempty"`
+	shimLockFile string      `json:"shimLockFile,omitempty"`
 }
 
 // valid checks that the pod state is valid.
