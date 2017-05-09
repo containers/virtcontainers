@@ -34,6 +34,9 @@ var (
 
 	// ociConfigPathKey is the annotation key to fetch the OCI configuration file path.
 	ociConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
+
+	// ociBundlePathKey is the annotation key to fetch the OCI configuration file path.
+	ociBundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings
@@ -179,6 +182,10 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		ID:     cid,
 		RootFs: rootfs,
 		Cmd:    cmd,
+		Annotations: map[string]string{
+			ociConfigPathKey: configPath,
+			ociBundlePathKey: bundlePath,
+		},
 	}
 
 	networkConfig, err := networkConfig(ocispec)
@@ -210,7 +217,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 		Containers: []vc.ContainerConfig{containerConfig},
 
-		Annotations: map[string]string{ociConfigPathKey: configPath},
+		Annotations: map[string]string{},
 	}
 
 	return &podConfig, &ocispec, nil
@@ -225,11 +232,12 @@ func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
 	}
 
 	state := spec.State{
-		Version: spec.Version,
-		ID:      status.ID,
-		Status:  stateToOCIState(status.ContainersStatus[0].State),
-		Pid:     status.ContainersStatus[0].PID,
-		Bundle:  status.ContainersStatus[0].RootFs,
+		Version:     spec.Version,
+		ID:          status.ID,
+		Status:      stateToOCIState(status.ContainersStatus[0].State),
+		Pid:         status.ContainersStatus[0].PID,
+		Bundle:      status.ContainersStatus[0].Annotations[ociBundlePathKey],
+		Annotations: status.ContainersStatus[0].Annotations,
 	}
 
 	return state, nil

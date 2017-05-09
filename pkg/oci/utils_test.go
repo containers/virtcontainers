@@ -84,6 +84,10 @@ func TestMinimalPodConfig(t *testing.T) {
 		ID:     containerID,
 		RootFs: path.Join(tempBundlePath, "rootfs"),
 		Cmd:    expectedCmd,
+		Annotations: map[string]string{
+			ociConfigPathKey: configPath,
+			ociBundlePathKey: tempBundlePath,
+		},
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
@@ -103,7 +107,7 @@ func TestMinimalPodConfig(t *testing.T) {
 
 		Containers: []vc.ContainerConfig{expectedContainerConfig},
 
-		Annotations: map[string]string{ociConfigPathKey: configPath},
+		Annotations: map[string]string{},
 	}
 
 	podConfig, _, err := PodConfig(runtimeConfig, tempBundlePath, containerID, consolePath)
@@ -132,6 +136,11 @@ func testStatusToOCIStateSuccessful(t *testing.T, podStatus vc.PodStatus, expect
 }
 
 func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
+	configPath, err := createConfig("config.json", minimalConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testPodID := "testPodID"
 	testPID := 12345
 	testRootFs := "testRootFs"
@@ -140,11 +149,17 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		State: vc.StateReady,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -152,20 +167,31 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		ID:               testPodID,
 		State:            state,
 		ContainersStatus: cStatuses,
+		Annotations:      map[string]string{},
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "created",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "created",
+		Pid:         testPID,
+		Bundle:      tempBundlePath,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
+
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
+	configPath, err := createConfig("config.json", minimalConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testPodID := "testPodID"
 	testPID := 12345
 	testRootFs := "testRootFs"
@@ -174,11 +200,17 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		State: vc.StateRunning,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -186,20 +218,31 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		ID:               testPodID,
 		State:            state,
 		ContainersStatus: cStatuses,
+		Annotations:      map[string]string{},
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "running",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "running",
+		Pid:         testPID,
+		Bundle:      tempBundlePath,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
+
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
+	configPath, err := createConfig("config.json", minimalConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testPodID := "testPodID"
 	testPID := 12345
 	testRootFs := "testRootFs"
@@ -208,11 +251,17 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		State: vc.StateStopped,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -220,28 +269,45 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		ID:               testPodID,
 		State:            state,
 		ContainersStatus: cStatuses,
+		Annotations:      map[string]string{},
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "stopped",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "stopped",
+		Pid:         testPID,
+		Bundle:      tempBundlePath,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
+
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
+	configPath, err := createConfig("config.json", minimalConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testPodID := "testPodID"
 	testPID := 12345
 	testRootFs := "testRootFs"
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			PID:    testPID,
-			RootFs: testRootFs,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -249,17 +315,23 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 		ID:               testPodID,
 		State:            vc.State{},
 		ContainersStatus: cStatuses,
+		Annotations:      map[string]string{},
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "",
+		Pid:         testPID,
+		Bundle:      tempBundlePath,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
+
+	if err := os.Remove(configPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestStatusToOCIStateFailure(t *testing.T) {

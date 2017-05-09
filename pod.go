@@ -248,6 +248,11 @@ type PodStatus struct {
 	Hypervisor       HypervisorType
 	Agent            AgentType
 	ContainersStatus []ContainerStatus
+
+	// Annotations allow clients to store arbitrary values,
+	// for example to add additional status values required
+	// to support particular specifications.
+	Annotations map[string]string
 }
 
 // PodConfig is a Pod configuration.

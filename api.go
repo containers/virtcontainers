@@ -386,6 +386,7 @@ func StatusPod(podID string) (PodStatus, error) {
 		Hypervisor:       pod.config.HypervisorType,
 		Agent:            pod.config.AgentType,
 		ContainersStatus: contStatusList,
+		Annotations:      pod.config.Annotations,
 	}
 
 	return podStatus, nil
@@ -638,10 +639,11 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 	for _, container := range pod.containers {
 		if container.id == containerID {
 			return ContainerStatus{
-				ID:     container.id,
-				State:  container.state,
-				PID:    container.process.Pid,
-				RootFs: container.config.RootFs,
+				ID:          container.id,
+				State:       container.state,
+				PID:         container.process.Pid,
+				RootFs:      container.config.RootFs,
+				Annotations: container.config.Annotations,
 			}, nil
 		}
 	}
