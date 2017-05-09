@@ -179,6 +179,9 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		ID:     cid,
 		RootFs: rootfs,
 		Cmd:    cmd,
+		Annotations: map[string]string{
+			ociConfigPathKey: configPath,
+		},
 	}
 
 	networkConfig, err := networkConfig(ocispec)
@@ -210,7 +213,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 
 		Containers: []vc.ContainerConfig{containerConfig},
 
-		Annotations: map[string]string{ociConfigPathKey: configPath},
+		Annotations: map[string]string{},
 	}
 
 	return &podConfig, &ocispec, nil
