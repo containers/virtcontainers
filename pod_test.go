@@ -709,3 +709,29 @@ func TestPodCheckContainersStateFailingEmptyPodID(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestGetContainer(t *testing.T) {
+	containerIDs := []string{"abc", "123", "xyz", "rgb"}
+	containers := []*Container{}
+
+	for _, id := range containerIDs {
+		c := Container{id: id}
+		containers = append(containers, &c)
+	}
+
+	pod := Pod{
+		containers: containers,
+	}
+
+	c := pod.GetContainer("noid")
+	if c != nil {
+		t.Fatal()
+	}
+
+	for _, id := range containerIDs {
+		c = pod.GetContainer(id)
+		if c == nil {
+			t.Fatal()
+		}
+	}
+}
