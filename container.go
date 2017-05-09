@@ -121,6 +121,22 @@ func (c *Container) StandAlone() bool {
 	return c.config.Cmd.StandAlone
 }
 
+// Wait waits for container to end returning nil on success, else an error
+func (c *Container) Wait() error {
+	if c.process.ShimLockFile == "" {
+		// there is not shim lock file we can't monitor the shim
+		return fmt.Errorf("Shim lock file does not exist")
+	}
+
+	f, err := os.Open(c.process.ShimLockFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+}
+
 func (c *Container) startShim() error {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
