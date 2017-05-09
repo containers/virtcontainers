@@ -34,6 +34,9 @@ var (
 
 	// ociConfigPathKey is the annotation key to fetch the OCI configuration file path.
 	ociConfigPathKey = "com.github.containers.virtcontainers.pkg.oci.config_path"
+
+	// ociBundlePathKey is the annotation key to fetch the OCI configuration file path.
+	ociBundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
 )
 
 // RuntimeConfig aggregates all runtime specific settings
@@ -181,6 +184,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		Cmd:    cmd,
 		Annotations: map[string]string{
 			ociConfigPathKey: configPath,
+			ociBundlePathKey: bundlePath,
 		},
 	}
 

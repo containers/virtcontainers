@@ -81,10 +81,13 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 
 	expectedContainerConfig := vc.ContainerConfig{
-		ID:          containerID,
-		RootFs:      path.Join(tempBundlePath, "rootfs"),
-		Cmd:         expectedCmd,
-		Annotations: map[string]string{ociConfigPathKey: configPath},
+		ID:     containerID,
+		RootFs: path.Join(tempBundlePath, "rootfs"),
+		Cmd:    expectedCmd,
+		Annotations: map[string]string{
+			ociConfigPathKey: configPath,
+			ociBundlePathKey: tempBundlePath,
+		},
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
