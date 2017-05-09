@@ -149,11 +149,17 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 		State: vc.StateReady,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -165,11 +171,12 @@ func TestStatusToOCIStateSuccessfulWithReadyState(t *testing.T) {
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "created",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "created",
+		Pid:         testPID,
+		Bundle:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -193,11 +200,17 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 		State: vc.StateRunning,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -209,11 +222,12 @@ func TestStatusToOCIStateSuccessfulWithRunningState(t *testing.T) {
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "running",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "running",
+		Pid:         testPID,
+		Bundle:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -237,11 +251,17 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 		State: vc.StateStopped,
 	}
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			State:  state,
-			PID:    testPID,
-			RootFs: testRootFs,
+			State:       state,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -253,11 +273,12 @@ func TestStatusToOCIStateSuccessfulWithStoppedState(t *testing.T) {
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "stopped",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "stopped",
+		Pid:         testPID,
+		Bundle:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
@@ -277,10 +298,16 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 	testPID := 12345
 	testRootFs := "testRootFs"
 
+	containerAnnotations := map[string]string{
+		ociConfigPathKey: configPath,
+		ociBundlePathKey: tempBundlePath,
+	}
+
 	cStatuses := []vc.ContainerStatus{
 		{
-			PID:    testPID,
-			RootFs: testRootFs,
+			PID:         testPID,
+			RootFs:      testRootFs,
+			Annotations: containerAnnotations,
 		},
 	}
 
@@ -292,11 +319,12 @@ func TestStatusToOCIStateSuccessfulWithNoState(t *testing.T) {
 	}
 
 	expected := specs.State{
-		Version: specs.Version,
-		ID:      testPodID,
-		Status:  "",
-		Pid:     testPID,
-		Bundle:  testRootFs,
+		Version:     specs.Version,
+		ID:          testPodID,
+		Status:      "",
+		Pid:         testPID,
+		Bundle:      testRootFs,
+		Annotations: containerAnnotations,
 	}
 
 	testStatusToOCIStateSuccessful(t, podStatus, expected)
