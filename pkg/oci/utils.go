@@ -52,7 +52,8 @@ type RuntimeConfig struct {
 	ShimType   vc.ShimType
 	ShimConfig interface{}
 
-	Console string
+	Console    string
+	StandAlone bool
 }
 
 var ociLog = logrus.New()
@@ -168,6 +169,7 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
 		Interactive:  ocispec.Process.Terminal,
 		Console:      console,
+		StandAlone:   runtime.StandAlone,
 	}
 
 	cmd.SupplementaryGroups = []string{}

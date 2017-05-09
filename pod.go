@@ -230,6 +230,7 @@ type Cmd struct {
 
 	Interactive bool
 	Console     string
+	StandAlone  bool
 }
 
 // Resources describes VM resources configuration.
