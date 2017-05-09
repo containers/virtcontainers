@@ -114,6 +114,12 @@ func (c *Container) URL() string {
 	return c.pod.URL()
 }
 
+// StandAlone returns true if the container was started by a
+// runtime that is running standalone, else false
+func (c *Container) StandAlone() bool {
+	return c.config.Cmd.StandAlone
+}
+
 func (c *Container) startShim() error {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
