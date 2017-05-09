@@ -652,14 +652,23 @@ func (p *Pod) startShims() error {
 			Console: p.containers[idx].config.Cmd.Console,
 		}
 
-		pid, err := p.shim.start(*p, shimParams)
+		var shimLockFile string
+		if p.containers[idx].StandAlone() == true {
+			shimLockFile, _, err = p.storage.containerURI(p.id, p.containers[idx].id, shimLockFileType)
+			if err != nil {
+				return err
+			}
+		}
+
+		pid, err := p.shim.start(*p, shimLockFile, shimParams)
 		if err != nil {
 			return err
 		}
 
 		p.containers[idx].process = Process{
-			Token: proxyInfos[idx].Token,
-			Pid:   pid,
+			Token:        proxyInfos[idx].Token,
+			Pid:          pid,
+			ShimLockFile: shimLockFile,
 		}
 
 		if err := p.containers[idx].storeProcess(); err != nil {

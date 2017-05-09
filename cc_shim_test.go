@@ -30,7 +30,7 @@ var testConsolePath = "tty-console"
 func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {
 	s := &ccShim{}
 
-	pid, err := s.start(pod, params)
+	pid, err := s.start(pod, "", params)
 	if expectFail {
 		if err == nil || pid != -1 {
 			t.Fatalf("This test should fail (pod %+v, params %+v, expectFail %t)",

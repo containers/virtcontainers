@@ -25,8 +25,9 @@ import (
 
 // Process gathers data related to a container process.
 type Process struct {
-	Token string
-	Pid   int
+	Token        string
+	Pid          int
+	ShimLockFile string
 }
 
 // ContainerStatus describes a container status.
@@ -140,14 +141,23 @@ func (c *Container) startShim() error {
 		Console: c.config.Cmd.Console,
 	}
 
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
+	var shimLockFile string
+	if c.StandAlone() == true {
+		shimLockFile, _, err = c.pod.storage.containerURI(c.pod.id, c.id, shimLockFileType)
+		if err != nil {
+			return err
+		}
+	}
+
+	pid, err := c.pod.shim.start(*(c.pod), shimLockFile, shimParams)
 	if err != nil {
 		return err
 	}
 
 	c.process = Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
+		Token:        proxyInfo.Token,
+		Pid:          pid,
+		ShimLockFile: shimLockFile,
 	}
 
 	if err := c.storeProcess(); err != nil {
@@ -471,14 +481,23 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 		Console: cmd.Console,
 	}
 
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
+	var shimLockFile string
+	if c.StandAlone() == true {
+		shimLockFile, _, err = c.pod.storage.containerURI(c.pod.id, c.id, shimLockFileType)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	pid, err := c.pod.shim.start(*(c.pod), shimLockFile, shimParams)
 	if err != nil {
 		return nil, err
 	}
 
 	process := &Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
+		Token:        proxyInfo.Token,
+		Pid:          pid,
+		ShimLockFile: shimLockFile,
 	}
 
 	if err := c.pod.agent.exec(c.pod, *c, *process, cmd); err != nil {

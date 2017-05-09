@@ -100,5 +100,5 @@ func newShimConfig(config PodConfig) interface{} {
 type shim interface {
 	// start starts the shim relying on its configuration and on
 	// parameters provided.
-	start(pod Pod, params ShimParams) (int, error)
+	start(pod Pod, lockFile string, params ShimParams) (int, error)
 }
