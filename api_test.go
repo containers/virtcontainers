@@ -562,6 +562,29 @@ func TestStatusPodSuccessful(t *testing.T) {
 
 	config := newTestPodConfigNoop()
 
+	expectedStatus := PodStatus{
+		ID: testPodID,
+		State: State{
+			State: StateReady,
+			URL:   "noopProxyURL",
+		},
+		Hypervisor:  MockHypervisor,
+		Agent:       NoopAgentType,
+		Annotations: podAnnotations,
+		ContainersStatus: []ContainerStatus{
+			{
+				ID: containerID,
+				State: State{
+					State: StateReady,
+					URL:   "",
+				},
+				PID:         0,
+				RootFs:      filepath.Join(testDir, testBundle),
+				Annotations: containerAnnotations,
+			},
+		},
+	}
+
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		t.Fatal(err)
@@ -572,8 +595,8 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if reflect.DeepEqual(config.Annotations, status.Annotations) == false {
-		t.Fatalf("Got annotations %v\n expecting %v", status.Annotations, config.Annotations)
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got pod status %v\n expecting %v", status, expectedStatus)
 	}
 }
 
