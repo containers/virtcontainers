@@ -561,6 +561,11 @@ func TestStatusPodSuccessful(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigNoop()
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
 
 	expectedStatus := PodStatus{
 		ID: testPodID,
@@ -568,9 +573,10 @@ func TestStatusPodSuccessful(t *testing.T) {
 			State: StateReady,
 			URL:   "noopProxyURL",
 		},
-		Hypervisor:  MockHypervisor,
-		Agent:       NoopAgentType,
-		Annotations: podAnnotations,
+		Hypervisor:       MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+		Agent:            NoopAgentType,
+		Annotations:      podAnnotations,
 		ContainersStatus: []ContainerStatus{
 			{
 				ID: containerID,
