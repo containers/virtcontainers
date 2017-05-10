@@ -640,6 +640,7 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 				ID:          container.id,
 				State:       container.state,
 				PID:         container.process.Pid,
+				StartTime:   container.process.StartTime,
 				RootFs:      container.config.RootFs,
 				Annotations: container.config.Annotations,
 			}, nil

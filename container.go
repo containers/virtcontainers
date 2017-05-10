@@ -21,20 +21,23 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // Process gathers data related to a container process.
 type Process struct {
-	Token string
-	Pid   int
+	Token     string
+	Pid       int
+	StartTime time.Time
 }
 
 // ContainerStatus describes a container status.
 type ContainerStatus struct {
-	ID     string
-	State  State
-	PID    int
-	RootFs string
+	ID        string
+	State     State
+	PID       int
+	StartTime time.Time
+	RootFs    string
 
 	// Annotations allow clients to store arbitrary values,
 	// for example to add additional status values required
@@ -504,8 +507,9 @@ func (c *Container) createShimProcess(token, url, console string) (*Process, err
 	}
 
 	process := &Process{
-		Token: token,
-		Pid:   pid,
+		Token:     token,
+		Pid:       pid,
+		StartTime: time.Now().UTC(),
 	}
 
 	return process, nil
