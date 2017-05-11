@@ -735,3 +735,25 @@ func TestGetContainer(t *testing.T) {
 		}
 	}
 }
+
+func TestGetAllContainers(t *testing.T) {
+	containerIDs := []string{"abc", "123", "xyz", "rgb"}
+	containers := []*Container{}
+
+	for _, id := range containerIDs {
+		c := Container{id: id}
+		containers = append(containers, &c)
+	}
+
+	pod := Pod{
+		containers: containers,
+	}
+
+	list := pod.GetAllContainers()
+
+	for i, c := range list {
+		if c.id != containerIDs[i] {
+			t.Fatal()
+		}
+	}
+}
