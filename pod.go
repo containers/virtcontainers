@@ -52,8 +52,9 @@ const (
 
 // State is a pod state structure.
 type State struct {
-	State stateString `json:"state"`
-	URL   string      `json:"url,omitempty"`
+	State        stateString `json:"state"`
+	URL          string      `json:"url,omitempty"`
+	shimLockFile string      `json:"shimLockFile,omitempty"`
 }
 
 // valid checks that the pod state is valid.
@@ -230,6 +231,7 @@ type Cmd struct {
 
 	Interactive bool
 	Console     string
+	StandAlone  bool
 }
 
 // Resources describes VM resources configuration.
@@ -396,6 +398,16 @@ func (p *Pod) URL() string {
 // GetContainers returns a container config list.
 func (p *Pod) GetContainers() []*Container {
 	return p.containers
+}
+
+// GetContainer returns the container named by the containerID.
+func (p *Pod) GetContainer(containerID string) *Container {
+	for _, c := range p.containers {
+		if c.id == containerID {
+			return c
+		}
+	}
+	return nil
 }
 
 func (p *Pod) createSetStates() error {
@@ -645,14 +657,23 @@ func (p *Pod) startShims() error {
 			Console: p.containers[idx].config.Cmd.Console,
 		}
 
-		pid, err := p.shim.start(*p, shimParams)
+		var shimLockFile string
+		if p.containers[idx].StandAlone() == true {
+			shimLockFile, _, err = p.storage.containerURI(p.id, p.containers[idx].id, shimLockFileType)
+			if err != nil {
+				return err
+			}
+		}
+
+		pid, err := p.shim.start(*p, shimLockFile, shimParams)
 		if err != nil {
 			return err
 		}
 
 		p.containers[idx].process = Process{
-			Token: proxyInfos[idx].Token,
-			Pid:   pid,
+			Token:        proxyInfos[idx].Token,
+			Pid:          pid,
+			ShimLockFile: shimLockFile,
 		}
 
 		if err := p.containers[idx].storeProcess(); err != nil {

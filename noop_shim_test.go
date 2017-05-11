@@ -26,7 +26,7 @@ func TestNoopShimStart(t *testing.T) {
 	params := ShimParams{}
 	expected := 0
 
-	pid, err := s.start(pod, params)
+	pid, err := s.start(pod, "", params)
 	if err != nil {
 		t.Fatal(err)
 	}

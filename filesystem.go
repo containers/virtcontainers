@@ -45,6 +45,9 @@ const (
 
 	// lockFileType represents a lock file type (pod only)
 	lockFileType
+
+	// shimLockFileType represents a lock file type for the shim
+	shimLockFileType
 )
 
 // configFile is the file name used for every JSON pod configuration.
@@ -61,6 +64,11 @@ const processFile = "process.json"
 
 // lockFile is the file name locking the usage of a pod.
 const lockFileName = "lock"
+
+// shimLockFileName is the file locked by the shim
+// This file is an exclusive lock and will be unlocked
+// automatically when then shim ends
+const shimLockFileName = "shim.lock"
 
 // dirMode is the permission bits used for creating a directory
 const dirMode = os.FileMode(0750)
@@ -217,7 +225,7 @@ func resourceDir(podSpecific bool, podID, containerID string, resource podResour
 	case configFileType:
 		path = configStoragePath
 		break
-	case stateFileType, networkFileType, processFileType, lockFileType:
+	case stateFileType, networkFileType, processFileType, lockFileType, shimLockFileType:
 		path = runStoragePath
 		break
 	default:
@@ -257,6 +265,9 @@ func (fs *filesystem) resourceURI(podSpecific bool, podID, containerID string, r
 		filename = processFile
 	case lockFileType:
 		filename = lockFileName
+		break
+	case shimLockFileType:
+		filename = shimLockFileName
 		break
 	default:
 		return "", "", fmt.Errorf("Invalid pod resource")

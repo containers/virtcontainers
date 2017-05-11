@@ -25,8 +25,9 @@ import (
 
 // Process gathers data related to a container process.
 type Process struct {
-	Token string
-	Pid   int
+	Token        string
+	Pid          int
+	ShimLockFile string
 }
 
 // ContainerStatus describes a container status.
@@ -124,6 +125,28 @@ func (c *Container) URL() string {
 	return c.pod.URL()
 }
 
+// StandAlone returns true if the container was started by a
+// runtime that is running standalone, else false
+func (c *Container) StandAlone() bool {
+	return c.config.Cmd.StandAlone
+}
+
+// Wait waits for container to end returning nil on success, else an error
+func (c *Container) Wait() error {
+	if c.process.ShimLockFile == "" {
+		// there is not shim lock file we can't monitor the shim
+		return fmt.Errorf("Shim lock file does not exist")
+	}
+
+	f, err := os.Open(c.process.ShimLockFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+}
+
 func (c *Container) startShim() error {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
@@ -144,14 +167,23 @@ func (c *Container) startShim() error {
 		Console: c.config.Cmd.Console,
 	}
 
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
+	var shimLockFile string
+	if c.StandAlone() == true {
+		shimLockFile, _, err = c.pod.storage.containerURI(c.pod.id, c.id, shimLockFileType)
+		if err != nil {
+			return err
+		}
+	}
+
+	pid, err := c.pod.shim.start(*(c.pod), shimLockFile, shimParams)
 	if err != nil {
 		return err
 	}
 
 	c.process = Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
+		Token:        proxyInfo.Token,
+		Pid:          pid,
+		ShimLockFile: shimLockFile,
 	}
 
 	if err := c.storeProcess(); err != nil {
@@ -475,14 +507,23 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 		Console: cmd.Console,
 	}
 
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
+	var shimLockFile string
+	if c.StandAlone() == true {
+		shimLockFile, _, err = c.pod.storage.containerURI(c.pod.id, c.id, shimLockFileType)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	pid, err := c.pod.shim.start(*(c.pod), shimLockFile, shimParams)
 	if err != nil {
 		return nil, err
 	}
 
 	process := &Process{
-		Token: proxyInfo.Token,
-		Pid:   pid,
+		Token:        proxyInfo.Token,
+		Pid:          pid,
+		ShimLockFile: shimLockFile,
 	}
 
 	if err := c.pod.agent.exec(c.pod, *c, *process, cmd); err != nil {

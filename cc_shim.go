@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 type ccShim struct{}
@@ -35,7 +36,9 @@ var consoleFileMode = os.FileMode(0660)
 // start is the ccShim start implementation.
 // It starts the cc-shim binary with URL and token flags provided by
 // the proxy.
-func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
+// If lockFile is not an empty string it creates and locks the lockFile before
+// start the shim therefore lockFile is inherited by the shim
+func (s *ccShim) start(pod Pod, lockFile string, params ShimParams) (int, error) {
 	if pod.config == nil {
 		return -1, fmt.Errorf("Pod config cannot be nil")
 	}
@@ -81,6 +84,24 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 			f.Close()
 		}
 	}()
+
+	if lockFile != "" {
+		//Create lockFile
+		f, err := os.OpenFile(lockFile, os.O_RDONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return -1, err
+		}
+		defer f.Close()
+
+		// Locks lockFile
+		err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+		if err != nil {
+			return -1, err
+		}
+
+		//Do not close lockFile on exec
+		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return -1, err
