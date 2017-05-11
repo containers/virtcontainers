@@ -1402,6 +1402,10 @@ func TestStatusContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.StartTime = status.StartTime
+
 	if reflect.DeepEqual(status, expectedStatus) == false {
 		t.Fatalf("Got container status %v, expected %v", status, expectedStatus)
 	}
