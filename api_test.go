@@ -1335,6 +1335,64 @@ func TestStatusContainerSuccessful(t *testing.T) {
 	}
 }
 
+func TestStatusContainer(t *testing.T) {
+	cleanUp()
+
+	// (homage to a great album! ;)
+	contID := "101"
+	config := newTestPodConfigNoop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.id)
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contConfig := newTestContainerConfigNoop(contID)
+
+	_, c, err := CreateContainer(p.id, contConfig)
+	if c == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	contDir := filepath.Join(podDir, contID)
+	_, err = os.Stat(contDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// fresh lookup
+	p2, err := fetchPod(p.id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedStatus := ContainerStatus{
+		ID: contID,
+		State: State{
+			State: StateReady,
+			URL:   "",
+		},
+		PID:         0,
+		RootFs:      filepath.Join(testDir, testBundle),
+		Annotations: containerAnnotations,
+	}
+
+	status, err := statusContainer(p2, contID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(status, expectedStatus) == false {
+		t.Fatalf("Got container status %v, expected %v", status, expectedStatus)
+	}
+}
+
 func TestStatusContainerFailing(t *testing.T) {
 	cleanUp()
 
