@@ -393,9 +393,19 @@ func (p *Pod) URL() string {
 	return p.state.URL
 }
 
-// GetContainers returns a container config list.
-func (p *Pod) GetContainers() []*Container {
+// GetAllContainers returns all containers.
+func (p *Pod) GetAllContainers() []*Container {
 	return p.containers
+}
+
+// GetContainer returns the container named by the containerID.
+func (p *Pod) GetContainer(containerID string) *Container {
+	for _, c := range p.containers {
+		if c.id == containerID {
+			return c
+		}
+	}
+	return nil
 }
 
 func (p *Pod) createSetStates() error {
