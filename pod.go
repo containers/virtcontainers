@@ -246,6 +246,7 @@ type PodStatus struct {
 	ID               string
 	State            State
 	Hypervisor       HypervisorType
+	HypervisorConfig HypervisorConfig
 	Agent            AgentType
 	ContainersStatus []ContainerStatus
 
