@@ -595,6 +595,10 @@ func TestStatusPodSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Copy the start time as we can't pretend we know what that
+	// value will be.
+	expectedStatus.ContainersStatus[0].StartTime = status.ContainersStatus[0].StartTime
+
 	if reflect.DeepEqual(status, expectedStatus) == false {
 		t.Fatalf("Got pod status %v\n expecting %v", status, expectedStatus)
 	}
@@ -1328,6 +1332,10 @@ func TestStatusContainerSuccessful(t *testing.T) {
 	status, err := StatusContainer(p.id, contID)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if status.StartTime.Equal(c.process.StartTime) == false {
+		t.Fatalf("Got container start time %v, expecting %v", status.StartTime, c.process.StartTime)
 	}
 
 	if reflect.DeepEqual(p.config.Containers[0].Annotations, status.Annotations) == false {
