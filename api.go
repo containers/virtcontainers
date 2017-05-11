@@ -370,7 +370,7 @@ func StatusPod(podID string) (PodStatus, error) {
 
 	var contStatusList []ContainerStatus
 	for _, container := range pod.containers {
-		contStatus, err := StatusContainer(podID, container.id)
+		contStatus, err := statusContainer(pod, container.id)
 		if err != nil {
 			return PodStatus{}, err
 		}
@@ -635,6 +635,10 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 		return ContainerStatus{}, err
 	}
 
+	return statusContainer(pod, containerID)
+}
+
+func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 	for _, container := range pod.containers {
 		if container.id == containerID {
 			return ContainerStatus{
