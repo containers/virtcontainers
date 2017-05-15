@@ -29,7 +29,7 @@ var testKeyHook = "test-key"
 var testContainerIDHook = "test-container-id"
 var testControllerIDHook = "test-controller-id"
 var testProcessIDHook = 12345
-var testBinHookPath = "/tmp/bin/hook"
+var testBinHookPath = "/usr/bin/virtcontainers/bin/test/hook"
 
 func TestBuildHookState(t *testing.T) {
 	expected := specs.State{

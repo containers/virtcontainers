@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-var testShimPath = "/tmp/bin/cc-shim-mock"
+var testShimPath = "/usr/bin/virtcontainers/bin/test/shim"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
 var testWrongConsolePath = "/foo/wrong-console"
 var testConsolePath = "tty-console"
