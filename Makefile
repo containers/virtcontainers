@@ -43,6 +43,18 @@ shim:
 binaries: virtc pause hook shim
 
 #
+# Tests
+#
+
+check: check-go-static check-go-test
+
+check-go-static:
+	.ci/go-lint.sh
+
+check-go-test:
+	.ci/go-test.sh
+
+#
 # Install
 #
 
@@ -98,6 +110,9 @@ clean:
 	hook \
 	shim \
 	binaries \
+	check \
+	check-go-static \
+	check-go-test \
 	install \
 	uninstall \
 	clean

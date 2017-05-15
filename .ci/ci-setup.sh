@@ -60,24 +60,9 @@ chronic sudo install --owner root --group root --mode 0644 ${containers_img} ${c
 echo -e "Create symbolic link ${cc_img_path}/${cc_img_link_name}"
 chronic sudo ln -fs ${cc_img_path}/${containers_img} ${cc_img_path}/${cc_img_link_name}
 
-echo "Download golang tools"
-go get github.com/fzipp/gocyclo
-go get github.com/gordonklaus/ineffassign
-go get github.com/golang/lint/golint
-go get github.com/client9/misspell/cmd/misspell
-
 echo "Setup virtcontainers environment"
 chronic sudo -E bash utils/virtcontainers-setup.sh
 
-echo "Check and build virtcontainers"
-go_packages=$(go list ./... | grep -v vendor)
-go_files=`go list -f '{{.Dir}}/*.go' $go_packages`
-go get -t -v $go_packages
-go fmt $go_packages
-golint $go_packages
-go vet $go_packages
-gofmt -s -w $go_files
-gocyclo -over 15 $go_files
-ineffassign .
-go build -o hack/virtc/virtc hack/virtc/main.go
-go build $go_packages
+echo "Install virtcontainers"
+chronic make
+chronic sudo make install

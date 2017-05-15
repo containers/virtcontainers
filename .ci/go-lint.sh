@@ -13,15 +13,28 @@
 # limitations under the License.
 #
 
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
-set -x
+set -o errexit
+set -o nounset
 
-make check
+if [ ! $(command -v gometalinter) ]
+then
+	go get github.com/alecthomas/gometalinter
+	gometalinter --install --vendor
+fi
 
-sudo -E go test -bench=.
-
-sudo -E go test -bench=CreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI -benchtime=60s
-
-sudo -E go test -bench=CreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI -benchtime=60s
+gometalinter \
+	--exclude='error return value not checked.*(Close|Log|Print).*\(errcheck\)$' \
+	--exclude='.*_test\.go:.*error return value not checked.*\(errcheck\)$' \
+	--exclude='duplicate of.*_test.go.*\(dupl\)$' \
+	--disable=aligncheck \
+	--disable=gotype \
+	--disable=gas \
+	--disable=vetshadow \
+	--cyclo-over=15 \
+	--tests \
+	--deadline=600s \
+	--vendor \
+	--errors \
+	./...

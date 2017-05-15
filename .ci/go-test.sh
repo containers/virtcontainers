@@ -16,12 +16,13 @@
 #!/bin/bash
 
 set -e
-set -x
 
-make check
-
-sudo -E go test -bench=.
-
-sudo -E go test -bench=CreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI -benchtime=60s
-
-sudo -E go test -bench=CreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI -benchtime=60s
+test_packages=$(go list ./... | grep -v vendor)
+echo "Run go test and generate coverage:"
+for pkg in $test_packages; do
+	if [ "$pkg" = "github.com/containers/virtcontainers" ]; then
+		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -cover -coverprofile=profile.cov $pkg
+	else
+		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -cover $pkg
+	fi
+done
