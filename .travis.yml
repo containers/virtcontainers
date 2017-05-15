@@ -24,7 +24,7 @@ before_install:
 - go get github.com/opencontainers/runc/libcontainer/configs
 
 install:
-- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/ci/ci-setup.sh
+- sudo env "PATH=$PATH" bash $GOPATH/src/github.com/containers/virtcontainers/utils/virtcontainers-setup.sh
 - go_packages=$(go list ./... | grep -v vendor)
 - go_files=`go list -f '{{.Dir}}/*.go' $go_packages`
 - go get -t -v $go_packages
