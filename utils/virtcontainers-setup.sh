@@ -31,9 +31,6 @@ mkdir -p ${tmpdir}/${virtcontainers_build_dir}
 TMPDIR="/tmp"
 OPTDIR="/opt"
 ETCDIR="/etc"
-echo -e "Create ${TMPDIR}/bin (needed by testing)"
-rm -rf ${TMPDIR}/bin
-mkdir -p ${TMPDIR}/bin
 
 echo -e "Create ${TMPDIR}/cni/bin (needed by testing)"
 rm -rf ${TMPDIR}/cni/bin
@@ -67,16 +64,6 @@ git clone https://github.com/containernetworking/cni.git
 echo "Copy CNI config files"
 cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf ${ETCDIR}/cni/net.d/
 cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf ${ETCDIR}/cni/net.d/
-
-hook_bin="hook"
-echo -e "Build hook binary and copy it to ${TMPDIR}/bin"
-go build -o ${hook_bin} $GOPATH/src/github.com/containers/virtcontainers/hook/mock/hook.go
-cp ${hook_bin} ${TMPDIR}/bin/
-
-shim_bin="cc-shim-mock"
-echo -e "Build ${shim_bin} binary and copy it to ${TMPDIR}/bin"
-go build -o ${shim_bin} $GOPATH/src/github.com/containers/virtcontainers/shim/mock/shim.go
-cp ${shim_bin} ${TMPDIR}/bin/
 
 echo -e "Build pause binary and copy it to pause bundle (${pause_bundle}/${rootfsdir}/bin)"
 pushd $GOPATH/src/github.com/containers/virtcontainers/pause

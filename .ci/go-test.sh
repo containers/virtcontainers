@@ -18,11 +18,13 @@
 set -e
 
 test_packages=$(go list ./... | grep -v vendor)
+test_ldflags="-X github.com/containers/virtcontainers/pkg/mock.DefaultMockCCShimBinPath=$1 \
+		-X github.com/containers/virtcontainers/pkg/mock.DefaultMockHookBinPath=$2"
 echo "Run go test and generate coverage:"
 for pkg in $test_packages; do
 	if [ "$pkg" = "github.com/containers/virtcontainers" ]; then
-		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -cover -coverprofile=profile.cov $pkg
+		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -ldflags "$test_ldflags" -cover -coverprofile=profile.cov $pkg
 	else
-		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -cover $pkg
+		sudo env GOPATH=$GOPATH GOROOT=$GOROOT PATH=$PATH go test -ldflags "$test_ldflags" -cover $pkg
 	fi
 done

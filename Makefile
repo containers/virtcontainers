@@ -52,7 +52,9 @@ check-go-static:
 	.ci/go-lint.sh
 
 check-go-test:
-	.ci/go-test.sh
+	.ci/go-test.sh \
+		$(TEST_BIN_DIR)/$(SHIM_BIN) \
+		$(TEST_BIN_DIR)/$(HOOK_BIN)
 
 #
 # Install
