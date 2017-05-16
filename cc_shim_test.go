@@ -20,12 +20,22 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	. "github.com/containers/virtcontainers/pkg/mock"
 )
 
-var testShimPath = "/tmp/bin/cc-shim-mock"
+var testShimPath = "/usr/bin/virtcontainers/bin/test/shim"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
 var testWrongConsolePath = "/foo/wrong-console"
 var testConsolePath = "tty-console"
+
+func getMockCCShimBinPath() string {
+	if DefaultMockCCShimBinPath == "" {
+		return testShimPath
+	}
+
+	return DefaultMockCCShimBinPath
+}
 
 func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {
 	s := &ccShim{}
@@ -77,7 +87,7 @@ func TestCCShimStartParamsTokenEmptyFailure(t *testing.T) {
 		config: &PodConfig{
 			ShimType: CCShimType,
 			ShimConfig: CCShimConfig{
-				Path: testShimPath,
+				Path: getMockCCShimBinPath(),
 			},
 		},
 	}
@@ -90,7 +100,7 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 		config: &PodConfig{
 			ShimType: CCShimType,
 			ShimConfig: CCShimConfig{
-				Path: testShimPath,
+				Path: getMockCCShimBinPath(),
 			},
 		},
 	}
@@ -107,7 +117,7 @@ func TestCCShimStartSuccessful(t *testing.T) {
 		config: &PodConfig{
 			ShimType: CCShimType,
 			ShimConfig: CCShimConfig{
-				Path: testShimPath,
+				Path: getMockCCShimBinPath(),
 			},
 		},
 	}
@@ -125,7 +135,7 @@ func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {
 		config: &PodConfig{
 			ShimType: CCShimType,
 			ShimConfig: CCShimConfig{
-				Path: testShimPath,
+				Path: getMockCCShimBinPath(),
 			},
 		},
 	}
@@ -153,7 +163,7 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 		config: &PodConfig{
 			ShimType: CCShimType,
 			ShimConfig: CCShimConfig{
-				Path: testShimPath,
+				Path: getMockCCShimBinPath(),
 			},
 		},
 	}
