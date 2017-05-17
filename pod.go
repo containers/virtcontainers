@@ -389,6 +389,20 @@ func (p *Pod) Annotations(key string) (string, error) {
 	return value, nil
 }
 
+// SetAnnotations sets or adds an annotations
+func (p *Pod) SetAnnotations(annotations map[string]string) error {
+	for k, v := range annotations {
+		p.config.Annotations[k] = v
+	}
+
+	err := p.storage.storePodResource(p.id, configFileType, *(p.config))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // URL returns the pod URL for any runtime to connect to the proxy.
 func (p *Pod) URL() string {
 	return p.state.URL
