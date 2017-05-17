@@ -17,9 +17,11 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
+	"syscall"
 	"testing"
+	"unsafe"
 
 	. "github.com/containers/virtcontainers/pkg/mock"
 )
@@ -149,15 +151,63 @@ func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {
 	testCCShimStart(t, pod, params, true)
 }
 
+func ioctl(fd uintptr, flag, data uintptr) error {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, flag, data); err != 0 {
+		return err
+	}
+
+	return nil
+}
+
+// unlockpt unlocks the slave pseudoterminal device corresponding to the master pseudoterminal referred to by f.
+func unlockpt(f *os.File) error {
+	var u int32
+
+	return ioctl(f.Fd(), syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&u)))
+}
+
+// ptsname retrieves the name of the first available pts for the given master.
+func ptsname(f *os.File) (string, error) {
+	var n int32
+
+	if err := ioctl(f.Fd(), syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n))); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("/dev/pts/%d", n), nil
+}
+
+func newConsole() (*os.File, string, error) {
+	master, err := os.OpenFile("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, "", err
+	}
+
+	console, err := ptsname(master)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if err := unlockpt(master); err != nil {
+		return nil, "", err
+	}
+
+	if err := os.Chmod(console, 0600); err != nil {
+		return nil, "", err
+	}
+
+	return master, console, nil
+}
+
 func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 	cleanUp()
 
-	consolePath := filepath.Join(testDir, testConsolePath)
-	f, err := os.Create(consolePath)
+	master, console, err := newConsole()
+	t.Logf("Console created for tests:%s\n", console)
+
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
 
 	pod := Pod{
 		config: &PodConfig{
@@ -171,8 +221,9 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 	params := ShimParams{
 		Token:   "testToken",
 		URL:     testProxyURL,
-		Console: consolePath,
+		Console: console,
 	}
 
 	testCCShimStart(t, pod, params, false)
+	master.Close()
 }
