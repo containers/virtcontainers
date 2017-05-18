@@ -1,4 +1,4 @@
-memo = "c198a36088d02f37969285b50b8e1c2f5e8b35ec380dbf1f0eed16f39d6202c0"
+memo = "917f44d6975d69f6054c2dffad960b595e8c0071442c56c5a1bc892f34909b92"
 
 [[projects]]
   branch = "master"
@@ -43,7 +43,8 @@ memo = "c198a36088d02f37969285b50b8e1c2f5e8b35ec380dbf1f0eed16f39d6202c0"
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "a5c4e91dae9533c46a98f122b5085c0b3fe27ee4"
+  revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
+  version = "v1.0.0-rc5"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
