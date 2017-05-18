@@ -2,6 +2,8 @@
 [![Coverage Status](https://coveralls.io/repos/github/containernetworking/cni/badge.svg?branch=master)](https://coveralls.io/github/containernetworking/cni?branch=master)
 [![Slack Status](https://cryptic-tundra-43194.herokuapp.com/badge.svg)](https://cryptic-tundra-43194.herokuapp.com/)
 
+![CNI Logo](logo.png)
+
 ---
 
 # Community Sync Meeting
@@ -35,6 +37,7 @@ To avoid duplication, we think it is prudent to define a common interface betwee
 - [rkt - container engine](https://coreos.com/blog/rkt-cni-networking.html)
 - [Kurma - container runtime](http://kurma.io/)
 - [Kubernetes - a system to simplify container operations](http://kubernetes.io/docs/admin/network-plugins/)
+- [OpenShift - Kubernetes with additional enterprise features](https://github.com/openshift/origin/blob/master/docs/openshift_networking_requirements.md)
 - [Cloud Foundry - a platform for cloud applications](https://github.com/cloudfoundry-incubator/netman-release)
 - [Mesos - a distributed systems kernel](https://github.com/apache/mesos/blob/master/docs/cni.md)
 
