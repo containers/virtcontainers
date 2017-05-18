@@ -403,6 +403,11 @@ func (p *Pod) SetAnnotations(annotations map[string]string) error {
 	return nil
 }
 
+// GetAnnotations returns pod's annotations
+func (p *Pod) GetAnnotations() map[string]string {
+	return p.config.Annotations
+}
+
 // URL returns the pod URL for any runtime to connect to the proxy.
 func (p *Pod) URL() string {
 	return p.state.URL
