@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -760,8 +761,9 @@ func TestGetAllContainers(t *testing.T) {
 
 func TestSetAnnotations(t *testing.T) {
 	pod := Pod{
-		id:      "abcxyz123",
-		storage: &filesystem{},
+		id:              "abcxyz123",
+		storage:         &filesystem{},
+		annotationsLock: &sync.RWMutex{},
 		config: &PodConfig{
 			Annotations: map[string]string{
 				"annotation1": "abc",
