@@ -52,6 +52,9 @@ type ContainerConfig struct {
 	// RootFs is the container workload image on the host.
 	RootFs string
 
+	// ReadOnlyRootfs indicates if the rootfs should be mounted readonly
+	ReadonlyRootfs bool
+
 	// Cmd specifies the command to run on a container
 	Cmd Cmd
 

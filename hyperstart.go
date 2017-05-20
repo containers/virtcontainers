@@ -214,10 +214,10 @@ func (h *hyper) removePauseBinary(podID string) error {
 	return os.RemoveAll(pauseDir)
 }
 
-func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string) error {
+func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string, readonly bool) error {
 	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 
-	return bindMount(cRootFs, rootfsDest)
+	return bindMount(cRootFs, rootfsDest, readonly)
 }
 
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
@@ -422,7 +422,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs); err != nil {
+	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}
