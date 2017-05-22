@@ -429,7 +429,7 @@ func (c *Container) stop() error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM)
+	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM, true)
 	if err != nil {
 		return err
 	}
@@ -475,7 +475,7 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 	return process, nil
 }
 
-func (c *Container) kill(signal syscall.Signal) error {
+func (c *Container) kill(signal syscall.Signal, all bool) error {
 	state, err := c.fetchState("signal")
 	if err != nil {
 		return err
@@ -490,7 +490,7 @@ func (c *Container) kill(signal syscall.Signal) error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, signal)
+	err = c.pod.agent.killContainer(*(c.pod), *c, signal, all)
 	if err != nil {
 		return err
 	}
