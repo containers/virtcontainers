@@ -199,9 +199,10 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 	}
 
 	containerConfig := vc.ContainerConfig{
-		ID:     cid,
-		RootFs: rootfs,
-		Cmd:    cmd,
+		ID:             cid,
+		RootFs:         rootfs,
+		ReadonlyRootfs: ocispec.Spec.Root.Readonly,
+		Cmd:            cmd,
 		Annotations: map[string]string{
 			ConfigPathKey: configPath,
 			BundlePathKey: bundlePath,
