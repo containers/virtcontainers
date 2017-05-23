@@ -25,6 +25,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	vc "github.com/containers/virtcontainers"
+	"github.com/kubernetes-incubator/cri-o/pkg/annotations"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -37,6 +38,29 @@ var (
 
 	// BundlePathKey is the annotation key to fetch the OCI configuration file path.
 	BundlePathKey = "com.github.containers.virtcontainers.pkg.oci.bundle_path"
+
+	// ContainerTypeKey is the annotation key to fetch container type.
+	ContainerTypeKey = "com.github.containers.virtcontainers.pkg.oci.container_type"
+
+	// CRIContainerTypeKeyList lists all the CRI keys that could define
+	// the container type from annotations in the config.json.
+	CRIContainerTypeKeyList = []string{annotations.ContainerType}
+
+	// CRISandboxNameKeyList lists all the CRI keys that could define
+	// the sandbox name (pod ID) from annotations in the config.json.
+	CRISandboxNameKeyList = []string{annotations.SandboxName}
+)
+
+const (
+	// StateCreated represents a container that has been created and is
+	// ready to be run.
+	StateCreated = "created"
+
+	// StateRunning represents a container that's currently running.
+	StateRunning = "running"
+
+	// StateStopped represents a container that has been stopped.
+	StateStopped = "stopped"
 )
 
 // CompatOCIProcess is a structure inheriting from spec.Process defined
@@ -161,21 +185,129 @@ func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 	return netConf, nil
 }
 
-// PodConfig converts an OCI compatible runtime configuration file
-// to a virtcontainers pod configuration structure.
-func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodConfig, *CompatOCISpec, error) {
-	configPath := filepath.Join(bundlePath, "config.json")
+// getConfigPath returns the full config path from the bundle
+// path provided.
+func getConfigPath(bundlePath string) string {
+	return filepath.Join(bundlePath, "config.json")
+}
+
+// ParseConfigJSON unmarshals the config.json file.
+func ParseConfigJSON(bundlePath string) (CompatOCISpec, error) {
+	configPath := getConfigPath(bundlePath)
 	ociLog.Debugf("converting %s", configPath)
 
 	configByte, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return nil, nil, err
+		return CompatOCISpec{}, err
 	}
 
 	var ocispec CompatOCISpec
-	if err = json.Unmarshal(configByte, &ocispec); err != nil {
-		return nil, nil, err
+	if err := json.Unmarshal(configByte, &ocispec); err != nil {
+		return CompatOCISpec{}, err
 	}
+
+	return ocispec, nil
+}
+
+// GetContainerType determines which type of container matches the annotations
+// table provided.
+func GetContainerType(annotations map[string]string) (vc.ContainerType, error) {
+	if containerType, ok := annotations[ContainerTypeKey]; ok {
+		return vc.ContainerType(containerType), nil
+	}
+
+	ociLog.Errorf("Annotations[%s] not found, cannot determine the container type",
+		ContainerTypeKey)
+	return vc.UnknownContainerType, fmt.Errorf("Could not find container type")
+}
+
+// ContainerType returns the type of container and if the container type was
+// found from CRI servers annotations.
+func (spec *CompatOCISpec) ContainerType() (vc.ContainerType, error) {
+	for _, key := range CRIContainerTypeKeyList {
+		containerType, ok := spec.Annotations[key]
+		if !ok {
+			continue
+		}
+
+		switch containerType {
+		case annotations.ContainerTypeSandbox:
+			return vc.PodSandbox, nil
+		case annotations.ContainerTypeContainer:
+			return vc.PodContainer, nil
+		}
+
+		return vc.UnknownContainerType, fmt.Errorf("Unknown container type %s", containerType)
+	}
+
+	return vc.PodSandbox, nil
+}
+
+// PodID determines the pod ID related to an OCI configuration. This function
+// is expected to be called only when the container type is "PodContainer".
+func (spec *CompatOCISpec) PodID() (string, error) {
+	for _, key := range CRISandboxNameKeyList {
+		podID, ok := spec.Annotations[key]
+		if ok {
+			return podID, nil
+		}
+	}
+
+	return "", fmt.Errorf("Could not find pod ID")
+}
+
+// PodConfig converts an OCI compatible runtime configuration file
+// to a virtcontainers pod configuration structure.
+func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string) (vc.PodConfig, error) {
+	containerConfig, err := ContainerConfig(ocispec, bundlePath, cid, console)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
+	configPath := getConfigPath(bundlePath)
+
+	networkConfig, err := networkConfig(ocispec)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
+	podConfig := vc.PodConfig{
+		ID: cid,
+
+		Hooks: containerHooks(ocispec),
+
+		VMConfig: runtime.VMConfig,
+
+		HypervisorType:   runtime.HypervisorType,
+		HypervisorConfig: runtime.HypervisorConfig,
+
+		AgentType:   runtime.AgentType,
+		AgentConfig: runtime.AgentConfig,
+
+		ProxyType:   runtime.ProxyType,
+		ProxyConfig: runtime.ProxyConfig,
+
+		ShimType:   runtime.ShimType,
+		ShimConfig: runtime.ShimConfig,
+
+		NetworkModel:  vc.CNMNetworkModel,
+		NetworkConfig: networkConfig,
+
+		Containers: []vc.ContainerConfig{containerConfig},
+
+		Annotations: map[string]string{
+			ConfigPathKey: configPath,
+			BundlePathKey: bundlePath,
+		},
+	}
+
+	return podConfig, nil
+}
+
+// ContainerConfig converts an OCI compatible runtime configuration
+// file to a virtcontainers container configuration structure.
+func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string) (vc.ContainerConfig, error) {
+	configPath := getConfigPath(bundlePath)
 
 	rootfs := ocispec.Root.Path
 	if !filepath.IsAbs(rootfs) {
@@ -209,72 +341,39 @@ func PodConfig(runtime RuntimeConfig, bundlePath, cid, console string) (*vc.PodC
 		},
 	}
 
-	networkConfig, err := networkConfig(ocispec)
+	cType, err := ocispec.ContainerType()
 	if err != nil {
-		return nil, nil, err
+		return vc.ContainerConfig{}, err
 	}
 
-	podConfig := vc.PodConfig{
-		ID: cid,
+	containerConfig.Annotations[ContainerTypeKey] = string(cType)
 
-		Hooks: containerHooks(ocispec),
-
-		VMConfig: runtime.VMConfig,
-
-		HypervisorType:   runtime.HypervisorType,
-		HypervisorConfig: runtime.HypervisorConfig,
-
-		AgentType:   runtime.AgentType,
-		AgentConfig: runtime.AgentConfig,
-
-		ProxyType:   runtime.ProxyType,
-		ProxyConfig: runtime.ProxyConfig,
-
-		ShimType:   runtime.ShimType,
-		ShimConfig: runtime.ShimConfig,
-
-		NetworkModel:  vc.CNMNetworkModel,
-		NetworkConfig: networkConfig,
-
-		Containers: []vc.ContainerConfig{containerConfig},
-
-		Annotations: map[string]string{
-			ConfigPathKey: configPath,
-			BundlePathKey: bundlePath,
-		},
-	}
-
-	return &podConfig, &ocispec, nil
+	return containerConfig, nil
 }
 
-// StatusToOCIState translates a virtcontainers pod status into an OCI state.
-func StatusToOCIState(status vc.PodStatus) (spec.State, error) {
-	if len(status.ContainersStatus) != 1 {
-		return spec.State{},
-			fmt.Errorf("ContainerStatus list from PodStatus is wrong, expecting only one container status, got %v",
-				status.ContainersStatus)
-	}
-
+// StatusToOCIState translates a virtcontainers container status into an OCI state.
+func StatusToOCIState(status vc.ContainerStatus) (spec.State, error) {
 	state := spec.State{
 		Version:     spec.Version,
 		ID:          status.ID,
-		Status:      stateToOCIState(status.ContainersStatus[0].State),
-		Pid:         status.ContainersStatus[0].PID,
-		Bundle:      status.ContainersStatus[0].Annotations[BundlePathKey],
-		Annotations: status.ContainersStatus[0].Annotations,
+		Status:      StateToOCIState(status.State),
+		Pid:         status.PID,
+		Bundle:      status.Annotations[BundlePathKey],
+		Annotations: status.Annotations,
 	}
 
 	return state, nil
 }
 
-func stateToOCIState(state vc.State) string {
+// StateToOCIState translates a virtcontainers container state into an OCI one.
+func StateToOCIState(state vc.State) string {
 	switch state.State {
 	case vc.StateReady:
-		return "created"
+		return StateCreated
 	case vc.StateRunning:
-		return "running"
+		return StateRunning
 	case vc.StateStopped:
-		return "stopped"
+		return StateStopped
 	default:
 		return ""
 	}
@@ -317,12 +416,12 @@ func EnvVars(envs []string) ([]vc.EnvVar, error) {
 	return envVars, nil
 }
 
-// PodToOCIConfig returns an OCI spec configuration from the annotation
-// stored into the pod.
-func PodToOCIConfig(pod vc.Pod) (CompatOCISpec, error) {
-	ociConfigPath, err := pod.Annotations(ConfigPathKey)
-	if err != nil {
-		return CompatOCISpec{}, err
+// GetOCIConfig returns an OCI spec configuration from the annotation
+// stored into the container status.
+func GetOCIConfig(status vc.ContainerStatus) (CompatOCISpec, error) {
+	ociConfigPath, ok := status.Annotations[ConfigPathKey]
+	if !ok {
+		return CompatOCISpec{}, fmt.Errorf("Annotation[%s] not found", ConfigPathKey)
 	}
 
 	data, err := ioutil.ReadFile(ociConfigPath)
