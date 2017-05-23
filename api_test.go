@@ -1656,6 +1656,51 @@ func TestStatusContainerFailing(t *testing.T) {
 	}
 }
 
+func TestProcessListContainer(t *testing.T) {
+	cleanUp()
+
+	assert := assert.New(t)
+
+	contID := "abc"
+	options := ProcessListOptions{
+		Format: "json",
+		Args:   []string{"-ef"},
+	}
+
+	_, err := ProcessListContainer("", "", options)
+	assert.Error(err)
+
+	_, err = ProcessListContainer("xyz", "", options)
+	assert.Error(err)
+
+	_, err = ProcessListContainer("xyz", "xyz", options)
+	assert.Error(err)
+
+	config := newTestPodConfigNoop()
+	p, err := CreatePod(config)
+	assert.NoError(err)
+	assert.NotNil(p)
+
+	pImpl, ok := p.(*Pod)
+	assert.True(ok)
+	defer os.RemoveAll(pImpl.configPath)
+
+	contConfig := newTestContainerConfigNoop(contID)
+	_, c, err := CreateContainer(p.ID(), contConfig)
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	_, err = ProcessListContainer(pImpl.id, "xyz", options)
+	assert.Error(err)
+
+	_, err = ProcessListContainer("xyz", contID, options)
+	assert.Error(err)
+
+	_, err = ProcessListContainer(pImpl.id, contID, options)
+	// Pod not running, impossible to ps the container
+	assert.Error(err)
+}
+
 /*
  * Benchmarks
  */
