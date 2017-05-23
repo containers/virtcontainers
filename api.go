@@ -138,6 +138,11 @@ func DeletePod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
+	// Execute poststop hooks.
+	if err := p.config.Hooks.postStopHooks(); err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -162,23 +167,14 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Start it
 	err = p.start()
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute poststart hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStartHooks()
-	})
-	if err != nil {
+	// Execute poststart hooks.
+	if err := p.config.Hooks.postStartHooks(); err != nil {
 		return nil, err
 	}
 
@@ -204,23 +200,8 @@ func StopPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	// Fetch the network config
-	networkNS, err := p.storage.fetchPodNetwork(podID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Stop it.
 	err = p.stop()
-	if err != nil {
-		p.delete()
-		return nil, err
-	}
-
-	// Execute poststop hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStopHooks()
-	})
 	if err != nil {
 		p.delete()
 		return nil, err
