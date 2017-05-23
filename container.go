@@ -103,6 +103,11 @@ func (c *Container) ID() string {
 	return c.id
 }
 
+// Pod returns the pod handler related to this container.
+func (c *Container) Pod() *Pod {
+	return c.pod
+}
+
 // Process returns the container process.
 func (c *Container) Process() Process {
 	return c.process
