@@ -419,7 +419,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
+	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, false); err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}
