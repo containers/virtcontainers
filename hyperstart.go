@@ -111,13 +111,10 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 	}
 
 	process := &hyperstart.Process{
-		User:             cmd.User,
-		Group:            cmd.PrimaryGroup,
-		AdditionalGroups: cmd.SupplementaryGroups,
-		Terminal:         cmd.Interactive,
-		Args:             cmd.Args,
-		Envs:             envVars,
-		Workdir:          cmd.WorkDir,
+		Terminal: cmd.Interactive,
+		Args:     cmd.Args,
+		Envs:     envVars,
+		Workdir:  cmd.WorkDir,
 	}
 
 	return process, nil
