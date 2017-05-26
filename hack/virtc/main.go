@@ -962,7 +962,7 @@ func main() {
 		}
 
 		// Set virtcontainers logger.
-		vc.SetLog(virtcLog)
+		vc.SetLogger(virtcLog)
 
 		return nil
 	}
