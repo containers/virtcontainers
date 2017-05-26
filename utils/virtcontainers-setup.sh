@@ -59,7 +59,7 @@ cp -r ${busybox_bundle}/* ${pause_bundle}/
 echo -e "Move to ${tmpdir}/${virtcontainers_build_dir}"
 pushd ${tmpdir}/${virtcontainers_build_dir}
 echo "Clone cni"
-git clone https://github.com/containernetworking/cni.git
+git clone https://github.com/containernetworking/plugins.git
 
 echo "Copy CNI config files"
 cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf ${ETCDIR}/cni/net.d/
@@ -71,7 +71,7 @@ make
 cp pause ${pause_bundle}/${rootfsdir}/bin/
 make clean
 popd
-pushd cni
+pushd plugins
 ./build.sh
 cp ./bin/bridge ${TMPDIR}/cni/bin/cni-bridge
 cp ./bin/loopback ${TMPDIR}/cni/bin/loopback
