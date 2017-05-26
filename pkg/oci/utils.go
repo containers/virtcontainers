@@ -80,8 +80,8 @@ type RuntimeConfig struct {
 
 var ociLog = logrus.New()
 
-// SetLog sets the logger for oci package.
-func SetLog(logger *logrus.Logger) {
+// SetLogger sets the logger for oci package.
+func SetLogger(logger *logrus.Logger) {
 	ociLog = logger
 }
 

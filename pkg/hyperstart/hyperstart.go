@@ -131,8 +131,8 @@ type Hyperstart struct {
 
 var hyperLog = logrus.New()
 
-// SetLog sets the logger for hyperstart package.
-func SetLog(logger *logrus.Logger) {
+// SetLogger sets the logger for hyperstart package.
+func SetLogger(logger *logrus.Logger) {
 	hyperLog = logger
 }
 

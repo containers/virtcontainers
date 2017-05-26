@@ -30,8 +30,8 @@ func init() {
 
 var virtLog = logrus.New()
 
-// SetLog sets the logger for virtcontainers package.
-func SetLog(logger *logrus.Logger) {
+// SetLogger sets the logger for virtcontainers package.
+func SetLogger(logger *logrus.Logger) {
 	virtLog = logger
 }
 
