@@ -819,11 +819,6 @@ func (p *Pod) setPodState(state State) error {
 	return nil
 }
 
-// endSession makes sure to end the session properly.
-func (p *Pod) endSession() error {
-	return nil
-}
-
 func (p *Pod) setContainerState(containerID string, state stateString) error {
 	if containerID == "" {
 		return errNeedContainerID

@@ -87,11 +87,6 @@ func CreatePod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return p, nil
 }
 
@@ -134,11 +129,6 @@ func DeletePod(podID string) (*Pod, error) {
 
 	// Delete it.
 	err = p.delete()
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return nil, err
 	}
@@ -187,11 +177,6 @@ func StartPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return p, nil
 }
 
@@ -233,11 +218,6 @@ func StopPod(podID string) (*Pod, error) {
 	})
 	if err != nil {
 		p.delete()
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
 		return nil, err
 	}
 
@@ -313,11 +293,6 @@ func RunPod(podConfig PodConfig) (*Pod, error) {
 	err = p.network.run(networkNS.NetNsPath, func() error {
 		return p.config.Hooks.postStartHooks()
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return nil, err
 	}
@@ -428,11 +403,6 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (*Pod, *Cont
 		return nil, nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	return p, c, nil
 }
 
@@ -483,11 +453,6 @@ func DeleteContainer(podID, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return c, nil
 }
 
@@ -523,11 +488,6 @@ func StartContainer(podID, containerID string) (*Container, error) {
 	err = c.start()
 	if err != nil {
 		c.delete()
-		return nil, err
-	}
-
-	err = p.endSession()
-	if err != nil {
 		return nil, err
 	}
 
@@ -569,11 +529,6 @@ func StopContainer(podID, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	err = p.endSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return c, nil
 }
 
@@ -607,11 +562,6 @@ func EnterContainer(podID, containerID string, cmd Cmd) (*Pod, *Container, *Proc
 
 	// Enter it.
 	process, err := c.enter(cmd)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -687,11 +637,6 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 
 	// Send a signal to the process.
 	err = c.kill(signal, all)
-	if err != nil {
-		return err
-	}
-
-	err = p.endSession()
 	if err != nil {
 		return err
 	}
