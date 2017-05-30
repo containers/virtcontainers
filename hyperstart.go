@@ -35,6 +35,7 @@ var mountTag = "hyperShared"
 var rootfsDir = "rootfs"
 var pauseBinName = "pause"
 var pauseContainerName = "pause-container"
+var maxHostnameLen = 64
 
 const (
 	unixSocket = "unix"
@@ -311,8 +312,13 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
+	hostname := pod.id
+	if len(hostname) > maxHostnameLen {
+		hostname = hostname[:maxHostnameLen]
+	}
+
 	hyperPod := hyperstart.Pod{
-		Hostname:   pod.id,
+		Hostname:   hostname,
 		Containers: []hyperstart.Container{},
 		Interfaces: ifaces,
 		Routes:     routes,
