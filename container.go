@@ -189,6 +189,14 @@ func (c *Container) fetchProcess() (Process, error) {
 	return c.pod.storage.fetchContainerProcess(c.podID, c.id)
 }
 
+func (c *Container) storeMounts() error {
+	return c.pod.storage.storeContainerMounts(c.podID, c.id, c.mounts)
+}
+
+func (c *Container) fetchMounts() ([]Mount, error) {
+	return c.pod.storage.fetchContainerMounts(c.podID, c.id)
+}
+
 // fetchContainer fetches a container config from a pod ID and returns a Container.
 func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 	if pod == nil {
