@@ -553,6 +553,8 @@ func (h *hyper) startPauseContainer(podID string) error {
 	return nil
 }
 
+var diskIndex = int(0)
+
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
@@ -564,6 +566,17 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Image:   c.id,
 		Rootfs:  rootfsDir,
 		Process: process,
+	}
+
+	if c.fstype != "" {
+		driveName, err := getVirtDriveName(diskIndex)
+		if err != nil {
+			return err
+		}
+
+		container.Fstype = c.fstype
+		container.Image = driveName
+		diskIndex = diskIndex + 1
 	}
 
 	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
