@@ -359,6 +359,10 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 		return err
 	}
 
+	if err := pod.addDrives(); err != nil {
+		return err
+	}
+
 	h.proxy = pod.proxy
 
 	return nil
