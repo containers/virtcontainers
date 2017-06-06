@@ -17,8 +17,12 @@
 package virtcontainers
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -90,4 +94,57 @@ func getDeviceForPath(path string) (*device, error) {
 	}
 
 	return dev, nil
+}
+
+const (
+	procMountsFile = "/proc/mounts"
+
+	fieldsPerLine = 6
+)
+
+const (
+	procDeviceIndex = iota
+	procPathIndex
+	procTypeIndex
+)
+
+func getDevicePathAndFsType(mountPoint string) (devicePath, fsType string, err error) {
+	if mountPoint == "" {
+		err = fmt.Errorf("Mount Point cannot be empty")
+		return
+	}
+
+	var file *os.File
+
+	file, err = os.Open(procMountsFile)
+	if err != nil {
+		return
+	}
+
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	for {
+		var line string
+
+		line, err = reader.ReadString('\n')
+		if err == io.EOF {
+			err = fmt.Errorf("Mount %s not found", mountPoint)
+			break
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) != fieldsPerLine {
+			err = fmt.Errorf("Incorrect no of fields (expected %d, got %d)) :%s", fieldsPerLine, len(fields), line)
+			break
+		}
+
+		if mountPoint == fields[procPathIndex] {
+			devicePath = fields[procDeviceIndex]
+			fsType = fields[procTypeIndex]
+			return
+		}
+	}
+
+	return
 }
