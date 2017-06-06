@@ -403,6 +403,50 @@ func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	return nil
 }
 
+func (h *hyper) addDrives(pod *Pod) error {
+	for _, c := range pod.containers {
+		dev, err := getDeviceForPath(c.rootFs)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Container:%s, Major:%d, Minor:%d, MountPoint:%s\n", c.id, dev.major, dev.minor, dev.mountPoint)
+
+		isDM, err := isDeviceMapper(dev.major, dev.minor)
+		if err != nil {
+			return err
+		}
+
+		if !isDM {
+			continue
+		}
+
+		// If device mapper device, then fetch the full path of the device
+		devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Device Path: %s, Fstype : %s\n", devicePath, fsType)
+
+		// Add drive with id as container id
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			File:   devicePath,
+			Format: "raw",
+			ID:     devID,
+		}
+
+		if err := pod.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		c.fstype = fsType
+	}
+	return nil
+
+}
+
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
 	ifaces, routes, err := h.buildNetworkInterfacesAndRoutes(pod)
@@ -435,6 +479,10 @@ func (h *hyper) startPod(pod Pod) error {
 		if err := h.startOneContainer(pod, *c); err != nil {
 			return err
 		}
+	}
+
+	if err := h.addDrives(&pod); err != nil {
+		return err
 	}
 
 	return nil

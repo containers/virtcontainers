@@ -104,6 +104,7 @@ type Container struct {
 	podID string
 
 	rootFs string
+	fstype string
 
 	config *ContainerConfig
 
