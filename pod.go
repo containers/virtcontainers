@@ -212,6 +212,14 @@ func (s *Sockets) String() string {
 	return strings.Join(sockSlice, " ")
 }
 
+// Drive represents a block storage drive in the case where the graph storage
+// driver has an underlying block storage device.
+type Drive struct {
+	File   string
+	Format string
+	ID     string
+}
+
 // EnvVar is a key/value structure representing a command
 // environment variable.
 type EnvVar struct {
