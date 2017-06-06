@@ -1093,3 +1093,53 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 
 	return p, nil
 }
+
+// addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
+// The container then uses the block device as its rootfs instead of overlay.
+// The container fstype is assigned the file system type of the block device to indicate this.
+func (p *Pod) addDrives() error {
+	for _, c := range p.containers {
+		dev, err := getDeviceForPath(c.rootFs)
+		if err != nil && err != errMountPointNotFound {
+			return err
+		}
+
+		if err == errMountPointNotFound {
+			continue
+		}
+
+		virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s\n", c.id, dev.major, dev.minor, dev.mountPoint)
+
+		isDM, err := isDeviceMapper(dev.major, dev.minor)
+		if err != nil {
+			return err
+		}
+
+		if !isDM {
+			continue
+		}
+
+		// If device mapper device, then fetch the full path of the device
+		devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
+
+		// Add drive with id as container id
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			File:   devicePath,
+			Format: "raw",
+			ID:     devID,
+		}
+
+		if err := p.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		c.fstype = fsType
+	}
+	return nil
+}

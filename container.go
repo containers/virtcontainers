@@ -102,6 +102,9 @@ type Container struct {
 
 	rootFs string
 
+	// File system type of rootfs block device
+	fstype string
+
 	config *ContainerConfig
 
 	pod *Pod
