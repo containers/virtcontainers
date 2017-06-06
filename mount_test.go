@@ -121,3 +121,35 @@ func TestGetDevicePathAndFsTypeSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetVirtDriveNameInvalidIndex(t *testing.T) {
+	index := -1
+	_, err := getVirtDriveName(index)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetVirtDriveName(t *testing.T) {
+	tests := []struct {
+		index         int
+		expectedDrive string
+	}{
+		{0, "vda"},
+		{25, "vdz"},
+		{27, "vdab"},
+		{704, "vdaac"},
+		{18277, "vdzzz"},
+	}
+
+	for _, test := range tests {
+		driveName, err := getVirtDriveName(test.index)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if driveName != test.expectedDrive {
+			t.Fatalf("Incorrect drive Name: Got: %s, Expecting :%s", driveName, test.expectedDrive)
+
+		}
+	}
+}
