@@ -292,6 +292,7 @@ func (h *hyper) bindMountContainerMounts(podID string, c Container, mounts []Mou
 		fsmap = append(fsmap, fsmapDesc)
 	}
 
+	c.storeMounts()
 	return fsmap, nil
 }
 

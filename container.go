@@ -297,6 +297,11 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			c.process = process
 		}
 
+		mounts, err := c.fetchMounts()
+		if err == nil {
+			c.mounts = mounts
+		}
+
 		containers = append(containers, c)
 	}
 
@@ -339,6 +344,11 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if err == nil && state.State != "" {
 		c.state.State = state.State
 		return c, nil
+	}
+
+	mounts, err := c.fetchMounts()
+	if err == nil {
+		c.mounts = mounts
 	}
 
 	// If we reached that point, this means that no state file has been
