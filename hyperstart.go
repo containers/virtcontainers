@@ -283,6 +283,24 @@ func (h *hyper) bindMountContainerMounts(podID string, cID string, mounts []Moun
 	return fsmap, nil
 }
 
+func (h *hyper) bindUnmountContainerMounts(mounts []Mount) error {
+	if mounts == nil {
+		return nil
+	}
+
+	for _, m := range mounts {
+		if !isSystemMount(m.Destination) && m.Type == "bind" {
+			err := syscall.Unmount(m.HostPath, 0)
+
+			if err != nil {
+				virtLog.Warnf("Could not umount :%s", m.HostPath)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 	syscall.Unmount(rootfsDest, 0)
@@ -292,6 +310,7 @@ func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 
 func (h *hyper) bindUnmountAllRootfs(pod Pod) {
 	for _, c := range pod.containers {
+		h.bindUnmountContainerMounts(c.mounts)
 		h.bindUnmountContainerRootfs(pod.id, c.id)
 	}
 }
@@ -423,7 +442,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			return err
 		}
 
-		if err := h.stopOneContainer(pod.id, c.id); err != nil {
+		if err := h.stopOneContainer(pod.id, c); err != nil {
 			return err
 		}
 	}
@@ -495,7 +514,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	// Handle container mounts
 	fsmap, err := h.bindMountContainerMounts(pod.id, c.id, c.config.Mounts)
 	if err != nil {
-		//TODO: unmount all bind-mounts first
+		h.bindUnmountAllRootfs(pod)
 		return err
 	}
 
@@ -539,12 +558,12 @@ func (h *hyper) stopPauseContainer(podID string) error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
-	return h.stopOneContainer(pod.id, c.id)
+	return h.stopOneContainer(pod.id, &c)
 }
 
-func (h *hyper) stopOneContainer(podID, cID string) error {
+func (h *hyper) stopOneContainer(podID string, c *Container) error {
 	removeCommand := hyperstart.RemoveCommand{
-		Container: cID,
+		Container: c.id,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
@@ -556,7 +575,11 @@ func (h *hyper) stopOneContainer(podID, cID string) error {
 		return err
 	}
 
-	if err := h.bindUnmountContainerRootfs(podID, cID); err != nil {
+	if err := h.bindUnmountContainerMounts(c.mounts); err != nil {
+		return err
+	}
+
+	if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
 		return err
 	}
 
