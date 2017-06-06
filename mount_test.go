@@ -224,3 +224,29 @@ func TestGetDevicePathAndFsTypeSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestIsDeviceMapper(t *testing.T) {
+	// known major, minor for /dev/tty
+	major := 5
+	minor := 0
+
+	isDM, err := isDeviceMapper(major, minor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if isDM {
+		t.Fatal()
+	}
+
+	// fake the block device format
+	blockFormatTemplate = "/sys/dev/char/%d:%d"
+	isDM, err = isDeviceMapper(major, minor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !isDM {
+		t.Fatal()
+	}
+}
