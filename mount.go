@@ -16,40 +16,21 @@
 
 package virtcontainers
 
-import (
-	"crypto/rand"
-	"fmt"
-	"os/exec"
-)
+import "strings"
 
-const cpBinaryName = "cp"
+// These mounts need to be created by the agent within the VM
+var systemMounts = []string{"/proc", "/dev", "/dev/pts", "/dev/shm", "/dev/mqueue", "/sys", "/sys/fs/cgroup"}
 
-func fileCopy(srcPath, dstPath string) error {
-	if srcPath == "" {
-		return fmt.Errorf("Source path cannot be empty")
+var systemMountPrefixes = []string{"/proc", "/dev", "/sys"}
+
+func isSystemMount(m string) bool {
+	for _, p := range systemMountPrefixes {
+		if m == p {
+			return true
+		}
+		if strings.HasPrefix(m, p+"/") {
+			return true
+		}
 	}
-
-	if dstPath == "" {
-		return fmt.Errorf("Destination path cannot be empty")
-	}
-
-	binPath, err := exec.LookPath(cpBinaryName)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(binPath, srcPath, dstPath)
-
-	return cmd.Run()
-}
-
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return false
 }
