@@ -294,6 +294,11 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			c.process = process
 		}
 
+		mounts, err := c.fetchMounts()
+		if err == nil {
+			c.mounts = mounts
+		}
+
 		containers = append(containers, c)
 	}
 
@@ -330,6 +335,11 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	process, err := c.fetchProcess()
 	if err == nil {
 		c.process = process
+	}
+
+	mounts, err := c.fetchMounts()
+	if err == nil {
+		c.mounts = mounts
 	}
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
@@ -428,6 +438,8 @@ func (c *Container) start() error {
 		c.stop()
 		return err
 	}
+
+	c.storeMounts()
 
 	err = c.setContainerState(StateRunning)
 	if err != nil {
