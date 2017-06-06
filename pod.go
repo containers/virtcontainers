@@ -220,6 +220,20 @@ func (s *Sockets) String() string {
 	return strings.Join(sockSlice, " ")
 }
 
+// Drive represents a block storage drive which may be used in case the storage
+// driver has an underlying block storage device.
+type Drive struct {
+
+	// Path to the disk-image/device which will be used with this drive
+	File string
+
+	// Format of the drive
+	Format string
+
+	// ID is used to identify this drive in the hypervisor options.
+	ID string
+}
+
 // EnvVar is a key/value structure representing a command
 // environment variable.
 type EnvVar struct {
