@@ -45,6 +45,18 @@ type ContainerStatus struct {
 	Annotations map[string]string
 }
 
+// Mount describes a container mount.
+type Mount struct {
+	Source      string
+	Destination string
+
+	// Type specifies mount kind
+	Type string
+
+	// fstab style mount options
+	Options []string
+}
+
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string
@@ -62,6 +74,8 @@ type ContainerConfig struct {
 	// for example to add additional status values required
 	// to support particular specifications.
 	Annotations map[string]string
+
+	Mounts []Mount
 }
 
 // valid checks that the container configuration is valid.
@@ -96,6 +110,8 @@ type Container struct {
 	state State
 
 	process Process
+
+	mounts []Mount
 }
 
 // ID returns the container identifier string.
@@ -254,6 +270,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 			containerPath: filepath.Join(pod.id, contConfig.ID),
 			state:         State{},
 			process:       Process{},
+			mounts:        contConfig.Mounts,
 		}
 
 		state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
