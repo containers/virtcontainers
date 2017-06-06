@@ -112,6 +112,8 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 		case consoleDev:
 			devices = q.appendConsoles(devices, s)
 		}
+	case Drive:
+		devices = q.appendBlockDevice(devices, s)
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
@@ -167,6 +169,31 @@ func TestQemuAppendSocket(t *testing.T) {
 	}
 
 	testQemuAppend(t, socket, expectedOut, -1)
+}
+
+func TestQemuAppendBlockDevice(t *testing.T) {
+	id := "blockDevTest"
+	file := "/root"
+	format := "raw"
+
+	expectedOut := []ciaoQemu.Device{
+		ciaoQemu.BlockDevice{
+			Driver:    ciaoQemu.VirtioBlock,
+			ID:        id,
+			File:      "/root",
+			AIO:       ciaoQemu.Threads,
+			Format:    ciaoQemu.BlockDeviceFormat(format),
+			Interface: "none",
+		},
+	}
+
+	drive := Drive{
+		File:   file,
+		Format: format,
+		ID:     id,
+	}
+
+	testQemuAppend(t, drive, expectedOut, -1)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {
