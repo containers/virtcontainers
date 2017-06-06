@@ -125,3 +125,23 @@ func TestGetDeviceForPathEmptyPath(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestGetDevicePathAndFsTypeEmptyMount(t *testing.T) {
+	_, _, err := getDevicePathAndFsType("")
+
+	if err == nil {
+		t.Fatal()
+	}
+}
+
+func TestGetDevicePathAndFsTypeSuccessful(t *testing.T) {
+	path, fstype, err := getDevicePathAndFsType("/proc")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if path != "proc" || fstype != "proc" {
+		t.Fatal(err)
+	}
+}
