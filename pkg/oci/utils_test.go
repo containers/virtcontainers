@@ -86,18 +86,24 @@ func TestMinimalPodConfig(t *testing.T) {
 			Destination: "/proc",
 			Type:        "proc",
 			Options:     nil,
+			IgnoreMount: false,
+			HostPath:    "",
 		},
 		{
 			Source:      "tmpfs",
 			Destination: "/dev",
 			Type:        "tmpfs",
 			Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			IgnoreMount: false,
+			HostPath:    "",
 		},
 		{
 			Source:      "devpts",
 			Destination: "/dev/pts",
 			Type:        "devpts",
 			Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
+			IgnoreMount: false,
+			HostPath:    "",
 		},
 	}
 

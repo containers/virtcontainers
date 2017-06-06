@@ -17,9 +17,11 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/containers/virtcontainers/pkg/hyperstart"
@@ -218,6 +220,79 @@ func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string, readonly bo
 	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 
 	return bindMount(cRootFs, rootfsDest, readonly)
+}
+
+func isPartOf(slice []string, item string) bool {
+	for _, str := range slice {
+		if strings.HasPrefix(item, str) {
+			return true
+		}
+	}
+	return false
+}
+
+// bindMountContainerMounts handles bind-mounts by bindmounting to the host shared directory
+// which is mounted through 9pfs in the VM.
+// Hyperstart uses "fsmap" struct to bind mount bind these mounts in the hypertsart shared directory
+// to the correct mountpoint within the container rootfs.
+func (h *hyper) bindMountContainerMounts(podID string, c Container, mounts []Mount) ([]*hyperstart.FsmapDescriptor, error) {
+	if mounts == nil {
+		return nil, nil
+	}
+
+	var fsmap []*hyperstart.FsmapDescriptor
+
+	// TODO: We need to handle system mounts by having the agent create them inside the VM.
+	// Handle just bind mounts for now
+
+	for ind := range mounts {
+		m := &(mounts[ind])
+
+		m.IgnoreMount = true
+		if isPartOf(systemMounts, m.Destination) {
+			continue
+		}
+
+		if m.Type != "bind" {
+			continue
+		}
+
+		randBytes, err := generateRandomBytes(8)
+		if err != nil {
+			return nil, err
+		}
+
+		// These mounts are created in the hyperstart shared dir
+		filename := fmt.Sprintf("%s-%s-%s", c.id, hex.EncodeToString(randBytes), filepath.Base(m.Destination))
+		mountDest := filepath.Join(defaultSharedDir, podID, filename)
+
+		err = bindMount(m.Source, mountDest, false)
+		if err != nil {
+			return nil, err
+		}
+
+		m.IgnoreMount = false
+		m.HostPath = mountDest
+
+		// Check if mount is readonly, let hyperstart handle the readonly mount within the VM
+		readonly := false
+		for _, flag := range m.Options {
+			if flag == "ro" {
+				readonly = true
+			}
+		}
+
+		fsmapDesc := &hyperstart.FsmapDescriptor{
+			Source:       filename,
+			Path:         m.Destination,
+			ReadOnly:     readonly,
+			DockerVolume: false,
+		}
+
+		fsmap = append(fsmap, fsmapDesc)
+	}
+
+	return fsmap, nil
 }
 
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
@@ -426,6 +501,18 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}
+
+	//TODO : Enter mount namespace
+
+	// Handle container mounts
+	fsmap, err := h.bindMountContainerMounts(pod.id, c, c.config.Mounts)
+	if err != nil {
+		//TODO: unmount all bind-mounts first
+		return err
+	}
+
+	// Assign fsmap for hyperstart to mount these at the correct location within the container
+	container.Fsmap = fsmap
 
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,

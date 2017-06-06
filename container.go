@@ -55,6 +55,12 @@ type Mount struct {
 
 	// fstab style mount options
 	Options []string
+
+	// IgnoreMount denotes these need to be handled explicitly by the agent within the VM
+	IgnoreMount bool
+
+	// HostPath used to store host side bind mount path
+	HostPath string
 }
 
 // ContainerConfig describes one container runtime configuration.
