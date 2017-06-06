@@ -55,6 +55,9 @@ type Mount struct {
 
 	// Options list all the mount options of the filesystem.
 	Options []string
+
+	// HostPath used to store host side bind mount path
+	HostPath string
 }
 
 // ContainerConfig describes one container runtime configuration.
