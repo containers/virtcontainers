@@ -198,3 +198,36 @@ func isDeviceMapper(major, minor int) (bool, error) {
 		return false, err
 	}
 }
+
+// getVirtBlockDriveName returns the disk name format for virtio-blk
+// Reference: https://github.com/torvalds/linux/blob/master/drivers/block/virtio_blk.c#L478
+func getVirtDriveName(index int) (string, error) {
+	if index < 0 {
+		return "", fmt.Errorf("Index cannot be negative for drive")
+	}
+
+	// Prefix used for virtio-block devices
+	prefix := "vd"
+
+	//Refer to DISK_NAME_LEN: https://github.com/torvalds/linux/blob/08c521a2011ff492490aa9ed6cc574be4235ce2b/include/linux/genhd.h#L61
+	diskNameLen := 32
+	base := 26
+
+	suffLen := diskNameLen - len(prefix)
+	diskLetters := make([]byte, suffLen)
+
+	var i int
+
+	for i = 0; i < suffLen && index >= 0; i++ {
+		letter := byte('a' + (index % base))
+		diskLetters[i] = letter
+		index = index/base - 1
+	}
+
+	if index >= 0 {
+		return "", fmt.Errorf("Index not supported")
+	}
+
+	diskName := prefix + reverseString(string(diskLetters[:i]))
+	return diskName, nil
+}
