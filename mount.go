@@ -181,3 +181,20 @@ func getDevicePathAndFsType(mountPoint string) (devicePath, fsType string, err e
 
 	return
 }
+
+// isDeviceMapper checks if the device with the major and minor numbers is a devicemapper block device
+func isDeviceMapper(major, minor int) (bool, error) {
+
+	//Check if /sys/dev/block/${major}-${minor}/dm exists
+	sysPath := fmt.Sprintf("/sys/dev/block/%d:%d/dm", major, minor)
+
+	_, err := os.Stat(sysPath)
+
+	if err == nil {
+		return true, nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	} else {
+		return false, err
+	}
+}
