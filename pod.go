@@ -756,6 +756,20 @@ func (p *Pod) stopSetStates() error {
 	return nil
 }
 
+// stopShims stops all remaining shims corresponfing to not started/stopped
+// containers.
+func (p *Pod) stopShims() error {
+	for _, c := range p.containers {
+		if err := stopShim(c.process.Pid); err != nil {
+			return err
+		}
+	}
+
+	virtLog.Infof("Shim(s) stopped")
+
+	return nil
+}
+
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
