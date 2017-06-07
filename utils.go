@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os/exec"
 )
@@ -40,4 +41,23 @@ func fileCopy(srcPath, dstPath string) error {
 	cmd := exec.Command(binPath, srcPath, dstPath)
 
 	return cmd.Run()
+}
+
+func generateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func reverseString(s string) string {
+	r := []rune(s)
+	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
+	}
+	return string(r)
 }

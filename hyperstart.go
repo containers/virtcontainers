@@ -17,9 +17,11 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/containers/virtcontainers/pkg/hyperstart"
@@ -220,6 +222,98 @@ func (h *hyper) bindMountContainerRootfs(podID, cID, cRootFs string, readonly bo
 	return bindMount(cRootFs, rootfsDest, readonly)
 }
 
+func isPartOf(slice []string, item string) bool {
+	for _, str := range slice {
+		if strings.HasPrefix(item, str) {
+			return true
+		}
+	}
+	return false
+}
+
+// bindMountContainerMounts handles bind-mounts by bindmounting to the host shared directory
+// which is mounted through 9pfs in the VM.
+// Hyperstart uses "fsmap" struct to bind mount bind these mounts in the hypertsart shared directory
+// to the correct mountpoint within the container rootfs.
+func (h *hyper) bindMountContainerMounts(podID string, c Container, mounts []Mount) ([]*hyperstart.FsmapDescriptor, error) {
+	if mounts == nil {
+		return nil, nil
+	}
+
+	var fsmap []*hyperstart.FsmapDescriptor
+
+	// TODO: We need to handle system mounts by having the agent create them inside the VM.
+	// Handle just bind mounts for now
+
+	for ind := range mounts {
+		m := &(mounts[ind])
+
+		m.IgnoreMount = true
+		if isPartOf(systemMounts, m.Destination) {
+			continue
+		}
+
+		if m.Type != "bind" {
+			continue
+		}
+
+		randBytes, err := generateRandomBytes(8)
+		if err != nil {
+			return nil, err
+		}
+
+		// These mounts are created in the hyperstart shared dir
+		filename := fmt.Sprintf("%s-%s-%s", c.id, hex.EncodeToString(randBytes), filepath.Base(m.Destination))
+		mountDest := filepath.Join(defaultSharedDir, podID, filename)
+
+		err = bindMount(m.Source, mountDest, false)
+		if err != nil {
+			return nil, err
+		}
+
+		m.IgnoreMount = false
+		m.HostPath = mountDest
+
+		// Check if mount is readonly, let hyperstart handle the readonly mount within the VM
+		readonly := false
+		for _, flag := range m.Options {
+			if flag == "ro" {
+				readonly = true
+			}
+		}
+
+		fsmapDesc := &hyperstart.FsmapDescriptor{
+			Source:       filename,
+			Path:         m.Destination,
+			ReadOnly:     readonly,
+			DockerVolume: false,
+		}
+
+		fsmap = append(fsmap, fsmapDesc)
+	}
+
+	c.storeMounts()
+	return fsmap, nil
+}
+
+func (h *hyper) bindUnmountContainerMounts(podID string, c *Container) error {
+	if c.mounts == nil {
+		return nil
+	}
+
+	for _, m := range c.mounts {
+		if m.IgnoreMount == false {
+			err := syscall.Unmount(m.HostPath, 0)
+
+			if err != nil {
+				virtLog.Warnf("Could not umount :%s\n", m.HostPath)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 	rootfsDest := filepath.Join(defaultSharedDir, podID, cID, rootfsDir)
 	syscall.Unmount(rootfsDest, 0)
@@ -229,7 +323,9 @@ func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 
 func (h *hyper) bindUnmountAllRootfs(pod Pod) {
 	for _, c := range pod.containers {
+		h.bindUnmountContainerMounts(pod.id, c)
 		h.bindUnmountContainerRootfs(pod.id, c.id)
+		h.bindUnmountContainerMounts(pod.id, c)
 	}
 }
 
@@ -307,6 +403,50 @@ func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	return nil
 }
 
+func (h *hyper) addDrives(pod *Pod) error {
+	for _, c := range pod.containers {
+		dev, err := getDeviceForPath(c.rootFs)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Container:%s, Major:%d, Minor:%d, MountPoint:%s\n", c.id, dev.major, dev.minor, dev.mountPoint)
+
+		isDM, err := isDeviceMapper(dev.major, dev.minor)
+		if err != nil {
+			return err
+		}
+
+		if !isDM {
+			continue
+		}
+
+		// If device mapper device, then fetch the full path of the device
+		devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+		if err != nil {
+			return err
+		}
+
+		virtLog.Infof("Device Path: %s, Fstype : %s\n", devicePath, fsType)
+
+		// Add drive with id as container id
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			File:   devicePath,
+			Format: "raw",
+			ID:     devID,
+		}
+
+		if err := pod.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+
+		c.fstype = fsType
+	}
+	return nil
+
+}
+
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
 	ifaces, routes, err := h.buildNetworkInterfacesAndRoutes(pod)
@@ -341,6 +481,10 @@ func (h *hyper) startPod(pod Pod) error {
 		}
 	}
 
+	if err := h.addDrives(&pod); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -360,7 +504,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			return err
 		}
 
-		if err := h.stopOneContainer(pod.id, c.id); err != nil {
+		if err := h.stopOneContainer(pod.id, c); err != nil {
 			return err
 		}
 	}
@@ -409,6 +553,8 @@ func (h *hyper) startPauseContainer(podID string) error {
 	return nil
 }
 
+var diskIndex = int(0)
+
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
@@ -422,10 +568,33 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
+	if c.fstype != "" {
+		driveName, err := getVirtDriveName(diskIndex)
+		if err != nil {
+			return err
+		}
+
+		container.Fstype = c.fstype
+		container.Image = driveName
+		diskIndex = diskIndex + 1
+	}
+
 	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
 		h.bindUnmountAllRootfs(pod)
 		return err
 	}
+
+	//TODO : Enter mount namespace
+
+	// Handle container mounts
+	fsmap, err := h.bindMountContainerMounts(pod.id, c, c.config.Mounts)
+	if err != nil {
+		h.bindUnmountAllRootfs(pod)
+		return err
+	}
+
+	// Assign fsmap for hyperstart to mount these at the correct location within the container
+	container.Fsmap = fsmap
 
 	proxyCmd := hyperstartProxyCmd{
 		cmd:     hyperstart.NewContainer,
@@ -464,12 +633,12 @@ func (h *hyper) stopPauseContainer(podID string) error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
-	return h.stopOneContainer(pod.id, c.id)
+	return h.stopOneContainer(pod.id, &c)
 }
 
-func (h *hyper) stopOneContainer(podID, cID string) error {
+func (h *hyper) stopOneContainer(podID string, c *Container) error {
 	removeCommand := hyperstart.RemoveCommand{
-		Container: cID,
+		Container: c.id,
 	}
 
 	proxyCmd := hyperstartProxyCmd{
@@ -481,7 +650,11 @@ func (h *hyper) stopOneContainer(podID, cID string) error {
 		return err
 	}
 
-	if err := h.bindUnmountContainerRootfs(podID, cID); err != nil {
+	if err := h.bindUnmountContainerMounts(podID, c); err != nil {
+		return err
+	}
+
+	if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
 		return err
 	}
 

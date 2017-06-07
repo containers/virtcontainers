@@ -80,6 +80,33 @@ func TestMinimalPodConfig(t *testing.T) {
 		Console:             consolePath,
 	}
 
+	expectedMounts := []vc.Mount{
+		{
+			Source:      "proc",
+			Destination: "/proc",
+			Type:        "proc",
+			Options:     nil,
+			IgnoreMount: false,
+			HostPath:    "",
+		},
+		{
+			Source:      "tmpfs",
+			Destination: "/dev",
+			Type:        "tmpfs",
+			Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			IgnoreMount: false,
+			HostPath:    "",
+		},
+		{
+			Source:      "devpts",
+			Destination: "/dev/pts",
+			Type:        "devpts",
+			Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
+			IgnoreMount: false,
+			HostPath:    "",
+		},
+	}
+
 	expectedContainerConfig := vc.ContainerConfig{
 		ID:             containerID,
 		RootFs:         path.Join(tempBundlePath, "rootfs"),
@@ -89,6 +116,7 @@ func TestMinimalPodConfig(t *testing.T) {
 			ConfigPathKey: configPath,
 			BundlePathKey: tempBundlePath,
 		},
+		Mounts: expectedMounts,
 	}
 
 	expectedNetworkConfig := vc.NetworkConfig{
