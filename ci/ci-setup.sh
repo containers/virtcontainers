@@ -53,6 +53,8 @@ echo "Clone virtcontainers"
 git clone https://github.com/containers/virtcontainers.git
 echo "Clone cni"
 git clone https://github.com/containernetworking/cni.git
+echo "Clone plugins"
+git clone https://github.com/containernetworking/plugins.git
 echo "Copy CNI config files"
 cp virtcontainers/test/cni/10-mynet.conf /etc/cni/net.d/
 cp virtcontainers/test/cni/99-loopback.conf /etc/cni/net.d/
@@ -64,7 +66,7 @@ pushd virtcontainers/pause
 make
 cp pause /tmp/bundles/pause_bundle/rootfs/bin/
 popd
-pushd cni
+pushd plugins
 ./build.sh
 cp ./bin/bridge /tmp/cni/bin/cni-bridge
 cp ./bin/loopback /tmp/cni/bin/loopback
