@@ -1107,6 +1107,11 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 // The container then uses the block device as its rootfs instead of overlay.
 // The container fstype is assigned the file system type of the block device to indicate this.
 func (p *Pod) addDrives() error {
+
+	if p.config.HypervisorConfig.DisableBlockDeviceUse {
+		return nil
+	}
+
 	for _, c := range p.containers {
 		dev, err := getDeviceForPath(c.rootFs)
 		if err != nil && err != errMountPointNotFound {

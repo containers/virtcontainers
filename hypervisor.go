@@ -112,6 +112,9 @@ type HypervisorConfig struct {
 	// HypervisorPath is the hypervisor executable host path.
 	HypervisorPath string
 
+	// DisableBlockDeviceUse disallows a block device from being used.
+	DisableBlockDeviceUse bool
+
 	// KernelParams are additional guest kernel parameters.
 	KernelParams []Param
 
