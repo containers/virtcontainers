@@ -311,7 +311,9 @@ func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 func (h *hyper) bindUnmountAllRootfs(pod Pod) {
 	for _, c := range pod.containers {
 		h.bindUnmountContainerMounts(c.mounts)
-		h.bindUnmountContainerRootfs(pod.id, c.id)
+		if c.fstype == "" {
+			h.bindUnmountContainerRootfs(pod.id, c.id)
+		}
 	}
 }
 
@@ -519,11 +521,11 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		container.Fstype = c.fstype
 		container.Image = driveName
 		diskIndex = diskIndex + 1
-	}
-
-	if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
-		h.bindUnmountAllRootfs(pod)
-		return err
+	} else {
+		if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, c.config.ReadonlyRootfs); err != nil {
+			h.bindUnmountAllRootfs(pod)
+			return err
+		}
 	}
 
 	//TODO : Enter mount namespace
@@ -596,8 +598,10 @@ func (h *hyper) stopOneContainer(podID string, c *Container) error {
 		return err
 	}
 
-	if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
-		return err
+	if c.fstype == "" {
+		if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
+			return err
+		}
 	}
 
 	return nil
