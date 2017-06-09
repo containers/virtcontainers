@@ -438,13 +438,18 @@ func (p *Pod) GetContainer(containerID string) *Container {
 }
 
 func (p *Pod) createSetStates() error {
-	p.state.State = StateReady
-	err := p.setPodState(p.state)
+	podState := State{
+		State: StateReady,
+		// retain existing URL value
+		URL: p.state.URL,
+	}
+
+	err := p.setPodState(podState)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(StateReady)
+	err = p.setContainersState(podState.State)
 	if err != nil {
 		return err
 	}
@@ -617,13 +622,18 @@ func (p *Pod) startCheckStates() error {
 }
 
 func (p *Pod) startSetStates() error {
-	p.state.State = StateRunning
-	err := p.setPodState(p.state)
+	podState := State{
+		State: StateRunning,
+		// retain existing URL value
+		URL: p.state.URL,
+	}
+
+	err := p.setPodState(podState)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(StateRunning)
+	err = p.setContainersState(podState.State)
 	if err != nil {
 		return err
 	}
@@ -742,13 +752,18 @@ func (p *Pod) stopCheckStates() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	err := p.setContainersState(StateStopped)
+	podState := State{
+		State: StateStopped,
+		// retain existing URL value
+		URL: p.state.URL,
+	}
+
+	err := p.setContainersState(podState.State)
 	if err != nil {
 		return err
 	}
 
-	p.state.State = StateStopped
-	err = p.setPodState(p.state)
+	err = p.setPodState(podState)
 	if err != nil {
 		return err
 	}
@@ -824,13 +839,33 @@ func (p *Pod) enter(args []string) error {
 	return nil
 }
 
+// setPodState sets both the in-memory and on-disk state of the
+// pod.
 func (p *Pod) setPodState(state State) error {
+	// update in-memory state
+	p.state = state
+
+	// update on-disk state
 	err := p.storage.storePodResource(p.id, stateFileType, state)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (p *Pod) getContainer(containerID string) (*Container, error) {
+	if containerID == "" {
+		return &Container{}, errNeedContainerID
+	}
+
+	for _, c := range p.containers {
+		if c.id == containerID {
+			return c, nil
+		}
+	}
+
+	return nil, fmt.Errorf("pod %v has no container with ID %v", p.ID(), containerID)
 }
 
 func (p *Pod) setContainerState(containerID string, state stateString) error {
@@ -842,7 +877,16 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 		State: state,
 	}
 
-	err := p.storage.storeContainerResource(p.id, containerID, stateFileType, contState)
+	c, err := p.getContainer(containerID)
+	if err != nil {
+		return err
+	}
+
+	// update in-memory state
+	c.state = contState
+
+	// update on-disk state
+	err = p.storage.storeContainerResource(p.id, containerID, stateFileType, contState)
 	if err != nil {
 		return err
 	}
