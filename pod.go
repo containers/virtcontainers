@@ -58,6 +58,12 @@ const (
 type State struct {
 	State stateString `json:"state"`
 	URL   string      `json:"url,omitempty"`
+
+	// Index of the block device passed to hypervisor.
+	BlockIndex int `json:"blockIndex"`
+
+	// File system of the rootfs incase it is block device
+	Fstype string `json:"fstype"`
 }
 
 // valid checks that the pod state is valid.
