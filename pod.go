@@ -975,21 +975,13 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 		return errNeedContainerID
 	}
 
-	contState := State{
-		State: state,
+	c := p.GetContainer(containerID)
+	if c == nil {
+		return fmt.Errorf("Pod %s has no container %s", p.id, containerID)
 	}
 
-	c, err := p.getContainer(containerID)
-	if err != nil {
-		return err
-	}
-
-	// update in-memory state
-	c.state = contState
-
-	// update on-disk state
-	err = p.storage.storeContainerResource(p.id, containerID, stateFileType, contState)
-	if err != nil {
+	// Let container handle its state update
+	if err := c.setContainerState(state); err != nil {
 		return err
 	}
 

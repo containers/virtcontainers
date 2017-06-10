@@ -242,12 +242,10 @@ func (c *Container) setContainerState(state stateString) error {
 	}
 
 	// update in-memory state
-	c.state = State{
-		State: state,
-	}
+	c.state.State = state
 
 	// update on-disk state
-	err := c.pod.storage.storeContainerResource(c.podID, c.id, stateFileType, c.state)
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
 	if err != nil {
 		return err
 	}
