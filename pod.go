@@ -962,6 +962,24 @@ func (p *Pod) setPodState(state State) error {
 	return nil
 }
 
+// getAndSetPodBlockIndex retrieves pod block index and increments it for
+// subsequent accesses. This index is used to maintain the index at which a
+// block device is assigned to a container in the pod.
+func (p *Pod) getAndSetPodBlockIndex() (int, error) {
+	currentIndex := p.state.BlockIndex
+
+	// Increment so that container gets incremented block index
+	p.state.BlockIndex++
+
+	// update on-disk state
+	err := p.storage.storePodResource(p.id, stateFileType, p.state)
+	if err != nil {
+		return -1, err
+	}
+
+	return currentIndex, nil
+}
+
 func (p *Pod) getContainer(containerID string) (*Container, error) {
 	if containerID == "" {
 		return &Container{}, errNeedContainerID
@@ -1151,7 +1169,18 @@ func (p *Pod) addDrives() error {
 			return err
 		}
 
-		c.fstype = fsType
+		driveIndex, err := p.getAndSetPodBlockIndex()
+		if err != nil {
+			return err
+		}
+
+		if err := c.setStateBlockIndex(driveIndex); err != nil {
+			return err
+		}
+
+		if err := c.setStateFstype(fsType); err != nil {
+			return err
+		}
 	}
 	return nil
 }

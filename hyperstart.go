@@ -323,7 +323,9 @@ func (h *hyper) bindUnmountContainerRootfs(podID, cID string) error {
 func (h *hyper) bindUnmountAllRootfs(pod Pod) {
 	for _, c := range pod.containers {
 		h.bindUnmountContainerMounts(c.mounts)
-		if c.fstype == "" {
+		if c.state.Fstype == "" {
+			// Need to check for error returned by this call.
+			// See: https://github.com/containers/virtcontainers/issues/295
 			h.bindUnmountContainerRootfs(pod.id, c.id)
 		}
 	}
@@ -519,8 +521,6 @@ func (h *hyper) startPauseContainer(podID string) error {
 	return nil
 }
 
-var diskIndex = int(0)
-
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
@@ -534,15 +534,14 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
-	if c.fstype != "" {
-		driveName, err := getVirtDriveName(diskIndex)
+	if c.state.Fstype != "" {
+		driveName, err := getVirtDriveName(c.state.BlockIndex)
 		if err != nil {
 			return err
 		}
 
-		container.Fstype = c.fstype
+		container.Fstype = c.state.Fstype
 		container.Image = driveName
-		diskIndex = diskIndex + 1
 	} else {
 
 		if err := h.bindMountContainerRootfs(pod.id, c.id, c.rootFs, false); err != nil {
@@ -621,7 +620,7 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 		return err
 	}
 
-	if c.fstype == "" {
+	if c.state.Fstype == "" {
 		if err := h.bindUnmountContainerRootfs(podID, c.id); err != nil {
 			return err
 		}
