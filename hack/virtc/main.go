@@ -459,6 +459,28 @@ func stopPod(context *cli.Context) error {
 	return nil
 }
 
+func pausePod(context *cli.Context) error {
+	p, err := vc.PausePod(context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not pause pod: %s", err)
+	}
+
+	fmt.Printf("Pod %s paused\n", p.ID())
+
+	return nil
+}
+
+func resumePod(context *cli.Context) error {
+	p, err := vc.ResumePod(context.String("id"))
+	if err != nil {
+		return fmt.Errorf("Could not resume pod: %s", err)
+	}
+
+	fmt.Printf("Pod %s resumed\n", p.ID())
+
+	return nil
+}
+
 func listPods(context *cli.Context) error {
 	podStatusList, err := vc.ListPod()
 	if err != nil {
@@ -584,6 +606,36 @@ var statusPodCommand = cli.Command{
 	},
 	Action: func(context *cli.Context) error {
 		return checkPodArgs(context, statusPod)
+	},
+}
+
+var pausePodCommand = cli.Command{
+	Name:  "pause",
+	Usage: "pause an existing pod",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return checkPodArgs(context, pausePod)
+	},
+}
+
+var resumePodCommand = cli.Command{
+	Name:  "resume",
+	Usage: "unpause a paused pod",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Value: "",
+			Usage: "the pod identifier",
+		},
+	},
+	Action: func(context *cli.Context) error {
+		return checkPodArgs(context, resumePod)
 	},
 }
 
@@ -919,6 +971,8 @@ func main() {
 				createPodCommand,
 				deletePodCommand,
 				listPodsCommand,
+				pausePodCommand,
+				resumePodCommand,
 				runPodCommand,
 				startPodCommand,
 				stopPodCommand,
