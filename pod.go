@@ -728,6 +728,10 @@ func (p *Pod) start() error {
 		return err
 	}
 
+	for _, c := range p.containers {
+		c.storeMounts()
+	}
+
 	if err := p.startSetStates(); err != nil {
 		return err
 	}

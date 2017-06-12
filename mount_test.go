@@ -16,40 +16,28 @@
 
 package virtcontainers
 
-import (
-	"crypto/rand"
-	"fmt"
-	"os/exec"
-)
+import "testing"
 
-const cpBinaryName = "cp"
-
-func fileCopy(srcPath, dstPath string) error {
-	if srcPath == "" {
-		return fmt.Errorf("Source path cannot be empty")
+func TestIsSystemMount(t *testing.T) {
+	tests := []struct {
+		mnt      string
+		expected bool
+	}{
+		{"/sys", true},
+		{"/sys/", true},
+		{"/sys//", true},
+		{"/sys/fs", true},
+		{"/sys/fs/", true},
+		{"/sys/fs/cgroup", true},
+		{"/sysfoo", false},
+		{"/home", false},
+		{"/dev/block/", true},
 	}
 
-	if dstPath == "" {
-		return fmt.Errorf("Destination path cannot be empty")
+	for _, test := range tests {
+		result := isSystemMount(test.mnt)
+		if result != test.expected {
+			t.Fatalf("Expected result for path %s : %v, got %v", test.mnt, test.expected, result)
+		}
 	}
-
-	binPath, err := exec.LookPath(cpBinaryName)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(binPath, srcPath, dstPath)
-
-	return cmd.Run()
-}
-
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }
