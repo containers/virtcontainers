@@ -204,15 +204,19 @@ func (c *Container) storeContainer() error {
 	return nil
 }
 
+// setContainerState sets both the in-memory and on-disk state of the
+// container.
 func (c *Container) setContainerState(state stateString) error {
 	if state == "" {
 		return errNeedState
 	}
 
+	// update in-memory state
 	c.state = State{
 		State: state,
 	}
 
+	// update on-disk state
 	err := c.pod.storage.storeContainerResource(c.podID, c.id, stateFileType, c.state)
 	if err != nil {
 		return err
