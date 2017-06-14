@@ -123,14 +123,21 @@ func TestPodStateReadyRunning(t *testing.T) {
 }
 
 func TestPodStateRunningPaused(t *testing.T) {
-	err := testPodStateTransition(t, StateRunning, StateStopped)
+	err := testPodStateTransition(t, StateRunning, StatePaused)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestPodStatePausedRunning(t *testing.T) {
-	err := testPodStateTransition(t, StateStopped, StateRunning)
+	err := testPodStateTransition(t, StatePaused, StateRunning)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPodStatePausedStopped(t *testing.T) {
+	err := testPodStateTransition(t, StatePaused, StateStopped)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,6 +264,7 @@ func testStateValid(t *testing.T, stateStr stateString, expected bool) {
 func TestStateValidSuccessful(t *testing.T) {
 	testStateValid(t, StateReady, true)
 	testStateValid(t, StateRunning, true)
+	testStateValid(t, StatePaused, true)
 	testStateValid(t, StateStopped, true)
 }
 

@@ -47,6 +47,9 @@ const (
 	// StateRunning represents a pod/container that's currently running.
 	StateRunning stateString = "running"
 
+	// StatePaused represents a pod/container that has been paused.
+	StatePaused stateString = "paused"
+
 	// StateStopped represents a pod/container that has been stopped.
 	StateStopped stateString = "stopped"
 )
@@ -59,7 +62,7 @@ type State struct {
 
 // valid checks that the pod state is valid.
 func (state *State) valid() bool {
-	for _, validState := range []stateString{StateReady, StateRunning, StateStopped} {
+	for _, validState := range []stateString{StateReady, StateRunning, StatePaused, StateStopped} {
 		if state.State == validState {
 			return true
 		}
@@ -82,7 +85,12 @@ func (state *State) validTransition(oldState stateString, newState stateString) 
 		}
 
 	case StateRunning:
-		if newState == StateStopped {
+		if newState == StatePaused || newState == StateStopped {
+			return nil
+		}
+
+	case StatePaused:
+		if newState == StateRunning || newState == StateStopped {
 			return nil
 		}
 
@@ -350,7 +358,7 @@ func unlockPod(lockFile *os.File) error {
 }
 
 // Pod is composed of a set of containers and a runtime environment.
-// A Pod can be created, deleted, started, stopped, listed, entered, paused and restored.
+// A Pod can be created, deleted, started, paused, stopped, listed, entered, and restored.
 type Pod struct {
 	id string
 
@@ -584,8 +592,8 @@ func (p *Pod) delete() error {
 		return err
 	}
 
-	if state.State != StateReady && state.State != StateStopped {
-		return fmt.Errorf("Pod not ready or stopped, impossible to delete")
+	if state.State != StateReady && state.State != StatePaused && state.State != StateStopped {
+		return fmt.Errorf("Pod not ready, paused or stopped, impossible to delete")
 	}
 
 	err = p.storage.deletePodResources(p.id, nil)
@@ -789,6 +797,49 @@ func (p *Pod) stopShims() error {
 	return nil
 }
 
+func (p *Pod) pauseSetStates() error {
+	state := State{
+		State: StatePaused,
+		URL:   p.state.URL,
+	}
+
+	// XXX: When a pod is paused, all its containers are forcibly
+	// paused too.
+
+	err := p.setContainersState(state.State)
+	if err != nil {
+		return err
+	}
+
+	err = p.setPodState(state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) resumeSetStates() error {
+	state := State{
+		State: StateRunning,
+		URL:   p.state.URL,
+	}
+
+	// XXX: Resuming a paused pod puts all containers back into the
+	// running state.
+	err := p.setContainersState(state.State)
+	if err != nil {
+		return err
+	}
+
+	err = p.setPodState(state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
@@ -827,6 +878,30 @@ func (p *Pod) stop() error {
 	}
 
 	if err := p.stopSetStates(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) pause() error {
+	if err := p.hypervisor.pausePod(); err != nil {
+		return err
+	}
+
+	if err := p.pauseSetStates(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pod) resume() error {
+	if err := p.hypervisor.resumePod(); err != nil {
+		return err
+	}
+
+	if err := p.resumeSetStates(); err != nil {
 		return err
 	}
 
@@ -971,4 +1046,36 @@ func (p *Pod) checkContainersState(state stateString) error {
 	}
 
 	return nil
+}
+
+// togglePausePod pauses a pod if pause is set to true, else it resumes
+// it.
+func togglePausePod(podID string, pause bool) (*Pod, error) {
+	if podID == "" {
+		return nil, errNeedPod
+	}
+
+	lockFile, err := lockPod(podID)
+	if err != nil {
+		return nil, err
+	}
+	defer unlockPod(lockFile)
+
+	// Fetch the pod from storage and create it.
+	p, err := fetchPod(podID)
+	if err != nil {
+		return nil, err
+	}
+
+	if pause {
+		err = p.pause()
+	} else {
+		err = p.resume()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
