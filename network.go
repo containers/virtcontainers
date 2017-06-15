@@ -32,7 +32,8 @@ import (
 
 // Introduces constants related to network routes.
 const (
-	defaultRouteDest = "0.0.0.0/0"
+	defaultRouteDest  = "0.0.0.0/0"
+	defaultRouteLabel = "default"
 )
 
 type netIfaceAddrs struct {
