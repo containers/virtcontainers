@@ -30,6 +30,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Introduces constants related to network routes.
+const (
+	defaultRouteDest = "0.0.0.0/0"
+)
+
 type netIfaceAddrs struct {
 	iface net.Interface
 	addrs []net.Addr
