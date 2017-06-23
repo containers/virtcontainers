@@ -455,7 +455,7 @@ func (h *hyper) stopPod(pod Pod) error {
 			continue
 		}
 
-		if err := h.killOneContainer(c.id, syscall.SIGTERM, true); err != nil {
+		if err := h.killOneContainer(c.id, syscall.SIGKILL, true); err != nil {
 			return err
 		}
 
