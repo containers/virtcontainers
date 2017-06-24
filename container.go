@@ -267,6 +267,7 @@ func (c *Container) createContainersDirs() error {
 	return nil
 }
 
+// newContainer creates a Container structure from a pod and a container configuration.
 func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if contConfig.valid() == false {
 		return &Container{}, fmt.Errorf("Invalid container configuration")
@@ -304,7 +305,8 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	return c, nil
 }
 
-func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
+// newContainers uses newContainer to create a Container slice.
+func newContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
 	if pod == nil {
 		return nil, errNeedPod
 	}
@@ -323,6 +325,7 @@ func createContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, er
 	return containers, nil
 }
 
+// createContainer creates and start a container inside a Pod.
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if pod == nil {
 		return nil, errNeedPod
