@@ -482,7 +482,7 @@ func (c *Container) stop() error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGTERM, true)
+	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true)
 	if err != nil {
 		return err
 	}
