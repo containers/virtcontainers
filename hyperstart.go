@@ -376,6 +376,15 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	return nil
 }
 
+func (h *hyper) capabilities() capabilities {
+	var caps capabilities
+
+	// add all capabilities supported by agent
+	caps.setBlockDeviceSupport()
+
+	return caps
+}
+
 // exec is the agent command execution implementation for hyperstart.
 func (h *hyper) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
 	hyperProcess, err := h.buildHyperContainerProcess(cmd)

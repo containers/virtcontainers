@@ -556,6 +556,15 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return p, nil
 	}
 
+	// fetch agent capabilities and call addDrives if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if caps.isBlockDeviceSupported() {
+		if err := p.addDrives(); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := p.createSetStates(); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
