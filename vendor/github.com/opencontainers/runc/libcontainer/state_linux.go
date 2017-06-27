@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/utils"
+
+	"golang.org/x/sys/unix"
 )
 
 func newStateTransitionError(from, to containerState) error {
@@ -39,7 +40,7 @@ type containerState interface {
 
 func destroy(c *linuxContainer) error {
 	if !c.config.Namespaces.Contains(configs.NEWPID) {
-		if err := signalAllProcesses(c.cgroupManager, syscall.SIGKILL); err != nil {
+		if err := signalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
 		}
 	}
@@ -58,9 +59,9 @@ func destroy(c *linuxContainer) error {
 func runPoststopHooks(c *linuxContainer) error {
 	if c.config.Hooks != nil {
 		s := configs.HookState{
-			Version:    c.config.Version,
-			ID:         c.id,
-			BundlePath: utils.SearchLabels(c.config.Labels, "bundle"),
+			Version: c.config.Version,
+			ID:      c.id,
+			Bundle:  utils.SearchLabels(c.config.Labels, "bundle"),
 		}
 		for _, hook := range c.config.Hooks.Poststop {
 			if err := hook.Run(s); err != nil {
@@ -156,7 +157,7 @@ func (i *createdState) transition(s containerState) error {
 }
 
 func (i *createdState) destroy() error {
-	i.c.initProcess.signal(syscall.SIGKILL)
+	i.c.initProcess.signal(unix.SIGKILL)
 	return destroy(i.c)
 }
 

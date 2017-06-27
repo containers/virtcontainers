@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
 	"strings"
-	"syscall"
+	"syscall" // only for Errno
 	"unsafe"
 
 	"github.com/Sirupsen/logrus"
@@ -21,6 +19,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/vishvananda/netlink"
+
+	"golang.org/x/sys/unix"
 )
 
 type initType string
@@ -45,29 +45,29 @@ type network struct {
 
 // initConfig is used for transferring parameters from Exec() to Init()
 type initConfig struct {
-	Args             []string         `json:"args"`
-	Env              []string         `json:"env"`
-	Cwd              string           `json:"cwd"`
-	Capabilities     []string         `json:"capabilities"`
-	ProcessLabel     string           `json:"process_label"`
-	AppArmorProfile  string           `json:"apparmor_profile"`
-	NoNewPrivileges  bool             `json:"no_new_privileges"`
-	User             string           `json:"user"`
-	AdditionalGroups []string         `json:"additional_groups"`
-	Config           *configs.Config  `json:"config"`
-	Networks         []*network       `json:"network"`
-	PassedFilesCount int              `json:"passed_files_count"`
-	ContainerId      string           `json:"containerid"`
-	Rlimits          []configs.Rlimit `json:"rlimits"`
-	ExecFifoPath     string           `json:"start_pipe_path"`
-	CreateConsole    bool             `json:"create_console"`
+	Args             []string              `json:"args"`
+	Env              []string              `json:"env"`
+	Cwd              string                `json:"cwd"`
+	Capabilities     *configs.Capabilities `json:"capabilities"`
+	ProcessLabel     string                `json:"process_label"`
+	AppArmorProfile  string                `json:"apparmor_profile"`
+	NoNewPrivileges  bool                  `json:"no_new_privileges"`
+	User             string                `json:"user"`
+	AdditionalGroups []string              `json:"additional_groups"`
+	Config           *configs.Config       `json:"config"`
+	Networks         []*network            `json:"network"`
+	PassedFilesCount int                   `json:"passed_files_count"`
+	ContainerId      string                `json:"containerid"`
+	Rlimits          []configs.Rlimit      `json:"rlimits"`
+	CreateConsole    bool                  `json:"create_console"`
+	Rootless         bool                  `json:"rootless"`
 }
 
 type initer interface {
 	Init() error
 }
 
-func newContainerInit(t initType, pipe *os.File, stateDirFD int) (initer, error) {
+func newContainerInit(t initType, pipe *os.File, consoleSocket *os.File, stateDirFD int) (initer, error) {
 	var config *initConfig
 	if err := json.NewDecoder(pipe).Decode(&config); err != nil {
 		return nil, err
@@ -78,15 +78,17 @@ func newContainerInit(t initType, pipe *os.File, stateDirFD int) (initer, error)
 	switch t {
 	case initSetns:
 		return &linuxSetnsInit{
-			pipe:   pipe,
-			config: config,
+			pipe:          pipe,
+			consoleSocket: consoleSocket,
+			config:        config,
 		}, nil
 	case initStandard:
 		return &linuxStandardInit{
-			pipe:       pipe,
-			parentPid:  syscall.Getppid(),
-			config:     config,
-			stateDirFD: stateDirFD,
+			pipe:          pipe,
+			consoleSocket: consoleSocket,
+			parentPid:     unix.Getppid(),
+			config:        config,
+			stateDirFD:    stateDirFD,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown init type %q", t)
@@ -118,16 +120,18 @@ func finalizeNamespace(config *initConfig) error {
 		return err
 	}
 
-	capabilities := config.Config.Capabilities
+	capabilities := &configs.Capabilities{}
 	if config.Capabilities != nil {
 		capabilities = config.Capabilities
+	} else if config.Config.Capabilities != nil {
+		capabilities = config.Config.Capabilities
 	}
-	w, err := newCapWhitelist(capabilities)
+	w, err := newContainerCapList(capabilities)
 	if err != nil {
 		return err
 	}
 	// drop capabilities in bounding set before changing user
-	if err := w.dropBoundingSet(); err != nil {
+	if err := w.ApplyBoundingSet(); err != nil {
 		return err
 	}
 	// preserve existing capabilities while we change users
@@ -140,12 +144,11 @@ func finalizeNamespace(config *initConfig) error {
 	if err := system.ClearKeepCaps(); err != nil {
 		return err
 	}
-	// drop all other capabilities
-	if err := w.drop(); err != nil {
+	if err := w.ApplyCaps(); err != nil {
 		return err
 	}
 	if config.Cwd != "" {
-		if err := syscall.Chdir(config.Cwd); err != nil {
+		if err := unix.Chdir(config.Cwd); err != nil {
 			return fmt.Errorf("chdir to cwd (%q) set in config.json failed: %v", config.Cwd, err)
 		}
 	}
@@ -157,7 +160,8 @@ func finalizeNamespace(config *initConfig) error {
 // consoles are scoped to a container properly (see runc#814 and the many
 // issues related to that). This has to be run *after* we've pivoted to the new
 // rootfs (and the users' configuration is entirely set up).
-func setupConsole(pipe *os.File, config *initConfig, mount bool) error {
+func setupConsole(socket *os.File, config *initConfig, mount bool) error {
+	defer socket.Close()
 	// At this point, /dev/ptmx points to something that we would expect. We
 	// used to change the owner of the slave path, but since the /dev/pts mount
 	// can have gid=X set (at the users' option). So touching the owner of the
@@ -176,37 +180,16 @@ func setupConsole(pipe *os.File, config *initConfig, mount bool) error {
 	if !ok {
 		return fmt.Errorf("failed to cast console to *linuxConsole")
 	}
-
 	// Mount the console inside our rootfs.
 	if mount {
 		if err := linuxConsole.mount(); err != nil {
 			return err
 		}
 	}
-
-	if err := writeSync(pipe, procConsole); err != nil {
-		return err
-	}
-
-	// We need to have a two-way synchronisation here. Though it might seem
-	// pointless, it's important to make sure that the sendmsg(2) payload
-	// doesn't get swallowed by an out-of-place read(2) [which happens if the
-	// syscalls get reordered so that sendmsg(2) is before the other side's
-	// read(2) of procConsole].
-	if err := readSync(pipe, procConsoleReq); err != nil {
-		return err
-	}
-
 	// While we can access console.master, using the API is a good idea.
-	if err := utils.SendFd(pipe, linuxConsole.File()); err != nil {
+	if err := utils.SendFd(socket, linuxConsole.File()); err != nil {
 		return err
 	}
-
-	// Make sure the other side received the fd.
-	if err := readSync(pipe, procConsoleAck); err != nil {
-		return err
-	}
-
 	// Now, dup over all the things.
 	return linuxConsole.dupStdio()
 }
@@ -249,18 +232,21 @@ func syncParentHooks(pipe io.ReadWriter) error {
 func setupUser(config *initConfig) error {
 	// Set up defaults.
 	defaultExecUser := user.ExecUser{
-		Uid:  syscall.Getuid(),
-		Gid:  syscall.Getgid(),
+		Uid:  0,
+		Gid:  0,
 		Home: "/",
 	}
+
 	passwdPath, err := user.GetPasswdPath()
 	if err != nil {
 		return err
 	}
+
 	groupPath, err := user.GetGroupPath()
 	if err != nil {
 		return err
 	}
+
 	execUser, err := user.GetExecUserPath(config.User, &defaultExecUser, passwdPath, groupPath)
 	if err != nil {
 		return err
@@ -273,22 +259,49 @@ func setupUser(config *initConfig) error {
 			return err
 		}
 	}
+
+	if config.Rootless {
+		if execUser.Uid != 0 {
+			return fmt.Errorf("cannot run as a non-root user in a rootless container")
+		}
+
+		if execUser.Gid != 0 {
+			return fmt.Errorf("cannot run as a non-root group in a rootless container")
+		}
+
+		// We cannot set any additional groups in a rootless container and thus we
+		// bail if the user asked us to do so. TODO: We currently can't do this
+		// earlier, but if libcontainer.Process.User was typesafe this might work.
+		if len(addGroups) > 0 {
+			return fmt.Errorf("cannot set any additional groups in a rootless container")
+		}
+	}
+
 	// before we change to the container's user make sure that the processes STDIO
 	// is correctly owned by the user that we are switching to.
-	if err := fixStdioPermissions(execUser); err != nil {
+	if err := fixStdioPermissions(config, execUser); err != nil {
 		return err
 	}
-	suppGroups := append(execUser.Sgids, addGroups...)
-	if err := syscall.Setgroups(suppGroups); err != nil {
-		return err
+
+	// This isn't allowed in an unprivileged user namespace since Linux 3.19.
+	// There's nothing we can do about /etc/group entries, so we silently
+	// ignore setting groups here (since the user didn't explicitly ask us to
+	// set the group).
+	if !config.Rootless {
+		suppGroups := append(execUser.Sgids, addGroups...)
+		if err := unix.Setgroups(suppGroups); err != nil {
+			return err
+		}
 	}
 
 	if err := system.Setgid(execUser.Gid); err != nil {
 		return err
 	}
+
 	if err := system.Setuid(execUser.Uid); err != nil {
 		return err
 	}
+
 	// if we didn't get HOME already, set it based on the user's HOME
 	if envHome := os.Getenv("HOME"); envHome == "" {
 		if err := os.Setenv("HOME", execUser.Home); err != nil {
@@ -301,9 +314,9 @@ func setupUser(config *initConfig) error {
 // fixStdioPermissions fixes the permissions of PID 1's STDIO within the container to the specified user.
 // The ownership needs to match because it is created outside of the container and needs to be
 // localized.
-func fixStdioPermissions(u *user.ExecUser) error {
-	var null syscall.Stat_t
-	if err := syscall.Stat("/dev/null", &null); err != nil {
+func fixStdioPermissions(config *initConfig, u *user.ExecUser) error {
+	var null unix.Stat_t
+	if err := unix.Stat("/dev/null", &null); err != nil {
 		return err
 	}
 	for _, fd := range []uintptr{
@@ -311,21 +324,31 @@ func fixStdioPermissions(u *user.ExecUser) error {
 		os.Stderr.Fd(),
 		os.Stdout.Fd(),
 	} {
-		var s syscall.Stat_t
-		if err := syscall.Fstat(int(fd), &s); err != nil {
+		var s unix.Stat_t
+		if err := unix.Fstat(int(fd), &s); err != nil {
 			return err
 		}
+
 		// Skip chown of /dev/null if it was used as one of the STDIO fds.
 		if s.Rdev == null.Rdev {
 			continue
 		}
+
+		// Skip chown if s.Gid is actually an unmapped gid in the host. While
+		// this is a bit dodgy if it just so happens that the console _is_
+		// owned by overflow_gid, there's no way for us to disambiguate this as
+		// a userspace program.
+		if _, err := config.Config.HostGID(int(s.Gid)); err != nil {
+			continue
+		}
+
 		// We only change the uid owner (as it is possible for the mount to
 		// prefer a different gid, and there's no reason for us to change it).
 		// The reason why we don't just leave the default uid=X mount setup is
 		// that users expect to be able to actually use their console. Without
 		// this code, you couldn't effectively run as a non-root user inside a
 		// container and also have a console set up.
-		if err := syscall.Fchown(int(fd), u.Uid, int(s.Gid)); err != nil {
+		if err := unix.Fchown(int(fd), u.Uid, int(s.Gid)); err != nil {
 			return err
 		}
 	}
@@ -380,17 +403,11 @@ func setupRoute(config *configs.Config) error {
 
 func setupRlimits(limits []configs.Rlimit, pid int) error {
 	for _, rlimit := range limits {
-		if err := system.Prlimit(pid, rlimit.Type, syscall.Rlimit{Max: rlimit.Hard, Cur: rlimit.Soft}); err != nil {
+		if err := system.Prlimit(pid, rlimit.Type, unix.Rlimit{Max: rlimit.Hard, Cur: rlimit.Soft}); err != nil {
 			return fmt.Errorf("error setting rlimit type %v: %v", rlimit.Type, err)
 		}
 	}
 	return nil
-}
-
-func setOomScoreAdj(oomScoreAdj int, pid int) error {
-	path := fmt.Sprintf("/proc/%d/oom_score_adj", pid)
-
-	return ioutil.WriteFile(path, []byte(strconv.Itoa(oomScoreAdj)), 0600)
 }
 
 const _P_PID = 1
@@ -409,7 +426,7 @@ type siginfo struct {
 // Its based off blockUntilWaitable in src/os/wait_waitid.go
 func isWaitable(pid int) (bool, error) {
 	si := &siginfo{}
-	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(pid), uintptr(unsafe.Pointer(si)), syscall.WEXITED|syscall.WNOWAIT|syscall.WNOHANG, 0, 0)
+	_, _, e := unix.Syscall6(unix.SYS_WAITID, _P_PID, uintptr(pid), uintptr(unsafe.Pointer(si)), unix.WEXITED|unix.WNOWAIT|unix.WNOHANG, 0, 0)
 	if e != 0 {
 		return false, os.NewSyscallError("waitid", e)
 	}
@@ -417,15 +434,15 @@ func isWaitable(pid int) (bool, error) {
 	return si.si_pid != 0, nil
 }
 
-// isNoChildren returns true if err represents a syscall.ECHILD false otherwise
+// isNoChildren returns true if err represents a unix.ECHILD (formerly syscall.ECHILD) false otherwise
 func isNoChildren(err error) bool {
 	switch err := err.(type) {
 	case syscall.Errno:
-		if err == syscall.ECHILD {
+		if err == unix.ECHILD {
 			return true
 		}
 	case *os.SyscallError:
-		if err.Err == syscall.ECHILD {
+		if err.Err == unix.ECHILD {
 			return true
 		}
 	}
@@ -463,7 +480,7 @@ func signalAllProcesses(m cgroups.Manager, s os.Signal) error {
 	}
 
 	for _, p := range procs {
-		if s != syscall.SIGKILL {
+		if s != unix.SIGKILL {
 			if ok, err := isWaitable(p.Pid); err != nil {
 				if !isNoChildren(err) {
 					logrus.Warn("signalAllProcesses: ", p.Pid, err)

@@ -528,7 +528,13 @@ type vxlanPortRange struct {
 
 func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	if vxlan.FlowBased {
+		vxlan.VxlanId = 0
+	}
+
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
+
 	if vxlan.VtepDevIndex != 0 {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
 	}
@@ -568,6 +574,9 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	}
 	if vxlan.GBP {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, []byte{})
+	}
+	if vxlan.FlowBased {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_FLOWBASED, boolAttr(vxlan.FlowBased))
 	}
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
@@ -669,6 +678,18 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	if bond.AdSelect >= 0 {
 		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_SELECT, nl.Uint8Attr(uint8(bond.AdSelect)))
 	}
+	if bond.AdActorSysPrio >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_ACTOR_SYS_PRIO, nl.Uint16Attr(uint16(bond.AdActorSysPrio)))
+	}
+	if bond.AdUserPortKey >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_USER_PORT_KEY, nl.Uint16Attr(uint16(bond.AdUserPortKey)))
+	}
+	if bond.AdActorSystem != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_ACTOR_SYSTEM, []byte(bond.AdActorSystem))
+	}
+	if bond.TlbDynamicLb >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_TLB_DYNAMIC_LB, nl.Uint8Attr(uint8(bond.TlbDynamicLb)))
+	}
 }
 
 // LinkAdd adds a new link device. The type and features of the device
@@ -686,7 +707,6 @@ func (h *Handle) LinkAdd(link Link) error {
 }
 
 func (h *Handle) linkModify(link Link, flags int) error {
-	// TODO: set mtu and hardware address
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
 
@@ -779,6 +799,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	if base.TxQLen >= 0 {
 		qlen := nl.NewRtAttr(syscall.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
 		req.AddData(qlen)
+	}
+
+	if base.HardwareAddr != nil {
+		hwaddr := nl.NewRtAttr(syscall.IFLA_ADDRESS, []byte(base.HardwareAddr))
+		req.AddData(hwaddr)
 	}
 
 	if base.Namespace != nil {
@@ -903,7 +928,7 @@ func (h *Handle) linkByNameDump(name string) (Link, error) {
 			return link, nil
 		}
 	}
-	return nil, fmt.Errorf("Link %s not found", name)
+	return nil, LinkNotFoundError{fmt.Errorf("Link %s not found", name)}
 }
 
 func (h *Handle) linkByAliasDump(alias string) (Link, error) {
@@ -917,7 +942,7 @@ func (h *Handle) linkByAliasDump(alias string) (Link, error) {
 			return link, nil
 		}
 	}
-	return nil, fmt.Errorf("Link alias %s not found", alias)
+	return nil, LinkNotFoundError{fmt.Errorf("Link alias %s not found", alias)}
 }
 
 // LinkByName finds a link by name and returns a pointer to the object.
@@ -1003,7 +1028,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	if err != nil {
 		if errno, ok := err.(syscall.Errno); ok {
 			if errno == syscall.ENODEV {
-				return nil, fmt.Errorf("Link not found")
+				return nil, LinkNotFoundError{fmt.Errorf("Link not found")}
 			}
 		}
 		return nil, err
@@ -1011,7 +1036,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 
 	switch {
 	case len(msgs) == 0:
-		return nil, fmt.Errorf("Link not found")
+		return nil, LinkNotFoundError{fmt.Errorf("Link not found")}
 
 	case len(msgs) == 1:
 		return LinkDeserialize(nil, msgs[0])
@@ -1391,6 +1416,8 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.UDPCSum = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
 			vxlan.GBP = true
+		case nl.IFLA_VXLAN_FLOWBASED:
+			vxlan.FlowBased = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
 			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0
@@ -1459,6 +1486,14 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 			bond.AdSelect = BondAdSelect(data[i].Value[0])
 		case nl.IFLA_BOND_AD_INFO:
 			// TODO: implement
+		case nl.IFLA_BOND_AD_ACTOR_SYS_PRIO:
+			bond.AdActorSysPrio = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_AD_USER_PORT_KEY:
+			bond.AdUserPortKey = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_AD_ACTOR_SYSTEM:
+			bond.AdActorSystem = net.HardwareAddr(data[i].Value[0:6])
+		case nl.IFLA_BOND_TLB_DYNAMIC_LB:
+			bond.TlbDynamicLb = int(data[i].Value[0])
 		}
 	}
 }
@@ -1522,6 +1557,12 @@ func linkFlags(rawFlags uint32) net.Flags {
 
 func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	if gretap.FlowBased {
+		// In flow based mode, no other attributes need to be configured
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_COLLECT_METADATA, boolAttr(gretap.FlowBased))
+		return
+	}
 
 	ip := gretap.Local.To4()
 	if ip != nil {
@@ -1589,6 +1630,8 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapType = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_FLAGS:
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_GRE_COLLECT_METADATA:
+			gre.FlowBased = int8(datum.Value[0]) != 0
 		}
 	}
 }
