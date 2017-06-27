@@ -6,6 +6,7 @@ RUN echo 'deb http://httpredir.debian.org/debian jessie-backports main' > /etc/a
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    sudo \
     gawk \
     iptables \
     jq \
@@ -14,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     libcap-dev \
     libprotobuf-dev \
     libprotobuf-c0-dev \
+    libnl-3-dev \
+    libnet-dev \
     libseccomp2/jessie-backports \
     libseccomp-dev/jessie-backports \
     protobuf-c-compiler \
@@ -21,6 +24,12 @@ RUN apt-get update && apt-get install -y \
     python-minimal \
     --no-install-recommends \
     && apt-get clean
+
+# Add a dummy user for the rootless integration tests. While runC does
+# not require an entry in /etc/passwd to operate, one of the tests uses
+# `git clone` -- and `git clone` does not allow you to clone a
+# repository if the current uid does not have an entry in /etc/passwd.
+RUN useradd -u1000 -m -d/home/rootless -s/bin/bash rootless
 
 # install bats
 RUN cd /tmp \
@@ -31,9 +40,9 @@ RUN cd /tmp \
     && rm -rf /tmp/bats
 
 # install criu
-ENV CRIU_VERSION 1.7
+ENV CRIU_VERSION 3ca8e575b49763030d3ddfec4af190a4c9f9deef
 RUN mkdir -p /usr/src/criu \
-    && curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
+    && curl -sSL https://github.com/xemul/criu/archive/${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
     && cd /usr/src/criu \
     && make install-criu \
     && rm -rf /usr/src/criu

@@ -90,9 +90,6 @@ following will output a list of processes running in the container:
 		if err := checkArgs(context, 1, minArgs); err != nil {
 			return err
 		}
-		if os.Geteuid() != 0 {
-			return fmt.Errorf("runc should be run as root")
-		}
 		if err := revisePidFile(context); err != nil {
 			return err
 		}
@@ -138,6 +135,7 @@ func execProcess(context *cli.Context) (int, error) {
 		consoleSocket:   context.String("console-socket"),
 		detach:          detach,
 		pidFile:         context.String("pid-file"),
+		action:          CT_ACT_RUN,
 	}
 	return r.run(p)
 }
@@ -176,7 +174,13 @@ func getProcess(context *cli.Context, bundle string) (*specs.Process, error) {
 		p.SelinuxLabel = l
 	}
 	if caps := context.StringSlice("cap"); len(caps) > 0 {
-		p.Capabilities = caps
+		for _, c := range caps {
+			p.Capabilities.Bounding = append(p.Capabilities.Bounding, c)
+			p.Capabilities.Inheritable = append(p.Capabilities.Inheritable, c)
+			p.Capabilities.Effective = append(p.Capabilities.Effective, c)
+			p.Capabilities.Permitted = append(p.Capabilities.Permitted, c)
+			p.Capabilities.Ambient = append(p.Capabilities.Ambient, c)
+		}
 	}
 	// append the passed env variables
 	p.Env = append(p.Env, context.StringSlice("env")...)
@@ -204,5 +208,5 @@ func getProcess(context *cli.Context, bundle string) (*specs.Process, error) {
 		}
 		p.User.UID = uint32(uid)
 	}
-	return &p, nil
+	return p, nil
 }

@@ -8,14 +8,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
-	"syscall"
+	"syscall" // only for SysProcAttr and Signal
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
@@ -37,7 +40,7 @@ type linuxContainer struct {
 	cgroupManager        cgroups.Manager
 	initArgs             []string
 	initProcess          parentProcess
-	initProcessStartTime string
+	initProcessStartTime uint64
 	criuPath             string
 	m                    sync.Mutex
 	criuVersion          int
@@ -50,6 +53,9 @@ type State struct {
 	BaseState
 
 	// Platform specific fields below here
+
+	// Specifies if the container was started under the rootless mode.
+	Rootless bool `json:"rootless"`
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
 	// with the value as the path.
@@ -260,9 +266,6 @@ func (c *linuxContainer) start(process *Process, isInit bool) error {
 	}
 	// generate a timestamp indicating when the container was started
 	c.created = time.Now().UTC()
-	c.state = &runningState{
-		c: c,
-	}
 	if isInit {
 		c.state = &createdState{
 			c: c,
@@ -275,10 +278,10 @@ func (c *linuxContainer) start(process *Process, isInit bool) error {
 
 		if c.config.Hooks != nil {
 			s := configs.HookState{
-				Version:    c.config.Version,
-				ID:         c.id,
-				Pid:        parent.pid(),
-				BundlePath: utils.SearchLabels(c.config.Labels, "bundle"),
+				Version: c.config.Version,
+				ID:      c.id,
+				Pid:     parent.pid(),
+				Bundle:  utils.SearchLabels(c.config.Labels, "bundle"),
 			}
 			for i, hook := range c.config.Hooks.Poststart {
 				if err := hook.Run(s); err != nil {
@@ -288,6 +291,10 @@ func (c *linuxContainer) start(process *Process, isInit bool) error {
 					return newSystemErrorWithCausef(err, "running poststart hook %d", i)
 				}
 			}
+		}
+	} else {
+		c.state = &runningState{
+			c: c,
 		}
 	}
 	return nil
@@ -304,11 +311,11 @@ func (c *linuxContainer) Signal(s os.Signal, all bool) error {
 }
 
 func (c *linuxContainer) createExecFifo() error {
-	rootuid, err := c.Config().HostUID()
+	rootuid, err := c.Config().HostRootUID()
 	if err != nil {
 		return err
 	}
-	rootgid, err := c.Config().HostGID()
+	rootgid, err := c.Config().HostRootGID()
 	if err != nil {
 		return err
 	}
@@ -317,12 +324,12 @@ func (c *linuxContainer) createExecFifo() error {
 	if _, err := os.Stat(fifoName); err == nil {
 		return fmt.Errorf("exec fifo %s already exists", fifoName)
 	}
-	oldMask := syscall.Umask(0000)
-	if err := syscall.Mkfifo(fifoName, 0622); err != nil {
-		syscall.Umask(oldMask)
+	oldMask := unix.Umask(0000)
+	if err := unix.Mkfifo(fifoName, 0622); err != nil {
+		unix.Umask(oldMask)
 		return err
 	}
-	syscall.Umask(oldMask)
+	unix.Umask(oldMask)
 	if err := os.Chown(fifoName, rootuid, rootgid); err != nil {
 		return err
 	}
@@ -335,7 +342,7 @@ func (c *linuxContainer) deleteExecFifo() {
 }
 
 func (c *linuxContainer) newParentProcess(p *Process, doInit bool) (parentProcess, error) {
-	parentPipe, childPipe, err := newPipe()
+	parentPipe, childPipe, err := utils.NewSockPair("init")
 	if err != nil {
 		return nil, newSystemErrorWithCause(err, "creating new init pipe")
 	}
@@ -370,9 +377,17 @@ func (c *linuxContainer) commandTemplate(p *Process, childPipe *os.File) (*exec.
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.ExtraFiles = append(p.ExtraFiles, childPipe)
+	cmd.ExtraFiles = append(cmd.ExtraFiles, p.ExtraFiles...)
+	if p.ConsoleSocket != nil {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, p.ConsoleSocket)
+		cmd.Env = append(cmd.Env,
+			fmt.Sprintf("_LIBCONTAINER_CONSOLE=%d", stdioFdCount+len(cmd.ExtraFiles)-1),
+		)
+	}
+	cmd.ExtraFiles = append(cmd.ExtraFiles, childPipe)
 	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("_LIBCONTAINER_INITPIPE=%d", stdioFdCount+len(cmd.ExtraFiles)-1))
+		fmt.Sprintf("_LIBCONTAINER_INITPIPE=%d", stdioFdCount+len(cmd.ExtraFiles)-1),
+	)
 	// NOTE: when running a container with no PID namespace and the parent process spawning the container is
 	// PID1 the pdeathsig is being delivered to the container's init process by the kernel for some reason
 	// even with the parent still running.
@@ -395,7 +410,6 @@ func (c *linuxContainer) newInitProcess(p *Process, cmd *exec.Cmd, parentPipe, c
 	if err != nil {
 		return nil, err
 	}
-	p.consoleChan = make(chan *os.File, 1)
 	return &initProcess{
 		cmd:           cmd,
 		childPipe:     childPipe,
@@ -422,8 +436,6 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 	if err != nil {
 		return nil, err
 	}
-	// TODO: set on container for process management
-	p.consoleChan = make(chan *os.File, 1)
 	return &setnsProcess{
 		cmd:           cmd,
 		cgroupPaths:   c.cgroupManager.GetPaths(),
@@ -447,10 +459,10 @@ func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 		PassedFilesCount: len(process.ExtraFiles),
 		ContainerId:      c.ID(),
 		NoNewPrivileges:  c.config.NoNewPrivileges,
+		Rootless:         c.config.Rootless,
 		AppArmorProfile:  c.config.AppArmorProfile,
 		ProcessLabel:     c.config.ProcessLabel,
 		Rlimits:          c.config.Rlimits,
-		ExecFifoPath:     filepath.Join(c.root, execFifoFilename),
 	}
 	if process.NoNewPrivileges != nil {
 		cfg.NoNewPrivileges = *process.NoNewPrivileges
@@ -464,26 +476,8 @@ func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 	if len(process.Rlimits) > 0 {
 		cfg.Rlimits = process.Rlimits
 	}
-	/*
-	 * TODO: This should not be automatically computed. We should implement
-	 *       this as a field in libcontainer.Process, and then we only dup the
-	 *       new console over the file descriptors which were not explicitly
-	 *       set with process.Std{in,out,err}. The reason I've left this as-is
-	 *       is because the GetConsole() interface is new, there's no need to
-	 *       polish this interface right now.
-	 */
-	if process.Stdin == nil && process.Stdout == nil && process.Stderr == nil {
-		cfg.CreateConsole = true
-	}
+	cfg.CreateConsole = process.ConsoleSocket != nil
 	return cfg
-}
-
-func newPipe() (parent *os.File, child *os.File, err error) {
-	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, 0)
-	if err != nil {
-		return nil, nil, err
-	}
-	return os.NewFile(uintptr(fds[1]), "parent"), os.NewFile(uintptr(fds[0]), "child"), nil
 }
 
 func (c *linuxContainer) Destroy() error {
@@ -530,11 +524,69 @@ func (c *linuxContainer) Resume() error {
 }
 
 func (c *linuxContainer) NotifyOOM() (<-chan struct{}, error) {
+	// XXX(cyphar): This requires cgroups.
+	if c.config.Rootless {
+		return nil, fmt.Errorf("cannot get OOM notifications from rootless container")
+	}
 	return notifyOnOOM(c.cgroupManager.GetPaths())
 }
 
 func (c *linuxContainer) NotifyMemoryPressure(level PressureLevel) (<-chan struct{}, error) {
+	// XXX(cyphar): This requires cgroups.
+	if c.config.Rootless {
+		return nil, fmt.Errorf("cannot get memory pressure notifications from rootless container")
+	}
 	return notifyMemoryPressure(c.cgroupManager.GetPaths(), level)
+}
+
+var criuFeatures *criurpc.CriuFeatures
+
+func (c *linuxContainer) checkCriuFeatures(criuOpts *CriuOpts, rpcOpts *criurpc.CriuOpts, criuFeat *criurpc.CriuFeatures) error {
+
+	var t criurpc.CriuReqType
+	t = criurpc.CriuReqType_FEATURE_CHECK
+
+	if err := c.checkCriuVersion("1.8"); err != nil {
+		// Feature checking was introduced with CRIU 1.8.
+		// Ignore the feature check if an older CRIU version is used
+		// and just act as before.
+		// As all automated PR testing is done using CRIU 1.7 this
+		// code will not be tested by automated PR testing.
+		return nil
+	}
+
+	// make sure the features we are looking for are really not from
+	// some previous check
+	criuFeatures = nil
+
+	req := &criurpc.CriuReq{
+		Type: &t,
+		// Theoretically this should not be necessary but CRIU
+		// segfaults if Opts is empty.
+		// Fixed in CRIU  2.12
+		Opts:     rpcOpts,
+		Features: criuFeat,
+	}
+
+	err := c.criuSwrk(nil, req, criuOpts, false)
+	if err != nil {
+		logrus.Debugf("%s", err)
+		return fmt.Errorf("CRIU feature check failed")
+	}
+
+	logrus.Debugf("Feature check says: %s", criuFeatures)
+	missingFeatures := false
+
+	if *criuFeat.MemTrack && !*criuFeatures.MemTrack {
+		missingFeatures = true
+		logrus.Debugf("CRIU does not support MemTrack")
+	}
+
+	if missingFeatures {
+		return fmt.Errorf("CRIU is missing features")
+	}
+
+	return nil
 }
 
 // checkCriuVersion checks Criu version greater than or equal to minVersion
@@ -588,7 +640,7 @@ func (c *linuxContainer) checkCriuVersion(minVersion string) error {
 	c.criuVersion = x*10000 + y*100 + z
 
 	if c.criuVersion < versionReq {
-		return fmt.Errorf("CRIU version must be %s or higher", minVersion)
+		return fmt.Errorf("CRIU version %d must be %d or higher", c.criuVersion, versionReq)
 	}
 
 	return nil
@@ -636,6 +688,13 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
+	// TODO(avagin): Figure out how to make this work nicely. CRIU 2.0 has
+	//               support for doing unprivileged dumps, but the setup of
+	//               rootless containers might make this complicated.
+	if c.config.Rootless {
+		return fmt.Errorf("cannot checkpoint a rootless container")
+	}
+
 	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
@@ -671,20 +730,26 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 	defer imageDir.Close()
 
 	rpcOpts := criurpc.CriuOpts{
-		ImagesDirFd:    proto.Int32(int32(imageDir.Fd())),
-		WorkDirFd:      proto.Int32(int32(workDir.Fd())),
-		LogLevel:       proto.Int32(4),
-		LogFile:        proto.String("dump.log"),
-		Root:           proto.String(c.config.Rootfs),
-		ManageCgroups:  proto.Bool(true),
-		NotifyScripts:  proto.Bool(true),
-		Pid:            proto.Int32(int32(c.initProcess.pid())),
-		ShellJob:       proto.Bool(criuOpts.ShellJob),
-		LeaveRunning:   proto.Bool(criuOpts.LeaveRunning),
-		TcpEstablished: proto.Bool(criuOpts.TcpEstablished),
-		ExtUnixSk:      proto.Bool(criuOpts.ExternalUnixConnections),
-		FileLocks:      proto.Bool(criuOpts.FileLocks),
-		EmptyNs:        proto.Uint32(criuOpts.EmptyNs),
+		ImagesDirFd:     proto.Int32(int32(imageDir.Fd())),
+		WorkDirFd:       proto.Int32(int32(workDir.Fd())),
+		LogLevel:        proto.Int32(4),
+		LogFile:         proto.String("dump.log"),
+		Root:            proto.String(c.config.Rootfs),
+		ManageCgroups:   proto.Bool(true),
+		NotifyScripts:   proto.Bool(true),
+		Pid:             proto.Int32(int32(c.initProcess.pid())),
+		ShellJob:        proto.Bool(criuOpts.ShellJob),
+		LeaveRunning:    proto.Bool(criuOpts.LeaveRunning),
+		TcpEstablished:  proto.Bool(criuOpts.TcpEstablished),
+		ExtUnixSk:       proto.Bool(criuOpts.ExternalUnixConnections),
+		FileLocks:       proto.Bool(criuOpts.FileLocks),
+		EmptyNs:         proto.Uint32(criuOpts.EmptyNs),
+		OrphanPtsMaster: proto.Bool(true),
+	}
+
+	fcg := c.cgroupManager.GetPaths()["freezer"]
+	if fcg != "" {
+		rpcOpts.FreezeCgroup = proto.String(fcg)
 	}
 
 	// append optional criu opts, e.g., page-server and port
@@ -712,6 +777,14 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 
 	var t criurpc.CriuReqType
 	if criuOpts.PreDump {
+		feat := criurpc.CriuFeatures{
+			MemTrack: proto.Bool(true),
+		}
+
+		if err := c.checkCriuFeatures(criuOpts, &rpcOpts, &feat); err != nil {
+			return err
+		}
+
 		t = criurpc.CriuReqType_PRE_DUMP
 	} else {
 		t = criurpc.CriuReqType_DUMP
@@ -805,6 +878,13 @@ func (c *linuxContainer) restoreNetwork(req *criurpc.CriuReq, criuOpts *CriuOpts
 func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
+
+	// TODO(avagin): Figure out how to make this work nicely. CRIU doesn't have
+	//               support for unprivileged restore at the moment.
+	if c.config.Rootless {
+		return fmt.Errorf("cannot restore a rootless container")
+	}
+
 	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
@@ -843,29 +923,30 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 	if err != nil {
 		return err
 	}
-	err = syscall.Mount(c.config.Rootfs, root, "", syscall.MS_BIND|syscall.MS_REC, "")
+	err = unix.Mount(c.config.Rootfs, root, "", unix.MS_BIND|unix.MS_REC, "")
 	if err != nil {
 		return err
 	}
-	defer syscall.Unmount(root, syscall.MNT_DETACH)
+	defer unix.Unmount(root, unix.MNT_DETACH)
 	t := criurpc.CriuReqType_RESTORE
 	req := &criurpc.CriuReq{
 		Type: &t,
 		Opts: &criurpc.CriuOpts{
-			ImagesDirFd:    proto.Int32(int32(imageDir.Fd())),
-			WorkDirFd:      proto.Int32(int32(workDir.Fd())),
-			EvasiveDevices: proto.Bool(true),
-			LogLevel:       proto.Int32(4),
-			LogFile:        proto.String("restore.log"),
-			RstSibling:     proto.Bool(true),
-			Root:           proto.String(root),
-			ManageCgroups:  proto.Bool(true),
-			NotifyScripts:  proto.Bool(true),
-			ShellJob:       proto.Bool(criuOpts.ShellJob),
-			ExtUnixSk:      proto.Bool(criuOpts.ExternalUnixConnections),
-			TcpEstablished: proto.Bool(criuOpts.TcpEstablished),
-			FileLocks:      proto.Bool(criuOpts.FileLocks),
-			EmptyNs:        proto.Uint32(criuOpts.EmptyNs),
+			ImagesDirFd:     proto.Int32(int32(imageDir.Fd())),
+			WorkDirFd:       proto.Int32(int32(workDir.Fd())),
+			EvasiveDevices:  proto.Bool(true),
+			LogLevel:        proto.Int32(4),
+			LogFile:         proto.String("restore.log"),
+			RstSibling:      proto.Bool(true),
+			Root:            proto.String(root),
+			ManageCgroups:   proto.Bool(true),
+			NotifyScripts:   proto.Bool(true),
+			ShellJob:        proto.Bool(criuOpts.ShellJob),
+			ExtUnixSk:       proto.Bool(criuOpts.ExternalUnixConnections),
+			TcpEstablished:  proto.Bool(criuOpts.TcpEstablished),
+			FileLocks:       proto.Bool(criuOpts.FileLocks),
+			EmptyNs:         proto.Uint32(criuOpts.EmptyNs),
+			OrphanPtsMaster: proto.Bool(true),
 		},
 	}
 
@@ -896,7 +977,7 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 		c.addCriuRestoreMount(req, m)
 	}
 
-	if criuOpts.EmptyNs&syscall.CLONE_NEWNET == 0 {
+	if criuOpts.EmptyNs&unix.CLONE_NEWNET == 0 {
 		c.restoreNetwork(req, criuOpts)
 	}
 
@@ -932,8 +1013,13 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 }
 
 func (c *linuxContainer) criuApplyCgroups(pid int, req *criurpc.CriuReq) error {
+	// XXX: Do we need to deal with this case? AFAIK criu still requires root.
 	if err := c.cgroupManager.Apply(pid); err != nil {
 		return err
+	}
+
+	if err := c.cgroupManager.Set(c.config); err != nil {
+		return newSystemError(err)
 	}
 
 	path := fmt.Sprintf("/proc/%d/cgroup", pid)
@@ -954,15 +1040,23 @@ func (c *linuxContainer) criuApplyCgroups(pid int, req *criurpc.CriuReq) error {
 }
 
 func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *CriuOpts, applyCgroups bool) error {
-	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_SEQPACKET|syscall.SOCK_CLOEXEC, 0)
+	fds, err := unix.Socketpair(unix.AF_LOCAL, unix.SOCK_SEQPACKET|unix.SOCK_CLOEXEC, 0)
 	if err != nil {
 		return err
 	}
 
 	logPath := filepath.Join(opts.WorkDirectory, req.GetOpts().GetLogFile())
 	criuClient := os.NewFile(uintptr(fds[0]), "criu-transport-client")
+	criuClientFileCon, err := net.FileConn(criuClient)
+	criuClient.Close()
+	if err != nil {
+		return err
+	}
+
+	criuClientCon := criuClientFileCon.(*net.UnixConn)
+	defer criuClientCon.Close()
+
 	criuServer := os.NewFile(uintptr(fds[1]), "criu-transport-server")
-	defer criuClient.Close()
 	defer criuServer.Close()
 
 	args := []string{"swrk", "3"}
@@ -982,7 +1076,7 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 	criuServer.Close()
 
 	defer func() {
-		criuClient.Close()
+		criuClientCon.Close()
 		_, err := cmd.Process.Wait()
 		if err != nil {
 			return
@@ -1005,29 +1099,35 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 	}
 
 	logrus.Debugf("Using CRIU in %s mode", req.GetType().String())
-	val := reflect.ValueOf(req.GetOpts())
-	v := reflect.Indirect(val)
-	for i := 0; i < v.NumField(); i++ {
-		st := v.Type()
-		name := st.Field(i).Name
-		if strings.HasPrefix(name, "XXX_") {
-			continue
+	// In the case of criurpc.CriuReqType_FEATURE_CHECK req.GetOpts()
+	// should be empty. For older CRIU versions it still will be
+	// available but empty.
+	if req.GetType() != criurpc.CriuReqType_FEATURE_CHECK {
+		val := reflect.ValueOf(req.GetOpts())
+		v := reflect.Indirect(val)
+		for i := 0; i < v.NumField(); i++ {
+			st := v.Type()
+			name := st.Field(i).Name
+			if strings.HasPrefix(name, "XXX_") {
+				continue
+			}
+			value := val.MethodByName("Get" + name).Call([]reflect.Value{})
+			logrus.Debugf("CRIU option %s with value %v", name, value[0])
 		}
-		value := val.MethodByName("Get" + name).Call([]reflect.Value{})
-		logrus.Debugf("CRIU option %s with value %v", name, value[0])
 	}
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return err
 	}
-	_, err = criuClient.Write(data)
+	_, err = criuClientCon.Write(data)
 	if err != nil {
 		return err
 	}
 
 	buf := make([]byte, 10*4096)
+	oob := make([]byte, 4096)
 	for true {
-		n, err := criuClient.Read(buf)
+		n, oobn, _, _, err := criuClientCon.ReadMsgUnix(buf, oob)
 		if err != nil {
 			return err
 		}
@@ -1050,8 +1150,12 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 
 		t := resp.GetType()
 		switch {
+		case t == criurpc.CriuReqType_FEATURE_CHECK:
+			logrus.Debugf("Feature check says: %s", resp)
+			criuFeatures = resp.GetFeatures()
+			break
 		case t == criurpc.CriuReqType_NOTIFY:
-			if err := c.criuNotifications(resp, process, opts, extFds); err != nil {
+			if err := c.criuNotifications(resp, process, opts, extFds, oob[:oobn]); err != nil {
 				return err
 			}
 			t = criurpc.CriuReqType_NOTIFY
@@ -1063,31 +1167,14 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 			if err != nil {
 				return err
 			}
-			_, err = criuClient.Write(data)
+			_, err = criuClientCon.Write(data)
 			if err != nil {
 				return err
 			}
 			continue
 		case t == criurpc.CriuReqType_RESTORE:
 		case t == criurpc.CriuReqType_DUMP:
-			break
 		case t == criurpc.CriuReqType_PRE_DUMP:
-			// In pre-dump mode CRIU is in a loop and waits for
-			// the final DUMP command.
-			// The current runc pre-dump approach, however, is
-			// start criu in PRE_DUMP once for a single pre-dump
-			// and not the whole series of pre-dump, pre-dump, ...m, dump
-			// If we got the message CriuReqType_PRE_DUMP it means
-			// CRIU was successful and we need to forcefully stop CRIU
-			logrus.Debugf("PRE_DUMP finished. Send close signal to CRIU service")
-			criuClient.Close()
-			// Process status won't be success, because one end of sockets is closed
-			_, err := cmd.Process.Wait()
-			if err != nil {
-				logrus.Debugf("After PRE_DUMP CRIU exiting failed")
-				return err
-			}
-			return nil
 		default:
 			return fmt.Errorf("unable to parse the response %s", resp.String())
 		}
@@ -1095,13 +1182,22 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 		break
 	}
 
+	criuClientCon.CloseWrite()
 	// cmd.Wait() waits cmd.goroutines which are used for proxying file descriptors.
 	// Here we want to wait only the CRIU process.
 	st, err := cmd.Process.Wait()
 	if err != nil {
 		return err
 	}
-	if !st.Success() {
+
+	// In pre-dump mode CRIU is in a loop and waits for
+	// the final DUMP command.
+	// The current runc pre-dump approach, however, is
+	// start criu in PRE_DUMP once for a single pre-dump
+	// and not the whole series of pre-dump, pre-dump, ...m, dump
+	// If we got the message CriuReqType_PRE_DUMP it means
+	// CRIU was successful and we need to forcefully stop CRIU
+	if !st.Success() && *req.Type != criurpc.CriuReqType_PRE_DUMP {
 		return fmt.Errorf("criu failed: %s\nlog file: %s", st.String(), logPath)
 	}
 	return nil
@@ -1135,11 +1231,12 @@ func unlockNetwork(config *configs.Config) error {
 	return nil
 }
 
-func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Process, opts *CriuOpts, fds []string) error {
+func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Process, opts *CriuOpts, fds []string, oob []byte) error {
 	notify := resp.GetNotify()
 	if notify == nil {
 		return fmt.Errorf("invalid response: %s", resp.String())
 	}
+	logrus.Debugf("notify: %s\n", notify.GetScript())
 	switch {
 	case notify.GetScript() == "post-dump":
 		f, err := os.Create(filepath.Join(c.root, "checkpoint"))
@@ -1158,10 +1255,10 @@ func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Proc
 	case notify.GetScript() == "setup-namespaces":
 		if c.config.Hooks != nil {
 			s := configs.HookState{
-				Version:    c.config.Version,
-				ID:         c.id,
-				Pid:        int(notify.GetPid()),
-				BundlePath: utils.SearchLabels(c.config.Labels, "bundle"),
+				Version: c.config.Version,
+				ID:      c.id,
+				Pid:     int(notify.GetPid()),
+				Bundle:  utils.SearchLabels(c.config.Labels, "bundle"),
 			}
 			for i, hook := range c.config.Hooks.Prestart {
 				if err := hook.Run(s); err != nil {
@@ -1191,6 +1288,20 @@ func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Proc
 			if !os.IsNotExist(err) {
 				logrus.Error(err)
 			}
+		}
+	case notify.GetScript() == "orphan-pts-master":
+		scm, err := syscall.ParseSocketControlMessage(oob)
+		if err != nil {
+			return err
+		}
+		fds, err := syscall.ParseUnixRights(&scm[0])
+
+		master := os.NewFile(uintptr(fds[0]), "orphan-pts-master")
+		defer master.Close()
+
+		// While we can access console.master, using the API is a good idea.
+		if err := utils.SendFd(process.ConsoleSocket, master); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -1254,40 +1365,17 @@ func (c *linuxContainer) refreshState() error {
 	return c.state.transition(&stoppedState{c: c})
 }
 
-// doesInitProcessExist checks if the init process is still the same process
-// as the initial one, it could happen that the original process has exited
-// and a new process has been created with the same pid, in this case, the
-// container would already be stopped.
-func (c *linuxContainer) doesInitProcessExist(initPid int) (bool, error) {
-	startTime, err := system.GetProcessStartTime(initPid)
-	if err != nil {
-		return false, newSystemErrorWithCausef(err, "getting init process %d start time", initPid)
-	}
-	if c.initProcessStartTime != startTime {
-		return false, nil
-	}
-	return true, nil
-}
-
 func (c *linuxContainer) runType() (Status, error) {
 	if c.initProcess == nil {
 		return Stopped, nil
 	}
 	pid := c.initProcess.pid()
-	// return Running if the init process is alive
-	if err := syscall.Kill(pid, 0); err != nil {
-		if err == syscall.ESRCH {
-			// It means the process does not exist anymore, could happen when the
-			// process exited just when we call the function, we should not return
-			// error in this case.
-			return Stopped, nil
-		}
-		return Stopped, newSystemErrorWithCausef(err, "sending signal 0 to pid %d", pid)
+	stat, err := system.Stat(pid)
+	if err != nil {
+		return Stopped, nil
 	}
-	// check if the process is still the original init process.
-	exist, err := c.doesInitProcessExist(pid)
-	if !exist || err != nil {
-		return Stopped, err
+	if stat.StartTime != c.initProcessStartTime || stat.State == system.Zombie || stat.State == system.Dead {
+		return Stopped, nil
 	}
 	// We'll create exec fifo and blocking on it after container is created,
 	// and delete it after start container.
@@ -1298,7 +1386,12 @@ func (c *linuxContainer) runType() (Status, error) {
 }
 
 func (c *linuxContainer) isPaused() (bool, error) {
-	data, err := ioutil.ReadFile(filepath.Join(c.cgroupManager.GetPaths()["freezer"], "freezer.state"))
+	fcg := c.cgroupManager.GetPaths()["freezer"]
+	if fcg == "" {
+		// A container doesn't have a freezer cgroup
+		return false, nil
+	}
+	data, err := ioutil.ReadFile(filepath.Join(fcg, "freezer.state"))
 	if err != nil {
 		// If freezer cgroup is not mounted, the container would just be not paused.
 		if os.IsNotExist(err) {
@@ -1311,7 +1404,7 @@ func (c *linuxContainer) isPaused() (bool, error) {
 
 func (c *linuxContainer) currentState() (*State, error) {
 	var (
-		startTime           string
+		startTime           uint64
 		externalDescriptors []string
 		pid                 = -1
 	)
@@ -1328,6 +1421,7 @@ func (c *linuxContainer) currentState() (*State, error) {
 			InitProcessStartTime: startTime,
 			Created:              c.created,
 		},
+		Rootless:            c.config.Rootless,
 		CgroupPaths:         c.cgroupManager.GetPaths(),
 		NamespacePaths:      make(map[configs.NamespaceType]string),
 		ExternalDescriptors: externalDescriptors,
@@ -1353,28 +1447,18 @@ func (c *linuxContainer) currentState() (*State, error) {
 // can setns in order.
 func (c *linuxContainer) orderNamespacePaths(namespaces map[configs.NamespaceType]string) ([]string, error) {
 	paths := []string{}
-	order := []configs.NamespaceType{
-		// The user namespace *must* be done first.
-		configs.NEWUSER,
-		configs.NEWIPC,
-		configs.NEWUTS,
-		configs.NEWNET,
-		configs.NEWPID,
-		configs.NEWNS,
-	}
 
-	// Remove namespaces that we don't need to join.
-	var nsTypes []configs.NamespaceType
-	for _, ns := range order {
-		if c.config.Namespaces.Contains(ns) {
-			nsTypes = append(nsTypes, ns)
+	for _, ns := range configs.NamespaceTypes() {
+
+		// Remove namespaces that we don't need to join.
+		if !c.config.Namespaces.Contains(ns) {
+			continue
 		}
-	}
-	for _, nsType := range nsTypes {
-		if p, ok := namespaces[nsType]; ok && p != "" {
+
+		if p, ok := namespaces[ns]; ok && p != "" {
 			// check if the requested namespace is supported
-			if !configs.IsNamespaceSupported(nsType) {
-				return nil, newSystemError(fmt.Errorf("namespace %s is not supported", nsType))
+			if !configs.IsNamespaceSupported(ns) {
+				return nil, newSystemError(fmt.Errorf("namespace %s is not supported", ns))
 			}
 			// only set to join this namespace if it exists
 			if _, err := os.Lstat(p); err != nil {
@@ -1385,9 +1469,11 @@ func (c *linuxContainer) orderNamespacePaths(namespaces map[configs.NamespaceTyp
 			if strings.ContainsRune(p, ',') {
 				return nil, newSystemError(fmt.Errorf("invalid path %s", p))
 			}
-			paths = append(paths, fmt.Sprintf("%s:%s", configs.NsName(nsType), p))
+			paths = append(paths, fmt.Sprintf("%s:%s", configs.NsName(ns), p))
 		}
+
 	}
+
 	return paths, nil
 }
 
@@ -1455,19 +1541,34 @@ func (c *linuxContainer) bootstrapData(cloneFlags uintptr, nsMaps map[configs.Na
 				Type:  GidmapAttr,
 				Value: b,
 			})
-			// check if we have CAP_SETGID to setgroup properly
-			pid, err := capability.NewPid(os.Getpid())
-			if err != nil {
-				return nil, err
-			}
-			if !pid.Get(capability.EFFECTIVE, capability.CAP_SETGID) {
-				r.AddData(&Boolmsg{
-					Type:  SetgroupAttr,
-					Value: true,
-				})
+			// The following only applies if we are root.
+			if !c.config.Rootless {
+				// check if we have CAP_SETGID to setgroup properly
+				pid, err := capability.NewPid(os.Getpid())
+				if err != nil {
+					return nil, err
+				}
+				if !pid.Get(capability.EFFECTIVE, capability.CAP_SETGID) {
+					r.AddData(&Boolmsg{
+						Type:  SetgroupAttr,
+						Value: true,
+					})
+				}
 			}
 		}
 	}
+
+	// write oom_score_adj
+	r.AddData(&Bytemsg{
+		Type:  OomScoreAdjAttr,
+		Value: []byte(fmt.Sprintf("%d", c.config.OomScoreAdj)),
+	})
+
+	// write rootless
+	r.AddData(&Boolmsg{
+		Type:  RootlessAttr,
+		Value: c.config.Rootless,
+	})
 
 	return bytes.NewReader(r.Serialize()), nil
 }

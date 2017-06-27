@@ -22,13 +22,13 @@ import (
 	"github.com/clearcontainers/proxy/api"
 )
 
-// XXX: could do with its own package to remove that ugly namespacing
 type commandHandler func([]byte, interface{}, *handlerResponse)
 
 // Encapsulates the different parts of what a handler can return.
 type handlerResponse struct {
 	err     error
 	results map[string]interface{}
+	data    []byte
 }
 
 func (r *handlerResponse) SetError(err error) {
@@ -50,13 +50,20 @@ func (r *handlerResponse) AddResult(key string, value interface{}) {
 	r.results[key] = value
 }
 
+// SetData sets the data to be sent as the response payload. If both AddResult
+// and SetData are called on the same handlerResponse, SetData takes precedence
+// and defines what we be returned to the caller.
+func (r *handlerResponse) SetData(data []byte) {
+	r.data = data
+}
+
 // streamHandler is the prototype of function that can be registered to be
 // called when receiving a stream frame
 type streamHandler func(frame *api.Frame, userData interface{}) error
 
 type protocol struct {
-	cmdHandlers   [api.CmdMax]commandHandler
-	streamHandler streamHandler
+	cmdHandlers    [api.CmdMax]commandHandler
+	streamHandlers [api.StreamMax]streamHandler
 }
 
 func newProtocol() *protocol {
@@ -68,9 +75,10 @@ func (proto *protocol) HandleCommand(cmd api.Command, handler commandHandler) {
 }
 
 // HandleStream registers a callback to call when the protocol receives a
-// stream frame. The callback is called from a goroutine internal to proto.
-func (proto *protocol) HandleStream(handler streamHandler) {
-	proto.streamHandler = handler
+// stream frame of kind stream. The callback is called from a goroutine
+// internal to proto.
+func (proto *protocol) HandleStream(stream api.Stream, handler streamHandler) {
+	proto.streamHandlers[stream] = handler
 }
 
 type clientCtx struct {
@@ -114,22 +122,38 @@ func (proto *protocol) handleCommand(ctx *clientCtx, cmd *api.Frame) *api.Frame 
 		return newErrorResponse(cmd.Header.Opcode, hr.err.Error())
 	}
 
-	var payload interface{}
-	if len(hr.results) > 0 {
-		payload = hr.results
+	var frame *api.Frame
+
+	if len(hr.data) > 0 {
+		// We have a full payload defined.
+		frame = api.NewFrame(api.TypeResponse, cmd.Header.Opcode, hr.data)
+	} else {
+		// Otherwise, we'll marshal hr.results, if we have any.
+		var payload interface{}
+		var err error
+
+		if len(hr.results) > 0 {
+			payload = hr.results
+		}
+		frame, err = api.NewFrameJSON(api.TypeResponse, cmd.Header.Opcode, payload)
+		if err != nil {
+			return newErrorResponse(cmd.Header.Opcode, err.Error())
+		}
 	}
-	frame, err := api.NewFrameJSON(api.TypeResponse, cmd.Header.Opcode, payload)
-	if err != nil {
-		return newErrorResponse(cmd.Header.Opcode, err.Error())
-	}
+
 	return frame
 }
 
 func (proto *protocol) handlerStream(ctx *clientCtx, frame *api.Frame) error {
-	if proto.streamHandler == nil {
-		return errors.New("protocol: unexpected stream frame")
+	// cmd.Header.Opcode is guaranteed to be within the right bounds by
+	// ReadFrame().
+	handler := proto.streamHandlers[frame.Header.Opcode]
+	if handler == nil {
+		return fmt.Errorf("no handler for stream %s",
+			api.Stream(frame.Header.Opcode))
 	}
-	return proto.streamHandler(frame, ctx.userData)
+
+	return handler(frame, ctx.userData)
 }
 
 func (proto *protocol) Serve(conn net.Conn, userData interface{}) error {
