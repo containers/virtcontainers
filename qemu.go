@@ -259,6 +259,7 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 				MACAddress: endpoint.NetPair.TAPIface.HardAddr,
 				DownScript: "no",
 				Script:     "no",
+				VHost:      true,
 			},
 		)
 	}
