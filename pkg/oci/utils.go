@@ -102,8 +102,8 @@ type RuntimeConfig struct {
 	Console string
 }
 
-func (config *RuntimeConfig) AddKernelParam(parameter, value string) error {
-	return config.HypervisorConfig.AddKernelParam(parameter, value)
+func (config *RuntimeConfig) AddKernelParam(p vc.Param) error {
+	return config.HypervisorConfig.AddKernelParam(p)
 }
 
 var ociLog = logrus.FieldLogger(logrus.New())

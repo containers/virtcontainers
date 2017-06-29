@@ -561,11 +561,11 @@ func TestPodIDFailure(t *testing.T) {
 func TestAddKernelParamValid(t *testing.T) {
 	var config RuntimeConfig
 
-	expected := []Param{
+	expected := []vc.Param{
 		{"foo", "bar"},
 	}
 
-	err := config.AddKernelParam("foo", "bar")
+	err := config.AddKernelParam(expected[0])
 	if err != nil || reflect.DeepEqual(config.HypervisorConfig.KernelParams, expected) == false {
 		t.Fatal()
 	}
@@ -574,7 +574,11 @@ func TestAddKernelParamValid(t *testing.T) {
 func TestAddKernelParamInvalid(t *testing.T) {
 	var config RuntimeConfig
 
-	err := config.AddKernelParam("", "bar")
+	invalid := []vc.Param{
+		{"", "bar"},
+	}
+
+	err := config.AddKernelParam(invalid[0])
 	if err == nil {
 		t.Fatal()
 	}

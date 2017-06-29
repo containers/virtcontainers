@@ -64,12 +64,12 @@ func TestQemuBuildKernelParamsFoo(t *testing.T) {
 	suffixStr := "foo=foo bar=bar"
 	suffixParams := []Param{
 		{
-			parameter: "foo",
-			value:     "foo",
+			Key:   "foo",
+			Value: "foo",
 		},
 		{
-			parameter: "bar",
-			value:     "bar",
+			Key:   "bar",
+			Value: "bar",
 		},
 	}
 

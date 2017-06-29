@@ -97,8 +97,8 @@ func newHypervisor(hType HypervisorType) (hypervisor, error) {
 
 // Param is a key/value representation for hypervisor and kernel parameters.
 type Param struct {
-	parameter string
-	value     string
+	Key   string
+	Value string
 }
 
 // HypervisorConfig is the hypervisor configuration.
@@ -142,17 +142,12 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 	return true, nil
 }
 
-func (conf *HypervisorConfig) AddKernelParam(parameter, value string) error {
-	if parameter == "" {
+func (conf *HypervisorConfig) AddKernelParam(p Param) error {
+	if p.Key == "" {
 		return fmt.Errorf("Empty kernel parameter")
 	}
 
-	param := Param{
-		parameter: parameter,
-		value:     value,
-	}
-
-	conf.KernelParams = append(conf.KernelParams, param)
+	conf.KernelParams = append(conf.KernelParams, p)
 
 	return nil
 }
@@ -165,17 +160,17 @@ func serializeParams(params []Param, delim string) []string {
 	var parameters []string
 
 	for _, p := range params {
-		if p.parameter == "" && p.value == "" {
+		if p.Key == "" && p.Value == "" {
 			continue
-		} else if p.parameter == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.value))
-		} else if p.value == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.parameter))
+		} else if p.Key == "" {
+			parameters = append(parameters, fmt.Sprintf("%s", p.Value))
+		} else if p.Value == "" {
+			parameters = append(parameters, fmt.Sprintf("%s", p.Key))
 		} else if delim == "" {
-			parameters = append(parameters, fmt.Sprintf("%s", p.parameter))
-			parameters = append(parameters, fmt.Sprintf("%s", p.value))
+			parameters = append(parameters, fmt.Sprintf("%s", p.Key))
+			parameters = append(parameters, fmt.Sprintf("%s", p.Value))
 		} else {
-			parameters = append(parameters, fmt.Sprintf("%s%s%s", p.parameter, delim, p.value))
+			parameters = append(parameters, fmt.Sprintf("%s%s%s", p.Key, delim, p.Value))
 		}
 	}
 
