@@ -255,3 +255,25 @@ func TestSerializeParams(t *testing.T) {
 
 	testSerializeParams(t, params, "=", expected)
 }
+
+func TestAddKernelParamValid(t *testing.T) {
+	var config HypervisorConfig
+
+	expected := []Param{
+		{"foo", "bar"},
+	}
+
+	err := config.AddKernelParam("foo", "bar")
+	if err != nil || reflect.DeepEqual(config.KernelParams, expected) == false {
+		t.Fatal()
+	}
+}
+
+func TestAddKernelParamInvalid(t *testing.T) {
+	var config HypervisorConfig
+
+	err := config.AddKernelParam("", "bar")
+	if err == nil {
+		t.Fatal()
+	}
+}

@@ -142,6 +142,21 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 	return true, nil
 }
 
+func (conf *HypervisorConfig) AddKernelParam(parameter, value string) error {
+	if parameter == "" {
+		return fmt.Errorf("Empty kernel parameter")
+	}
+
+	param := Param{
+		parameter: parameter,
+		value:     value,
+	}
+
+	conf.KernelParams = append(conf.KernelParams, param)
+
+	return nil
+}
+
 func appendParam(params []Param, parameter string, value string) []Param {
 	return append(params, Param{parameter, value})
 }
