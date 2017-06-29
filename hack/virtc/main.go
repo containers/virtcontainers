@@ -164,6 +164,25 @@ var podConfigFlags = []cli.Flag{
 	},
 }
 
+
+
+var ccKernelParams = []vc.Param{
+	{"init", "/usr/lib/systemd/systemd"},
+	{"systemd.unit", "cc-agent.target"},
+	{"systemd.mask", "systemd-networkd.service"},
+	{"systemd.mask", "systemd-networkd.socket"},
+}
+
+func buildKernelParams(config *vc.HypervisorConfig) error {
+	for _, p := range ccKernelParams {
+		if err := config.AddKernelParam(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	var agConfig interface{}
 
@@ -222,6 +241,10 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		KernelPath:            "/usr/share/clear-containers/vmlinux.container",
 		ImagePath:             "/usr/share/clear-containers/clear-containers.img",
 		HypervisorMachineType: context.String("machine-type"),
+	}
+
+	if err := buildKernelParams(&hypervisorConfig); err != nil {
+		return vc.PodConfig{}, err
 	}
 
 	netConfig := vc.NetworkConfig{

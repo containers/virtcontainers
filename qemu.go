@@ -140,11 +140,7 @@ var kernelDefaultParams = []Param{
 	{"console", "hvc0"},
 	{"console", "hvc1"},
 	{"initcall_debug", ""},
-	{"init", "/usr/lib/systemd/systemd"},
-	{"systemd.unit", "cc-agent.target"},
 	{"iommu", "off"},
-	{"systemd.mask", "systemd-networkd.service"},
-	{"systemd.mask", "systemd-networkd.socket"},
 	{"cryptomgr.notests", ""},
 	{"net.ifnames", "0"},
 }
