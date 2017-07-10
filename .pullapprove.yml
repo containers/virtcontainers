@@ -39,6 +39,7 @@ groups:
   approvers:
     required: 1
     users:
+      - dlespiau
       - sameo
       - sboeuf
 
