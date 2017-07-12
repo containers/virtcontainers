@@ -21,3 +21,9 @@ var DefaultMockCCShimBinPath string
 
 // DefaultMockHookBinPath is populated at link time.
 var DefaultMockHookBinPath string
+
+// ShimStdoutOutput is the expected output sent by the mock shim on stdout.
+const ShimStdoutOutput = "Some output on stdout"
+
+// ShimStderrOutput is the expected output sent by the mock shim on stderr.
+const ShimStderrOutput = "Some output on stderr"

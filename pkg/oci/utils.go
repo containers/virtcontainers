@@ -286,8 +286,8 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
-func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string) (vc.PodConfig, error) {
-	containerConfig, err := ContainerConfig(ocispec, bundlePath, cid, console)
+func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string, detach bool) (vc.PodConfig, error) {
+	containerConfig, err := ContainerConfig(ocispec, bundlePath, cid, console, detach)
 	if err != nil {
 		return vc.PodConfig{}, err
 	}
@@ -334,7 +334,7 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 
 // ContainerConfig converts an OCI compatible runtime configuration
 // file to a virtcontainers container configuration structure.
-func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string) (vc.ContainerConfig, error) {
+func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, detach bool) (vc.ContainerConfig, error) {
 	configPath := getConfigPath(bundlePath)
 
 	rootfs := ocispec.Root.Path
@@ -351,6 +351,7 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string) (vc
 		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
 		Interactive:  ocispec.Process.Terminal,
 		Console:      console,
+		Detach:       detach,
 	}
 
 	cmd.SupplementaryGroups = []string{}
