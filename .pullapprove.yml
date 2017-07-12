@@ -42,6 +42,7 @@ groups:
       - dlespiau
       - sameo
       - sboeuf
+      - amshinde
 
   reviewers:
     required: 1
