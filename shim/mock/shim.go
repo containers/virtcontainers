@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+
+	"github.com/containers/virtcontainers/pkg/mock"
 )
 
 const logFileName = "mock_shim.log"
@@ -31,7 +33,7 @@ const numArgsExpected = 2
 func main() {
 	logDirPath, err := ioutil.TempDir("", "cc-shim-")
 	if err != nil {
-		fmt.Printf("ERROR: Could not generate temporary log directory path: %s\n", err)
+		fmt.Fprintf(os.Stderr, "ERROR: Could not generate temporary log directory path: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -39,7 +41,7 @@ func main() {
 
 	f, err := os.Create(logFilePath)
 	if err != nil {
-		fmt.Printf("ERROR: Could not create temporary log file %q: %s\n", logFilePath, err)
+		fmt.Fprintf(os.Stderr, "ERROR: Could not create temporary log file %q: %s\n", logFilePath, err)
 		os.Exit(1)
 	}
 	defer f.Close()
@@ -66,6 +68,14 @@ func main() {
 		fmt.Fprintf(f, "ERROR: Could not parse the URL %q: %s\n", *urlFlag, err)
 		os.Exit(1)
 	}
+
+	// Print some traces to stdout
+	fmt.Fprintf(os.Stdout, mock.ShimStdoutOutput)
+	os.Stdout.Close()
+
+	// Print some traces to stderr
+	fmt.Fprintf(os.Stderr, mock.ShimStderrOutput)
+	os.Stderr.Close()
 
 	fmt.Fprintf(f, "INFO: Shim exited properly\n")
 }
