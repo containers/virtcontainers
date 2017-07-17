@@ -492,6 +492,40 @@ func (p *Pod) createSetStates() error {
 // to physically create that pod i.e. starts a VM for that pod to eventually
 // be started.
 func createPod(podConfig PodConfig) (*Pod, error) {
+	p, err := doFetchPod(podConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := p.storage.fetchPodState(p.id)
+	if err == nil && state.State != "" {
+		p.state = state
+		return p, nil
+	}
+
+	// Below code path is called only during create, because of earlier check.
+	if err := p.agent.createPod(p); err != nil {
+		return nil, err
+	}
+
+	// fetch agent capabilities and call addDrives if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if caps.isBlockDeviceSupported() {
+		if err := p.addDrives(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := p.createSetStates(); err != nil {
+		p.storage.deletePodResources(p.id, nil)
+		return nil, err
+	}
+
+	return p, nil
+}
+
+func doFetchPod(podConfig PodConfig) (*Pod, error) {
 	if podConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid pod configuration")
 	}
@@ -553,26 +587,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	agentConfig := newAgentConfig(podConfig)
 	if err := p.agent.init(p, agentConfig); err != nil {
-		p.storage.deletePodResources(p.id, nil)
-		return nil, err
-	}
-
-	state, err := p.storage.fetchPodState(p.id)
-	if err == nil && state.State != "" {
-		p.state = state
-		return p, nil
-	}
-
-	// fetch agent capabilities and call addDrives if the agent has support
-	// for block devices.
-	caps := p.agent.capabilities()
-	if caps.isBlockDeviceSupported() {
-		if err := p.addDrives(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := p.createSetStates(); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
