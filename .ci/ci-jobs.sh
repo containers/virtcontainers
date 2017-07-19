@@ -18,6 +18,8 @@
 set -e
 set -x
 
+export CI=true
+
 make check
 
 sudo -E go test -bench=.
