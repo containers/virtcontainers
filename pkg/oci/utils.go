@@ -102,6 +102,8 @@ type RuntimeConfig struct {
 	Console string
 }
 
+// AddKernelParam allows the addition of new kernel parameters to an existing
+// hypervisor configuration stored inside the current runtime configuration.
 func (config *RuntimeConfig) AddKernelParam(p vc.Param) error {
 	return config.HypervisorConfig.AddKernelParam(p)
 }
