@@ -164,8 +164,6 @@ var podConfigFlags = []cli.Flag{
 	},
 }
 
-
-
 var ccKernelParams = []vc.Param{
 	{"init", "/usr/lib/systemd/systemd"},
 	{"systemd.unit", "cc-agent.target"},
