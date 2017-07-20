@@ -85,12 +85,17 @@ func main() {
 	}
 
 	// Intended to sleep, so as to make the test passing/failing.
-	if len(os.Args) == 4 {
+	if len(os.Args) >= 4 {
 		timeout, err := strconv.Atoi(os.Args[3])
 		if err != nil {
 			fmt.Fprintf(f, "Could not retrieve timeout %s from args[3]\n", os.Args[3])
 			os.Exit(1)
 		}
 		time.Sleep(time.Duration(timeout) * time.Second)
+		if len(os.Args) == 5 {
+			msg := "panicking at user request"
+			fmt.Fprintln(f, msg)
+			panic(msg)
+		}
 	}
 }
