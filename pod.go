@@ -794,18 +794,17 @@ func (p *Pod) start() error {
 	return nil
 }
 
-func (p *Pod) stopCheckStates() error {
+func (p *Pod) stopCheckStates() (State, error) {
 	state, err := p.storage.fetchPodState(p.id)
 	if err != nil {
-		return err
+		return State{}, err
 	}
 
-	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
+	if err := state.validTransition(state.State, StateStopped); err != nil {
+		return State{}, err
 	}
 
-	return nil
+	return state, nil
 }
 
 func (p *Pod) stopSetStates() error {
@@ -909,41 +908,26 @@ func (p *Pod) stopVM() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	if err := p.stopCheckStates(); err != nil {
+	state, err := p.stopCheckStates()
+	if err != nil {
 		return err
 	}
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
 
 	for _, c := range p.containers {
-		state, err := p.storage.fetchContainerState(p.id, c.id)
-		if err != nil {
-			return err
-		}
-
-		if state.State != StateRunning {
-			continue
-		}
-
-		if err := p.agent.killContainer(*p, *c, syscall.SIGKILL, true); err != nil {
-			return err
-		}
-
-		// Wait for the end of container
-		if err := waitForShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		if err := p.agent.stopContainer(*p, *c); err != nil {
+		if err := c.stop(); err != nil {
 			return err
 		}
 	}
 
-	if err := p.agent.stopPod(*p); err != nil {
-		return err
+	if state.State == StateRunning {
+		if _, _, err := p.proxy.connect(*p, false); err != nil {
+			return err
+		}
+		defer p.proxy.disconnect()
+
+		if err := p.agent.stopPod(*p); err != nil {
+			return err
+		}
 	}
 
 	if err := p.stopSetStates(); err != nil {

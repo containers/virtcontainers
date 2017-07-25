@@ -433,22 +433,30 @@ func (c *Container) fetchState(cmd string) (State, error) {
 	return state, nil
 }
 
-func (c *Container) start() error {
-	state, err := c.fetchState("start")
+func (c *Container) startCheckStates() error {
+	cmd := "start"
+
+	state, err := c.fetchState(cmd)
 	if err != nil {
 		return err
 	}
 
 	if state.State != StateReady && state.State != StateStopped {
-		return fmt.Errorf("Container not ready or stopped, impossible to start")
+		return fmt.Errorf("Container not ready or stopped, impossible to %s the container", cmd)
 	}
 
-	err = state.validTransition(StateReady, StateRunning)
-	if err != nil {
-		err = state.validTransition(StateStopped, StateRunning)
-		if err != nil {
+	if err := state.validTransition(StateReady, StateRunning); err != nil {
+		if err := state.validTransition(StateStopped, StateRunning); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Container) start() error {
+	if err := c.startCheckStates(); err != nil {
+		return err
 	}
 
 	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
@@ -456,56 +464,74 @@ func (c *Container) start() error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.startContainer(*(c.pod), *c)
-	if err != nil {
+	if err := c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		c.stop()
 		return err
 	}
 
 	c.storeMounts()
 
-	err = c.setContainerState(StateRunning)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.setContainerState(StateRunning)
 }
 
+func (c *Container) stopCheckStates() (State, error) {
+	cmd := "stop"
+
+	podState, err := c.pod.storage.fetchPodState(c.pod.id)
+	if err != nil {
+		return State{}, err
+	}
+
+	if podState.State != StateReady && podState.State != StateRunning {
+		return State{}, fmt.Errorf("Pod not ready or running, impossible to %s the container", cmd)
+	}
+
+	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
+	if err != nil {
+		return State{}, err
+	}
+
+	if state.State != StateRunning && state.State != StateReady {
+		return State{}, fmt.Errorf("Container not ready or running, impossible to %s the container", cmd)
+	}
+
+	if err := state.validTransition(state.State, StateStopped); err != nil {
+		return State{}, err
+	}
+
+	return state, nil
+}
+
+// stop will stop a "ready" or "running" container.
+// In case our container is "ready", there is no process running inside our
+// VM, and the only thing we need is to stop the shim.
+// In case our container is "running", we use the standard path which means
+// killing the process inside our container and then remove the container.
 func (c *Container) stop() error {
-	state, err := c.fetchState("stop")
+	state, err := c.stopCheckStates()
 	if err != nil {
 		return err
 	}
 
-	// In case our container is "ready", there is no point in trying to
-	// stop it because nothing has been started. However, this is a valid
-	// case and we handle this by updating the container state only.
-	if state.State == StateReady {
-		if err := state.validTransition(StateReady, StateStopped); err != nil {
+	if state.State == StateRunning {
+		if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
 			return err
 		}
+		defer c.pod.proxy.disconnect()
 
-		return c.setContainerState(StateStopped)
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to stop")
-	}
-
-	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
-	}
-
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return err
-	}
-	defer c.pod.proxy.disconnect()
-
-	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true)
-	if err != nil {
-		return err
+		if err := c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true); err != nil {
+			return err
+		}
+	} else if state.State == StateReady {
+		// Calling into stopShim() will send a SIGKILL to the shim.
+		// This signal will be forwarded to the proxy and it will be
+		// handled by the proxy itself. Indeed, because there is no
+		// process running inside the VM, there is no point in sending
+		// this signal to our agent. Instead, the proxy will take care
+		// of that signal by killing the shim (sending an exit code).
+		if err := stopShim(c.process.Pid); err != nil {
+			return err
+		}
 	}
 
 	// Wait for the end of container
@@ -513,9 +539,10 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.pod.agent.stopContainer(*(c.pod), *c)
-	if err != nil {
-		return err
+	if state.State == StateRunning {
+		if err := c.pod.agent.stopContainer(*(c.pod), *c); err != nil {
+			return err
+		}
 	}
 
 	err = c.setContainerState(StateStopped)
@@ -526,14 +553,22 @@ func (c *Container) stop() error {
 	return nil
 }
 
-func (c *Container) enter(cmd Cmd) (*Process, error) {
-	state, err := c.fetchState("enter")
+func (c *Container) enterOrKillCheckStates(cmd string) error {
+	state, err := c.fetchState(cmd)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if state.State != StateRunning {
-		return nil, fmt.Errorf("Container not running, impossible to enter")
+		return fmt.Errorf("Container not running, impossible to %s the container", cmd)
+	}
+
+	return nil
+}
+
+func (c *Container) enter(cmd Cmd) (*Process, error) {
+	if err := c.enterOrKillCheckStates("enter"); err != nil {
+		return nil, err
 	}
 
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
@@ -555,13 +590,8 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 }
 
 func (c *Container) kill(signal syscall.Signal, all bool) error {
-	state, err := c.fetchState("signal")
-	if err != nil {
+	if err := c.enterOrKillCheckStates("signal"); err != nil {
 		return err
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
 
 	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
@@ -569,12 +599,7 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, signal, all)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.pod.agent.killContainer(*(c.pod), *c, signal, all)
 }
 
 func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, error) {
