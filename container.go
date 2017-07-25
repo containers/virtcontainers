@@ -636,3 +636,61 @@ func newProcess(token string, pid int) Process {
 		StartTime: time.Now().UTC(),
 	}
 }
+
+func (c *Container) addDrive() error {
+	dev, err := getDeviceForPath(c.rootFs)
+
+	if err == errMountPointNotFound {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s", c.id, dev.major, dev.minor, dev.mountPoint)
+
+	isDM, err := isDeviceMapper(dev.major, dev.minor)
+	if err != nil {
+		return err
+	}
+
+	if !isDM {
+		return nil
+	}
+
+	// If device mapper device, then fetch the full path of the device
+	devicePath, fsType, err := getDevicePathAndFsType(dev.mountPoint)
+	if err != nil {
+		return err
+	}
+
+	virtLog.Infof("Block Device path %s detected for container with fstype : %s\n", devicePath, c.id, fsType)
+
+	// Add drive with id as container id
+	devID := fmt.Sprintf("drive-%s", c.id)
+	drive := Drive{
+		File:   devicePath,
+		Format: "raw",
+		ID:     devID,
+	}
+
+	if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
+		return err
+	}
+
+	driveIndex, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
+	if err := c.setStateBlockIndex(driveIndex); err != nil {
+		return err
+	}
+
+	if err := c.setStateFstype(fsType); err != nil {
+		return err
+	}
+
+	return nil
+}
