@@ -148,6 +148,7 @@ var kernelDefaultParams = []Param{
 	{"iommu", "off"},
 	{"cryptomgr.notests", ""},
 	{"net.ifnames", "0"},
+	{"vsyscall", "emulate"},
 }
 
 // kernelDefaultParamsNonDebug is a list of the default kernel
