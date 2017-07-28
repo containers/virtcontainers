@@ -318,4 +318,5 @@ type hypervisor interface {
 	hotplugAddDevice(devInfo interface{}, devType deviceType) error
 	hotplugRemoveDevice(devInfo interface{}, devType deviceType) error
 	getPodConsole(podID string) string
+	capabilities() capabilities
 }

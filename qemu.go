@@ -197,6 +197,18 @@ func (q *qemu) buildKernelParams(config HypervisorConfig) error {
 	return nil
 }
 
+// Adds all capabilities supported by qemu implementation of hypervisor interface
+func (q *qemu) capabilities() capabilities {
+	var caps capabilities
+
+	// Only pc machine type supports hotplugging drives
+	if q.qemuConfig.Machine.Type == QemuPC {
+		caps.setBlockDeviceHotplugSupport()
+	}
+
+	return caps
+}
+
 func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu.Device {
 	if volume.MountTag == "" || volume.HostPath == "" {
 		return devices
