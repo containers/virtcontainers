@@ -54,6 +54,14 @@ func (m *mockHypervisor) addDevice(devInfo interface{}, devType deviceType) erro
 	return nil
 }
 
+func (m *mockHypervisor) hotplugAddDevice(devInfo interface{}, devType deviceType) error {
+	return nil
+}
+
+func (m *mockHypervisor) hotplugRemoveDevice(devInfo interface{}, devType deviceType) error {
+	return nil
+}
+
 func (m *mockHypervisor) getPodConsole(podID string) string {
 	return ""
 }

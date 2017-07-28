@@ -114,6 +114,13 @@ const (
 	maxMemoryOffset = 1024
 )
 
+type operation int
+
+const (
+	addDevice operation = iota
+	removeDevice
+)
+
 type qmpLogger struct{}
 
 func (l qmpLogger) V(level int32) bool {
@@ -696,6 +703,83 @@ func (q *qemu) togglePausePod(pause bool) error {
 	}
 
 	return nil
+}
+
+func (q *qemu) qmpSetup() (*ciaoQemu.QMP, error) {
+	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
+
+	// Auto-closed by QMPStart().
+	disconnectCh := make(chan struct{})
+
+	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
+	if err != nil {
+		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
+		return nil, err
+	}
+
+	err = qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
+	if err != nil {
+		virtLog.Errorf("Failed to negotiate capabilities with QEMU %v", err)
+		return nil, err
+	}
+
+	return qmp, nil
+}
+
+func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	qmp, err := q.qmpSetup()
+	if err != nil {
+		return err
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	devID := "virtio-" + drive.ID
+
+	if op == addDevice {
+		if err := q.qmpMonitorCh.qmp.ExecuteBlockdevAdd(q.qmpMonitorCh.ctx, drive.File, drive.ID); err != nil {
+			return err
+		}
+
+		driver := "virtio-blk-pci"
+		if err := q.qmpMonitorCh.qmp.ExecuteDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, ""); err != nil {
+			return err
+		}
+	} else {
+		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, devID); err != nil {
+			return err
+		}
+
+		if err := q.qmpMonitorCh.qmp.ExecuteBlockdevDel(q.qmpMonitorCh.ctx, drive.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (q *qemu) hotplugDevice(devInfo interface{}, devType deviceType, op operation) error {
+	switch devType {
+	case blockDev:
+		drive := devInfo.(Drive)
+		return q.hotplugBlockDevice(drive, op)
+	default:
+		return fmt.Errorf("Only hotplug for block devices supported for now, provided device type : %v", devType)
+	}
+}
+
+func (q *qemu) hotplugAddDevice(devInfo interface{}, devType deviceType) error {
+	return q.hotplugDevice(devInfo, devType, addDevice)
+}
+
+func (q *qemu) hotplugRemoveDevice(devInfo interface{}, devType deviceType) error {
+	return q.hotplugDevice(devInfo, devType, removeDevice)
 }
 
 func (q *qemu) pausePod() error {
