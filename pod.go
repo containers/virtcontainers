@@ -64,6 +64,9 @@ type State struct {
 
 	// File system of the rootfs incase it is block device
 	Fstype string `json:"fstype"`
+
+	// Bool to indicate if container rootfs has been checked for block storage.
+	RootfsBlockChecked bool `json:"rootfsBlockChecked"`
 }
 
 // valid checks that the pod state is valid.
