@@ -1156,7 +1156,7 @@ func (p *Pod) addDrives() error {
 	}
 
 	for _, c := range p.containers {
-		if err := c.addDrive(); err != nil {
+		if err := c.addDrive(true); err != nil {
 			return err
 		}
 	}

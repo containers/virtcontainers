@@ -637,7 +637,7 @@ func newProcess(token string, pid int) Process {
 	}
 }
 
-func (c *Container) addDrive() error {
+func (c *Container) addDrive(create bool) error {
 	dev, err := getDeviceForPath(c.rootFs)
 
 	if err == errMountPointNotFound {
@@ -675,8 +675,15 @@ func (c *Container) addDrive() error {
 		ID:     devID,
 	}
 
-	if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
-		return err
+	// if pod in create stage
+	if create {
+		if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+	} else {
+		if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
+			return err
+		}
 	}
 
 	driveIndex, err := c.pod.getAndSetPodBlockIndex()
