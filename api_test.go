@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1210,7 +1211,7 @@ func TestStopContainerFailingNoContainer(t *testing.T) {
 	}
 }
 
-func TestStopContainerFromContReadySuccessful(t *testing.T) {
+func testKillContainerFromContReadySuccessful(t *testing.T, signal syscall.Signal) {
 	cleanUp()
 
 	contID := "100"
@@ -1234,10 +1235,20 @@ func TestStopContainerFromContReadySuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err = StopContainer(p.id, contID)
-	if err != nil {
+	if err := KillContainer(p.id, contID, signal, false); err != nil {
 		t.Fatal()
 	}
+}
+
+func TestKillContainerFromContReadySuccessful(t *testing.T) {
+	// SIGUSR1
+	testKillContainerFromContReadySuccessful(t, syscall.SIGUSR1)
+	// SIGUSR2
+	testKillContainerFromContReadySuccessful(t, syscall.SIGUSR2)
+	// SIGKILL
+	testKillContainerFromContReadySuccessful(t, syscall.SIGKILL)
+	// SIGTERM
+	testKillContainerFromContReadySuccessful(t, syscall.SIGTERM)
 }
 
 func TestEnterContainerNoopAgentSuccessful(t *testing.T) {
