@@ -914,8 +914,10 @@ func (p *Pod) stop() error {
 	}
 
 	for _, c := range p.containers {
-		if err := c.stop(); err != nil {
-			return err
+		if c.state.State == StateRunning || c.state.State == StatePaused {
+			if err := c.stop(); err != nil {
+				return err
+			}
 		}
 	}
 
