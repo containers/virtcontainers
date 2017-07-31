@@ -913,34 +913,16 @@ func (p *Pod) stop() error {
 		return err
 	}
 
+	for _, c := range p.containers {
+		if err := c.stop(); err != nil {
+			return err
+		}
+	}
+
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
 	defer p.proxy.disconnect()
-
-	for _, c := range p.containers {
-		state, err := p.storage.fetchContainerState(p.id, c.id)
-		if err != nil {
-			return err
-		}
-
-		if state.State != StateRunning {
-			continue
-		}
-
-		if err := p.agent.killContainer(*p, *c, syscall.SIGKILL, true); err != nil {
-			return err
-		}
-
-		// Wait for the end of container
-		if err := waitForShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		if err := p.agent.stopContainer(*p, *c); err != nil {
-			return err
-		}
-	}
 
 	if err := p.agent.stopPod(*p); err != nil {
 		return err
