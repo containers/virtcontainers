@@ -478,6 +478,15 @@ func (c *Container) stop() error {
 		return err
 	}
 
+	// In case the container status has been updated implicitly because
+	// the container process has terminated, it might be possible that
+	// someone try to stop the container, and we don't want to issue an
+	// error in that case. This should be a no-op.
+	if state.State == StateStopped {
+		virtLog.Info("Container already stopped, nothing to do")
+		return nil
+	}
+
 	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}
