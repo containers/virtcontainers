@@ -794,20 +794,6 @@ func (p *Pod) start() error {
 	return nil
 }
 
-func (p *Pod) stopCheckStates() error {
-	state, err := p.storage.fetchPodState(p.id)
-	if err != nil {
-		return err
-	}
-
-	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *Pod) stopSetStates() error {
 	podState := State{
 		State: StateStopped,
@@ -909,8 +895,18 @@ func (p *Pod) stopVM() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	if err := p.stopCheckStates(); err != nil {
+	state, err := p.storage.fetchPodState(p.id)
+	if err != nil {
 		return err
+	}
+
+	if err := state.validTransition(state.State, StateStopped); err != nil {
+		return err
+	}
+
+	// This handles the special case of stopping a pod in ready state.
+	if state.State == StateReady {
+		return p.stopSetStates()
 	}
 
 	for _, c := range p.containers {
