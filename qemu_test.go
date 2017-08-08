@@ -395,10 +395,16 @@ func TestQemuSetMemoryResources(t *testing.T) {
 
 	q := &qemu{}
 
+	hostMemKb, err := getHostMemorySizeKb(procMemInfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memMax := fmt.Sprintf("%dM", int(float64(hostMemKb)/1024)+maxMemoryOffset)
+
 	expectedOut := ciaoQemu.Memory{
 		Size:   "1000M",
 		Slots:  uint8(2),
-		MaxMem: "1500M",
+		MaxMem: memMax,
 	}
 
 	vmConfig := Resources{
@@ -409,7 +415,10 @@ func TestQemuSetMemoryResources(t *testing.T) {
 		VMConfig: vmConfig,
 	}
 
-	memory := q.setMemoryResources(podConfig)
+	memory, err := q.setMemoryResources(podConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if reflect.DeepEqual(memory, expectedOut) == false {
 		t.Fatalf("Got %v\nExpecting %v", memory, expectedOut)

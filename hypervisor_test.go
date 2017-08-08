@@ -18,6 +18,9 @@ package virtcontainers
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -351,5 +354,64 @@ func TestAddKernelParamInvalid(t *testing.T) {
 	err := config.AddKernelParam(invalid[0])
 	if err == nil {
 		t.Fatal()
+	}
+}
+
+func TestGetHostMemorySizeKb(t *testing.T) {
+
+	type testData struct {
+		contents       string
+		expectedResult int
+		expectError    bool
+	}
+
+	data := []testData{
+		{
+			`
+			MemTotal:      1 kB
+			MemFree:       2 kB
+			SwapTotal:     3 kB
+			SwapFree:      4 kB
+			`,
+			1024,
+			false,
+		},
+		{
+			`
+			MemFree:       2 kB
+			SwapTotal:     3 kB
+			SwapFree:      4 kB
+			`,
+			0,
+			true,
+		},
+	}
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	file := filepath.Join(dir, "meminfo")
+	if _, err := getHostMemorySizeKb(file); err == nil {
+		t.Fatalf("expected failure as file %q does not exist", file)
+	}
+
+	for _, d := range data {
+		if err := ioutil.WriteFile(file, []byte(d.contents), os.FileMode(0640)); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(file)
+
+		hostMemKb, err := getHostMemorySizeKb(file)
+
+		if (d.expectError && err == nil) || (!d.expectError && err != nil) {
+			t.Fatalf("got %d, input %v", hostMemKb, d)
+		}
+
+		if reflect.DeepEqual(hostMemKb, d.expectedResult) {
+			t.Fatalf("got %d, input %v", hostMemKb, d)
+		}
 	}
 }

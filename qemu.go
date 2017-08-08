@@ -106,6 +106,12 @@ const (
 	maxDevIDSize = 31
 )
 
+const (
+	// NVDIMM device needs memory space 1024MB
+	// See https://github.com/clearcontainers/runtime/issues/380
+	maxMemoryOffset = 1024
+)
+
 type qmpLogger struct{}
 
 func (l qmpLogger) V(level int32) bool {
@@ -468,13 +474,20 @@ func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
 	return smp
 }
 
-func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
+func (q *qemu) setMemoryResources(podConfig PodConfig) (ciaoQemu.Memory, error) {
+	hostMemKb, err := getHostMemorySizeKb(procMemInfo)
+	if err != nil {
+		return ciaoQemu.Memory{}, fmt.Errorf("Unable to read memory info: %s", err)
+	}
+	if hostMemKb == 0 {
+		return ciaoQemu.Memory{}, fmt.Errorf("Error host memory size 0")
+	}
+
+	// add 1G memory space for nvdimm device (vm guest image)
+	memMax := fmt.Sprintf("%dM", int(float64(hostMemKb)/1024)+maxMemoryOffset)
 	mem := fmt.Sprintf("%dM", q.config.DefaultMemSz)
-	memMax := fmt.Sprintf("%dM", int(float64(q.config.DefaultMemSz)*1.5))
 	if podConfig.VMConfig.Memory > 0 {
 		mem = fmt.Sprintf("%dM", podConfig.VMConfig.Memory)
-		intMemMax := int(float64(podConfig.VMConfig.Memory) * 1.5)
-		memMax = fmt.Sprintf("%dM", intMemMax)
 	}
 
 	memory := ciaoQemu.Memory{
@@ -483,7 +496,7 @@ func (q *qemu) setMemoryResources(podConfig PodConfig) ciaoQemu.Memory {
 		MaxMem: memMax,
 	}
 
-	return memory
+	return memory, nil
 }
 
 // createPod is the Hypervisor pod creation implementation for ciaoQemu.
@@ -502,7 +515,10 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	smp := q.setCPUResources(podConfig)
 
-	memory := q.setMemoryResources(podConfig)
+	memory, err := q.setMemoryResources(podConfig)
+	if err != nil {
+		return err
+	}
 
 	knobs := ciaoQemu.Knobs{
 		NoUserConfig: true,
