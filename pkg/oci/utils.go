@@ -286,6 +286,30 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 	return "", fmt.Errorf("Could not find pod ID")
 }
 
+// TODO: calculate number of VCPUs from OCI spec
+func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error) {
+	if ocispec.Linux == nil ||
+		ocispec.Linux.Resources == nil ||
+		ocispec.Linux.Resources.Memory == nil ||
+		ocispec.Linux.Resources.Memory.Limit == nil {
+		return config.VMConfig, nil
+	}
+
+	memBytes := *ocispec.Linux.Resources.Memory.Limit
+
+	if memBytes <= 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+	}
+
+	// round up memory to 1MB
+	mem := uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
+
+	return vc.Resources{
+		VCPUs:  config.VMConfig.VCPUs,
+		Memory: mem,
+	}, nil
+}
+
 // PodConfig converts an OCI compatible runtime configuration file
 // to a virtcontainers pod configuration structure.
 func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, console string, detach bool) (vc.PodConfig, error) {
@@ -301,12 +325,17 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		return vc.PodConfig{}, err
 	}
 
+	resources, err := vmConfig(ocispec, runtime)
+	if err != nil {
+		return vc.PodConfig{}, err
+	}
+
 	podConfig := vc.PodConfig{
 		ID: cid,
 
 		Hooks: containerHooks(ocispec),
 
-		VMConfig: runtime.VMConfig,
+		VMConfig: resources,
 
 		HypervisorType:   runtime.HypervisorType,
 		HypervisorConfig: runtime.HypervisorConfig,

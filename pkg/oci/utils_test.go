@@ -161,6 +161,49 @@ func TestMinimalPodConfig(t *testing.T) {
 	}
 }
 
+func TestVmConfig(t *testing.T) {
+	var limitBytes int64 = 128 * 1024 * 1024
+
+	config := RuntimeConfig{
+		VMConfig: vc.Resources{
+			Memory: 2048,
+		},
+	}
+
+	expectedResources := vc.Resources{
+		Memory: 128,
+	}
+
+	ocispec := CompatOCISpec{
+		Spec: specs.Spec{
+			Linux: &specs.Linux{
+				Resources: &specs.LinuxResources{
+					Memory: &specs.LinuxMemory{
+						Limit: &limitBytes,
+					},
+				},
+			},
+		},
+	}
+
+	resources, err := vmConfig(ocispec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(resources, expectedResources) == false {
+		t.Fatalf("Got %v\n expecting %v", resources, expectedResources)
+	}
+
+	limitBytes = -128 * 1024 * 1024
+	ocispec.Linux.Resources.Memory.Limit = &limitBytes
+
+	resources, err = vmConfig(ocispec, config)
+	if err == nil {
+		t.Fatalf("Got %v\n expecting error", resources)
+	}
+}
+
 func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, expected specs.State) {
 	ociState, err := StatusToOCIState(cStatus)
 	if err != nil {
