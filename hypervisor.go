@@ -35,7 +35,10 @@ const (
 	MockHypervisor HypervisorType = "mock"
 )
 
-const procMemInfo = "/proc/meminfo"
+const (
+	procMemInfo = "/proc/meminfo"
+	procCPUInfo = "/proc/cpuinfo"
+)
 
 const (
 	defaultVCPUs = 1
@@ -227,19 +230,6 @@ func DeserializeParams(parameters []string) []Param {
 	return params
 }
 
-// hypervisor is the virtcontainers hypervisor interface.
-// The default hypervisor implementation is Qemu.
-type hypervisor interface {
-	init(config HypervisorConfig) error
-	createPod(podConfig PodConfig) error
-	startPod(startCh, stopCh chan struct{}) error
-	stopPod() error
-	pausePod() error
-	resumePod() error
-	addDevice(devInfo interface{}, devType deviceType) error
-	getPodConsole(podID string) string
-}
-
 func getHostMemorySizeKb(memInfoPath string) (uint64, error) {
 	f, err := os.Open(memInfoPath)
 	if err != nil {
@@ -271,4 +261,59 @@ func getHostMemorySizeKb(memInfoPath string) (uint64, error) {
 	}
 
 	return 0, fmt.Errorf("unable get MemTotal from %s", memInfoPath)
+}
+
+// RunningOnVMM checks if the system is running inside a VM.
+func RunningOnVMM(cpuInfoPath string) (bool, error) {
+	flagsField := "flags"
+
+	f, err := os.Open(cpuInfoPath)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Expected format: ["flags", ":", ...] or ["flags:", ...]
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 {
+			continue
+		}
+
+		if !strings.HasPrefix(fields[0], flagsField) {
+			continue
+		}
+
+		for _, field := range fields[1:] {
+			if field == "hypervisor" {
+				return true, nil
+			}
+		}
+
+		// As long as we have been able to analyze the fields from
+		// "flags", there is no reason to check what comes next from
+		// /proc/cpuinfo, because we already know we are not running
+		// on a VMM.
+		return false, nil
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	return false, fmt.Errorf("Couldn't find %q from %q output", flagsField, cpuInfoPath)
+}
+
+// hypervisor is the virtcontainers hypervisor interface.
+// The default hypervisor implementation is Qemu.
+type hypervisor interface {
+	init(config HypervisorConfig) error
+	createPod(podConfig PodConfig) error
+	startPod(startCh, stopCh chan struct{}) error
+	stopPod() error
+	pausePod() error
+	resumePod() error
+	addDevice(devInfo interface{}, devType deviceType) error
+	getPodConsole(podID string) string
 }

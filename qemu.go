@@ -50,6 +50,8 @@ type qemu struct {
 	qmpControlCh qmpChannel
 
 	qemuConfig ciaoQemu.Config
+
+	nestedRun bool
 }
 
 const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
@@ -206,6 +208,7 @@ func (q *qemu) appendVolume(devices []ciaoQemu.Device, volume Volume) []ciaoQemu
 			Path:          volume.HostPath,
 			MountTag:      volume.MountTag,
 			SecurityModel: ciaoQemu.None,
+			DisableModern: q.nestedRun,
 		},
 	)
 
@@ -223,12 +226,13 @@ func (q *qemu) appendBlockDevice(devices []ciaoQemu.Device, drive Drive) []ciaoQ
 
 	devices = append(devices,
 		ciaoQemu.BlockDevice{
-			Driver:    ciaoQemu.VirtioBlock,
-			ID:        drive.ID,
-			File:      drive.File,
-			AIO:       ciaoQemu.Threads,
-			Format:    ciaoQemu.BlockDeviceFormat(drive.Format),
-			Interface: "none",
+			Driver:        ciaoQemu.VirtioBlock,
+			ID:            drive.ID,
+			File:          drive.File,
+			AIO:           ciaoQemu.Threads,
+			Format:        ciaoQemu.BlockDeviceFormat(drive.Format),
+			Interface:     "none",
+			DisableModern: q.nestedRun,
 		},
 	)
 
@@ -259,14 +263,15 @@ func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) [
 	for idx, endpoint := range endpoints {
 		devices = append(devices,
 			ciaoQemu.NetDevice{
-				Type:       ciaoQemu.TAP,
-				Driver:     ciaoQemu.VirtioNetPCI,
-				ID:         fmt.Sprintf("network-%d", idx),
-				IFName:     endpoint.NetPair.TAPIface.Name,
-				MACAddress: endpoint.NetPair.TAPIface.HardAddr,
-				DownScript: "no",
-				Script:     "no",
-				VHost:      true,
+				Type:          ciaoQemu.TAP,
+				Driver:        ciaoQemu.VirtioNetPCI,
+				ID:            fmt.Sprintf("network-%d", idx),
+				IFName:        endpoint.NetPair.TAPIface.Name,
+				MACAddress:    endpoint.NetPair.TAPIface.HardAddr,
+				DownScript:    "no",
+				Script:        "no",
+				VHost:         true,
+				DisableModern: q.nestedRun,
 			},
 		)
 	}
@@ -289,6 +294,7 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 				Path:          c.RootFs,
 				MountTag:      fmt.Sprintf("ctr-rootfs-%d", idx),
 				SecurityModel: ciaoQemu.None,
+				DisableModern: q.nestedRun,
 			},
 		)
 	}
@@ -303,8 +309,9 @@ func (q *qemu) appendFSDevices(devices []ciaoQemu.Device, podConfig PodConfig) [
 
 func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []ciaoQemu.Device {
 	serial := ciaoQemu.SerialDevice{
-		Driver: ciaoQemu.VirtioSerial,
-		ID:     "serial0",
+		Driver:        ciaoQemu.VirtioSerial,
+		ID:            "serial0",
+		DisableModern: q.nestedRun,
 	}
 
 	devices = append(devices, serial)
@@ -424,6 +431,14 @@ func (q *qemu) init(config HypervisorConfig) error {
 	if err = q.buildKernelParams(config); err != nil {
 		return err
 	}
+
+	nested, err := RunningOnVMM(procCPUInfo)
+	if err != nil {
+		return err
+	}
+
+	virtLog.Info("Running inside a VM = %t", nested)
+	q.nestedRun = nested
 
 	return nil
 }
@@ -569,6 +584,11 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
+	cpuModel := "host"
+	if q.nestedRun {
+		cpuModel += ",pmu=off"
+	}
+
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
 		UUID:        q.forceUUIDFormat(podConfig.ID),
@@ -578,7 +598,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		SMP:         smp,
 		Memory:      memory,
 		Devices:     devices,
-		CPUModel:    "host",
+		CPUModel:    cpuModel,
 		Kernel:      kernel,
 		RTC:         rtc,
 		QMPSockets:  qmpSockets,
