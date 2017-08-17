@@ -286,13 +286,14 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 	return "", fmt.Errorf("Could not find pod ID")
 }
 
-// TODO: calculate number of VCPUs from OCI spec
 func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error) {
+	resources := config.VMConfig
+
 	if ocispec.Linux == nil ||
 		ocispec.Linux.Resources == nil ||
 		ocispec.Linux.Resources.Memory == nil ||
 		ocispec.Linux.Resources.Memory.Limit == nil {
-		return config.VMConfig, nil
+		return resources, nil
 	}
 
 	memBytes := *ocispec.Linux.Resources.Memory.Limit
@@ -302,12 +303,29 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 	}
 
 	// round up memory to 1MB
-	mem := uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
+	resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 
-	return vc.Resources{
-		VCPUs:  config.VMConfig.VCPUs,
-		Memory: mem,
-	}, nil
+	if ocispec.Linux.Resources.CPU == nil ||
+		ocispec.Linux.Resources.CPU.Quota == nil ||
+		ocispec.Linux.Resources.CPU.Period == nil {
+		return resources, nil
+	}
+
+	quota := *ocispec.Linux.Resources.CPU.Quota
+	period := *ocispec.Linux.Resources.CPU.Period
+
+	if quota <= 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
+	}
+
+	if period == 0 {
+		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
+	}
+
+	// round up to 1 CPU
+	resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
+
+	return resources, nil
 }
 
 // PodConfig converts an OCI compatible runtime configuration file

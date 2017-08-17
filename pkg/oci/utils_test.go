@@ -163,6 +163,8 @@ func TestMinimalPodConfig(t *testing.T) {
 
 func TestVmConfig(t *testing.T) {
 	var limitBytes int64 = 128 * 1024 * 1024
+	var quota int64 = 200000
+	var period uint64 = 100000
 
 	config := RuntimeConfig{
 		VMConfig: vc.Resources{
@@ -172,6 +174,7 @@ func TestVmConfig(t *testing.T) {
 
 	expectedResources := vc.Resources{
 		Memory: 128,
+		VCPUs:  2,
 	}
 
 	ocispec := CompatOCISpec{
@@ -180,6 +183,10 @@ func TestVmConfig(t *testing.T) {
 				Resources: &specs.LinuxResources{
 					Memory: &specs.LinuxMemory{
 						Limit: &limitBytes,
+					},
+					CPU: &specs.LinuxCPU{
+						Quota:  &quota,
+						Period: &period,
 					},
 				},
 			},
@@ -197,6 +204,24 @@ func TestVmConfig(t *testing.T) {
 
 	limitBytes = -128 * 1024 * 1024
 	ocispec.Linux.Resources.Memory.Limit = &limitBytes
+
+	resources, err = vmConfig(ocispec, config)
+	if err == nil {
+		t.Fatalf("Got %v\n expecting error", resources)
+	}
+
+	limitBytes = 128 * 1024 * 1024
+	quota = -1
+	ocispec.Linux.Resources.CPU.Quota = &quota
+
+	resources, err = vmConfig(ocispec, config)
+	if err == nil {
+		t.Fatalf("Got %v\n expecting error", resources)
+	}
+
+	quota = 100000
+	period = 0
+	ocispec.Linux.Resources.CPU.Quota = &quota
 
 	resources, err = vmConfig(ocispec, config)
 	if err == nil {
