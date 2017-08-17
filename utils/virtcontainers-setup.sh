@@ -67,9 +67,7 @@ cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf ${
 
 echo -e "Build pause binary and copy it to pause bundle (${pause_bundle}/${rootfsdir}/bin)"
 pushd $GOPATH/src/github.com/containers/virtcontainers/pause
-make
-cp pause ${pause_bundle}/${rootfsdir}/bin/
-make clean
+go build -o ${pause_bundle}/${rootfsdir}/bin/pause
 popd
 pushd plugins
 ./build.sh
