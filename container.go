@@ -538,6 +538,10 @@ func (c *Container) stop() error {
 		return err
 	}
 
+	if err := c.removeDrive(); err != nil {
+		return err
+	}
+
 	err = c.setContainerState(StateStopped)
 	if err != nil {
 		return err
@@ -723,6 +727,31 @@ func (c *Container) addDrive(create bool) error {
 
 	if err := c.setStateFstype(fsType); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// isDriveUsed checks if a drive has been used for container rootfs
+func (c *Container) isDriveUsed() bool {
+	if c.state.Fstype == "" {
+		return false
+	}
+	return true
+}
+
+func (c *Container) removeDrive() (err error) {
+	if c.isDriveUsed() {
+		virtLog.Infof("Unplugging block device for container %s", c.id)
+
+		devID := fmt.Sprintf("drive-%s", c.id)
+		drive := Drive{
+			ID: devID,
+		}
+
+		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
+			return err
+		}
 	}
 
 	return nil
