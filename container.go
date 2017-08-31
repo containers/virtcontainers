@@ -173,6 +173,16 @@ func (c *Container) setStateFstype(fstype string) error {
 
 func (c *Container) setStateRootfsBlockChecked(checked bool) error {
 	c.state.RootfsBlockChecked = checked
+	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) setStateHotpluggedDrive(hotplugged bool) error {
+	c.state.HotpluggedDrive = hotplugged
 
 	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
 	if err != nil {
@@ -710,10 +720,12 @@ func (c *Container) addDrive(create bool) error {
 		if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
 			return err
 		}
+		c.setStateHotpluggedDrive(false)
 	} else {
 		if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
 			return err
 		}
+		c.setStateHotpluggedDrive(true)
 	}
 
 	driveIndex, err := c.pod.getAndSetPodBlockIndex()
@@ -741,7 +753,7 @@ func (c *Container) isDriveUsed() bool {
 }
 
 func (c *Container) removeDrive() (err error) {
-	if c.isDriveUsed() {
+	if c.isDriveUsed() && c.state.HotpluggedDrive {
 		virtLog.Infof("Unplugging block device for container %s", c.id)
 
 		devID := fmt.Sprintf("drive-%s", c.id)
@@ -750,6 +762,7 @@ func (c *Container) removeDrive() (err error) {
 		}
 
 		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
+			virtLog.Errorf("Error while unplugging block device : %s", err)
 			return err
 		}
 	}

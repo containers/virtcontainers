@@ -67,6 +67,9 @@ type State struct {
 
 	// Bool to indicate if container rootfs has been checked for block storage.
 	RootfsBlockChecked bool `json:"rootfsBlockChecked"`
+
+	// Bool to indicate if the drive for a container was hotplugged.
+	HotpluggedDrive bool `json:"hotpluggedDrive"`
 }
 
 // valid checks that the pod state is valid.
