@@ -56,3 +56,38 @@ func TestContainerPod(t *testing.T) {
 		t.Fatalf("Expecting %+v\nGot %+v", expectedPod, pod)
 	}
 }
+
+func TestContainerRemoveDrive(t *testing.T) {
+	pod := &Pod{}
+
+	container := Container{
+		pod: pod,
+		id:  "testContainer",
+	}
+
+	container.state.Fstype = ""
+	err := container.removeDrive()
+
+	// hotplugRemoveDevice for hypervisor should not be called.
+	// test should pass without a hypervisor created for the container's pod.
+	if err != nil {
+		t.Fatal("")
+	}
+
+	container.state.Fstype = "xfs"
+	container.state.HotpluggedDrive = false
+	err = container.removeDrive()
+
+	// hotplugRemoveDevice for hypervisor should not be called.
+	if err != nil {
+		t.Fatal("")
+	}
+
+	container.state.HotpluggedDrive = true
+	pod.hypervisor = &mockHypervisor{}
+	err = container.removeDrive()
+
+	if err != nil {
+		t.Fatal()
+	}
+}
