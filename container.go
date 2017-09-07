@@ -690,7 +690,7 @@ func (c *Container) addDrive(create bool) error {
 
 	virtLog.Infof("Device details for container %s: Major:%d, Minor:%d, MountPoint:%s", c.id, dev.major, dev.minor, dev.mountPoint)
 
-	isDM, err := isDeviceMapper(dev.major, dev.minor)
+	isDM, err := checkStorageDriver(dev.major, dev.minor)
 	if err != nil {
 		return err
 	}
