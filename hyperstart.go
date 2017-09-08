@@ -428,7 +428,7 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	hostname := pod.id
+	hostname := pod.config.Hostname
 	if len(hostname) > maxHostnameLen {
 		hostname = hostname[:maxHostnameLen]
 	}
