@@ -296,6 +296,8 @@ type PodStatus struct {
 type PodConfig struct {
 	ID string
 
+	Hostname string
+
 	// Field specific to OCI specs, needed to setup all the hooks
 	Hooks Hooks
 
