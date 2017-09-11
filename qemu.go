@@ -456,7 +456,7 @@ func (q *qemu) init(config HypervisorConfig) error {
 		return err
 	}
 
-	virtLog.Info("Running inside a VM = %v", nested)
+	virtLog.Debugf("Running inside a VM = %v", nested)
 	q.nestedRun = nested
 
 	return nil

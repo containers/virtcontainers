@@ -258,7 +258,7 @@ func fetchContainer(pod *Pod, containerID string) (*Container, error) {
 		return nil, err
 	}
 
-	virtLog.Infof("Info structure: %+v", config)
+	virtLog.Debugf("Container config: %+v", config)
 
 	return createContainer(pod, config)
 }
