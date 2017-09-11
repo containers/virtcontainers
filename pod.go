@@ -637,7 +637,7 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	virtLog.Infof("Info structure: %+v", config)
+	virtLog.Debugf("Pod config: %+v", config)
 
 	return createPod(config)
 }

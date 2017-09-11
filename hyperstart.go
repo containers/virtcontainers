@@ -84,7 +84,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
-	virtLog.Infof("Hyperstart config %v", c)
+	virtLog.Debugf("Hyperstart config %v", c)
 
 	return true
 }
