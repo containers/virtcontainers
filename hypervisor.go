@@ -151,6 +151,9 @@ type HypervisorConfig struct {
 	// DefaultMem specifies default memory size in MiB for the VM.
 	// Pod configuration VMConfig.Memory overwrites this.
 	DefaultMemSz uint32
+
+	// MemPrealloc specifies if the memory should be pre-allocated
+	MemPrealloc bool
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {
