@@ -10,7 +10,6 @@ Additional documentation about how this group operates:
 
 - [Code of Conduct][code-of-conduct]
 - [Style and Conventions](style.md)
-- [Roadmap](ROADMAP.md)
 - [Implementations](implementations.md)
 - [Releases](RELEASES.md)
 - [project](project.md)
@@ -35,11 +34,6 @@ Example use cases include sophisticated network configuration, volume garbage co
 
 Runtime developers can build runtime implementations that run OCI-compliant bundles and container configuration, containing low-level OS and host-specific details, on a particular platform.
 
-## Releases
-
-There is a loose [Road Map](./ROADMAP.md).
-During the `0.x` series of OCI releases we make no backwards compatibility guarantees and intend to break the schema during this series.
-
 ## Contributing
 
 Development happens on GitHub for the spec.
@@ -58,17 +52,12 @@ It also guarantees that the design is sound before code is written; a GitHub pul
 Typos and grammatical errors can go straight to a pull-request.
 When in doubt, start on the [mailing-list](#mailing-list).
 
-### Weekly Call
+### Meetings
 
-The contributors and maintainers of all OCI projects have a weekly meeting on Wednesdays at:
-
-* 8:00 AM (USA Pacific), during [odd weeks][iso-week].
-* 2:00 PM (USA Pacific), during [even weeks][iso-week].
-
+The contributors and maintainers of all OCI projects have monthly meetings at 2:00 PM (USA Pacific) on the first Wednesday of every month.
 There is an [iCalendar][rfc5545] format for the meetings [here](meeting.ics).
-
 Everyone is welcome to participate via [UberConference web][uberconference] or audio-only: +1 415 968 0849 (no PIN needed).
-An initial agenda will be posted to the [mailing list](#mailing-list) earlier in the week, and everyone is welcome to propose additional topics or suggest other agenda alterations there.
+An initial agenda will be posted to the [mailing list](#mailing-list) in the week before each meeting, and everyone is welcome to propose additional topics or suggest other agenda alterations there.
 Minutes are posted to the [mailing list](#mailing-list) and minutes from past calls are archived [here][minutes], with minutes from especially old meetings (September 2015 and earlier) archived [here][runtime-wiki].
 
 ### Mailing List

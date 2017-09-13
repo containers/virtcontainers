@@ -19,8 +19,17 @@ const (
 	// HostName is the container host name annotation
 	HostName = "io.kubernetes.cri-o.HostName"
 
+	// IP is the container ipv4 or ipv6 address
+	IP = "io.kubernetes.cri-o.IP"
+
 	// Image is the container image ID annotation
 	Image = "io.kubernetes.cri-o.Image"
+
+	// ImageName is the container image name annotation
+	ImageName = "io.kubernetes.cri-o.ImageName"
+
+	// ImageRef is the container image ref annotation
+	ImageRef = "io.kubernetes.cri-o.ImageRef"
 
 	// KubeName is the kubernetes name annotation
 	KubeName = "io.kubernetes.cri-o.KubeName"
@@ -52,6 +61,9 @@ const (
 	// ShmPath is the shared memory path annotation
 	ShmPath = "io.kubernetes.cri-o.ShmPath"
 
+	// MountPoint is the mount point of the container rootfs
+	MountPoint = "io.kubernetes.cri-o.MountPoint"
+
 	// TrustedSandbox is the annotation for trusted sandboxes
 	TrustedSandbox = "io.kubernetes.cri-o.TrustedSandbox"
 
@@ -63,6 +75,9 @@ const (
 
 	// StdinOnce is the stdin_once annotation
 	StdinOnce = "io.kubernetes.cri-o.StdinOnce"
+
+	// Volumes is the volumes annotatoin
+	Volumes = "io.kubernetes.cri-o.Volumes"
 )
 
 // ContainerType values

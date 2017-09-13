@@ -438,23 +438,33 @@ func signal(data []byte, userData interface{}, response *handlerResponse) {
 
 	client.log.Infof("Signal(%s,%d,%d)", signal, payload.Columns, payload.Rows)
 
+	if err := handleSignal(session, signal, payload); err != nil {
+		response.SetError(err)
+		return
+	}
+}
+
+func handleSignal(session *ioSession, signal syscall.Signal, payload api.Signal) error {
+	// Send exit code to the shim if the process has not been started.
+	if signal == syscall.SIGKILL || signal == syscall.SIGTERM {
+		select {
+		case <-session.processStarted:
+			break
+		default:
+			return session.TerminateShim()
+		}
+	}
+
 	// Wait for the process inside the VM to be started if needed.
 	if err := session.WaitForProcess(false); err != nil {
-		response.SetError(err)
-		return
+		return err
 	}
 
-	var err error
 	if signal == syscall.SIGWINCH {
-		err = session.SendTerminalSize(payload.Columns, payload.Rows)
-	} else {
-		err = session.SendSignal(signal)
-	}
-	if err != nil {
-		response.SetError(err)
-		return
+		return session.SendTerminalSize(payload.Columns, payload.Rows)
 	}
 
+	return session.SendSignal(signal)
 }
 
 func forwardStdin(frame *api.Frame, userData interface{}) error {
@@ -462,6 +472,11 @@ func forwardStdin(frame *api.Frame, userData interface{}) error {
 
 	if client.session == nil {
 		return errors.New("stdin: client not associated with any I/O session")
+	}
+
+	// Don't try to forward stdin if it is empty.
+	if len(frame.Payload) == 0 {
+		return nil
 	}
 
 	return client.session.ForwardStdin(frame)
@@ -736,7 +751,11 @@ func (p *profiler) setup() {
 	}()
 }
 
+// Version is the proxy version. This variable is populated at build time.
+var Version = "unknown"
+
 func main() {
+	doVersion := flag.Bool("version", false, "display the version")
 	logLevel := flag.String("log", "warn",
 		"log messages above specified level; one of debug, warn, error, fatal or panic")
 
@@ -753,6 +772,11 @@ func main() {
 
 	if err := SetLoggingLevel(*logLevel); err != nil {
 		logrus.Fatal(err)
+	}
+
+	if *doVersion {
+		fmt.Println("Version:", Version)
+		os.Exit(0)
 	}
 
 	pprof.setup()

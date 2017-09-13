@@ -22,7 +22,7 @@ The state of a container includes the following properties:
     * `stopped`: the container process has exited (step 7 in the [lifecycle](#lifecycle))
 
     Additional values MAY be defined by the runtime, however, they MUST be used to represent new runtime states not defined above.
-* **`pid`** (int, REQUIRED when `status` is `created` or `running`) is the ID of the container process, as seen by the host.
+* **`pid`** (int, REQUIRED when `status` is `created` or `running` on Linux, OPTIONAL on other platforms) is the ID of the container process, as seen by the host.
 * **`bundle`** (string, REQUIRED) is the absolute path to the container's bundle directory.
     This is provided so that consumers can find the container's configuration and root filesystem on the host.
 * **`annotations`** (map, OPTIONAL) contains the list of annotations associated with the container.
@@ -123,7 +123,7 @@ This operation MUST generate an error if `process` was not set.
 
 This operation MUST [generate an error](#errors) if it is not provided the container ID.
 Attempting to send a signal to a container that is neither [`created` nor `running`](#state) MUST have no effect on the container and MUST [generate an error](#errors).
-This operation MUST send the specified signal to the process in the container.
+This operation MUST send the specified signal to the container process.
 
 ### <a name="runtimeDelete" />Delete
 `delete <container-id>`
