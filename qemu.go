@@ -560,6 +560,8 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		NoGraphic:    true,
 		Daemonize:    true,
 		MemPrealloc:  q.config.MemPrealloc,
+		Realtime:     q.config.Realtime,
+		Mlock:        q.config.Mlock,
 	}
 
 	kernel := ciaoQemu.Kernel{
