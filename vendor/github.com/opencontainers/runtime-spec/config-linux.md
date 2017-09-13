@@ -12,7 +12,7 @@ The following filesystems SHOULD be made available in each container's filesyste
 
 | Path     | Type   |
 | -------- | ------ |
-| /proc    | [procfs][] |
+| /proc    | [proc][] |
 | /sys     | [sysfs][]  |
 | /dev/pts | [devpts][] |
 | /dev/shm | [tmpfs][]  |
@@ -253,22 +253,6 @@ Each entry has the following structure:
     ]
 ```
 
-### <a name="configLinuxDisableOutOfMemoryKiller" />Disable out-of-memory killer
-
-`disableOOMKiller` contains a boolean (`true` or `false`) that enables or disables the Out of Memory killer for a cgroup.
-If enabled (`false`), tasks that attempt to consume more memory than they are allowed are immediately killed by the OOM killer.
-The OOM killer is enabled by default in every cgroup using the `memory` subsystem.
-To disable it, specify a value of `true`.
-For more information, see the kernel cgroups documentation about [memory][cgroup-v1-memory].
-
-* **`disableOOMKiller`** *(bool, OPTIONAL)* - enables or disables the OOM killer
-
-#### Example
-
-```json
-    "disableOOMKiller": false
-```
-
 ### <a name="configLinuxMemory" />Memory
 
 **`memory`** (object, OPTIONAL) represents the cgroup subsystem `memory` and it's used to set limits on the container's memory usage.
@@ -282,9 +266,14 @@ Values for memory specify the limit in bytes, or `-1` for unlimited memory.
 * **`kernel`** *(int64, OPTIONAL)* - sets hard limit for kernel memory
 * **`kernelTCP`** *(int64, OPTIONAL)* - sets hard limit for kernel TCP buffer memory
 
-For `swappiness` the values are from 0 to 100. Higher means more swappy.
+The following properties do not specify memory limits, but are covered by the `memory` controller:
 
 * **`swappiness`** *(uint64, OPTIONAL)* - sets swappiness parameter of vmscan (See sysctl's vm.swappiness)
+    The values are from 0 to 100. Higher means more swappy.
+* **`disableOOMKiller`** *(bool, OPTIONAL)* - enables or disables the OOM killer.
+    If enabled (`false`), tasks that attempt to consume more memory than they are allowed are immediately killed by the OOM killer.
+    The OOM killer is enabled by default in every cgroup using the `memory` subsystem.
+    To disable it, specify a value of `true`.
 
 #### Example
 
@@ -295,7 +284,8 @@ For `swappiness` the values are from 0 to 100. Higher means more swappy.
         "swap": 536870912,
         "kernel": -1,
         "kernelTCP": -1,
-        "swappiness": 0
+        "swappiness": 0,
+        "disableOOMKiller": false
     }
 ```
 
@@ -337,16 +327,25 @@ The following parameters can be specified to set up the controller:
 
 * **`weight`** *(uint16, OPTIONAL)* - specifies per-cgroup weight. This is default weight of the group on all devices until and unless overridden by per-device rules.
 * **`leafWeight`** *(uint16, OPTIONAL)* - equivalents of `weight` for the purpose of deciding how much weight tasks in the given cgroup has while competing with the cgroup's child cgroups.
-* **`weightDevice`** *(array of objects, OPTIONAL)* - specifies the list of devices which will be bandwidth rate limited. The following parameters can be specified per-device:
-    * **`major, minor`** *(int64, REQUIRED)* - major, minor numbers for device. More info in [mknod(1)][mknod.1] man page.
-    * **`weight`** *(uint16, OPTIONAL)* - bandwidth rate for the device.
-    * **`leafWeight`** *(uint16, OPTIONAL)* - bandwidth rate for the device while competing with the cgroup's child cgroups, CFQ scheduler only
+* **`weightDevice`** *(array of objects, OPTIONAL)* - an array of per-device bandwidth weights.
+    Each entry has the following structure:
+    * **`major, minor`** *(int64, REQUIRED)* - major, minor numbers for device.
+        For more information, see the [mknod(1)][mknod.1] man page.
+    * **`weight`** *(uint16, OPTIONAL)* - bandwidth weight for the device.
+    * **`leafWeight`** *(uint16, OPTIONAL)* - bandwidth weight for the device while competing with the cgroup's child cgroups, CFQ scheduler only
 
     You MUST specify at least one of `weight` or `leafWeight` in a given entry, and MAY specify both.
 
-* **`throttleReadBpsDevice`**, **`throttleWriteBpsDevice`**, **`throttleReadIOPSDevice`**, **`throttleWriteIOPSDevice`** *(array of objects, OPTIONAL)* - specify the list of devices which will be IO rate limited.
-    The following parameters can be specified per-device:
-    * **`major, minor`** *(int64, REQUIRED)* - major, minor numbers for device. More info in [mknod(1)][mknod.1] man page.
+* **`throttleReadBpsDevice`**, **`throttleWriteBpsDevice`** *(array of objects, OPTIONAL)* - an array of per-device bandwidth rate limits.
+    Each entry has the following structure:
+    * **`major, minor`** *(int64, REQUIRED)* - major, minor numbers for device.
+        For more information, see the [mknod(1)][mknod.1] man page.
+    * **`rate`** *(uint64, REQUIRED)* - bandwidth rate limit in bytes per second for the device
+
+* **`throttleReadIOPSDevice`**, **`throttleWriteIOPSDevice`** *(array of objects, OPTIONAL)* - an array of per-device IO rate limits.
+    Each entry has the following structure:
+    * **`major, minor`** *(int64, REQUIRED)* - major, minor numbers for device.
+        For more information, see the [mknod(1)][mknod.1] man page.
     * **`rate`** *(uint64, REQUIRED)* - IO rate limit for the device
 
 #### Example
@@ -556,7 +555,7 @@ The following parameters can be specified to set up seccomp:
 
         * **`index`** *(uint, REQUIRED)* - the index for syscall arguments in seccomp.
         * **`value`** *(uint64, REQUIRED)* - the value for syscall arguments in seccomp.
-        * **`valueTwo`** *(uint64, REQUIRED)* - the value for syscall arguments in seccomp.
+        * **`valueTwo`** *(uint64, OPTIONAL)* - the value for syscall arguments in seccomp.
         * **`op`** *(string, REQUIRED)* - the operator for syscall arguments in seccomp.
             A valid list of constants as of libseccomp v2.3.2 is shown below.
 
@@ -652,7 +651,7 @@ The following parameters can be specified to set up seccomp:
 [devpts]: https://www.kernel.org/doc/Documentation/filesystems/devpts.txt
 [file]: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_164
 [libseccomp]: https://github.com/seccomp/libseccomp
-[procfs]: https://www.kernel.org/doc/Documentation/filesystems/proc.txt
+[proc]: https://www.kernel.org/doc/Documentation/filesystems/proc.txt
 [seccomp]: https://www.kernel.org/doc/Documentation/prctl/seccomp_filter.txt
 [sharedsubtree]: https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
 [sysfs]: https://www.kernel.org/doc/Documentation/filesystems/sysfs.txt

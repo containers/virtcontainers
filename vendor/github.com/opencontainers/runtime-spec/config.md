@@ -1,4 +1,4 @@
-# <a name="containerConfigurationFile" />Container Configuration file
+# <a name="configuration" />Configuration
 
 This configuration file contains metadata necessary to implement [standard operations](runtime.md#operations) against the container.
 This includes the process to run, environment variables to inject, sandboxing features to use, etc.
@@ -14,8 +14,8 @@ For all platform-specific configuration values, the scope defined below in the [
 
 ## <a name="configSpecificationVersion" />Specification version
 
-* **`ociVersion`** (string, REQUIRED) MUST be in [SemVer v2.0.0][semver-v2.0.0] format and specifies the version of the Open Container Runtime Specification with which the bundle complies.
-    The Open Container Runtime Specification follows semantic versioning and retains forward and backward compatibility within major versions.
+* **`ociVersion`** (string, REQUIRED) MUST be in [SemVer v2.0.0][semver-v2.0.0] format and specifies the version of the Open Container Initiative Runtime Specification with which the bundle complies.
+    The Open Container Initiative Runtime Specification follows semantic versioning and retains forward and backward compatibility within major versions.
     For example, if a configuration is compliant with version 1.1 of this specification, it is compatible with all runtimes that support any 1.1 or later release of this specification, but is not compatible with a runtime that supports 1.0 and not 1.1.
 
 ### Example
@@ -26,22 +26,26 @@ For all platform-specific configuration values, the scope defined below in the [
 
 ## <a name="configRoot" />Root
 
-**`root`** (object, REQUIRED) specifies the container's root filesystem.
+**`root`** (object, OPTIONAL) specifies the container's root filesystem.
+    On Windows, for Windows Server Containers, this field is REQUIRED.
+    For [Hyper-V Containers](config-windows.md#hyperv), this field MUST NOT be set.
 
-* **`path`** (string, OPTIONAL) Specifies the path to the root filesystem for the container.
-    The path is either an absolute path or a relative path to the bundle.
+    On all other platforms, this field is REQUIRED.
 
-    * On Windows, for Windows Server Containers, this field is REQUIRED and MUST be specified as a [volume GUID path][naming-a-volume].
-      For Hyper-V Containers, this field MUST be omitted.
-    * On all other platforms, this field is REQUIRED.
+* **`path`** (string, REQUIRED) Specifies the path to the root filesystem for the container.
+
+    * On Windows, `path` MUST be a [volume GUID path][naming-a-volume].
+
+    * On POSIX platforms, `path` is either an absolute path or a relative path to the bundle.
+        For example, with a bundle at `/to/bundle` and a root filesystem at `/to/bundle/rootfs`, the `path` value can be either `/to/bundle/rootfs` or `rootfs`.
         The value SHOULD be the conventional `rootfs`.
-    * On Linux, for example, with a bundle at `/to/bundle` and a root filesystem at `/to/bundle/rootfs`, the `path` value can be either `/to/bundle/rootfs` or `rootfs`.
 
-    If defined, a directory MUST exist at the path declared by the field.
+    A directory MUST exist at the path declared by the field.
+
 * **`readonly`** (bool, OPTIONAL) If true then the root filesystem MUST be read-only inside the container, defaults to false.
     * On Windows, this field MUST be omitted or false.
 
-### Example (POSIX)
+### Example (POSIX platforms)
 
 ```json
 "root": {
@@ -91,9 +95,9 @@ For all platform-specific configuration values, the scope defined below in the [
 ]
 ```
 
-### <a name="configLinuxAndSolarisMounts" />Linux and Solaris Mounts
+### <a name="configPOSIXMounts" />POSIX-platform Mounts
 
-For Linux and Solaris based systems the mounts structure has the following fields:
+For POSIX platforms the `mounts` structure has the following fields:
 
 * **`type`** (string, OPTIONAL) The type of the filesystem to be mounted.
   * Linux: filesystem types supported by the kernel as listed in */proc/filesystems* (e.g., "minix", "ext2", "ext3", "jfs", "xfs", "reiserfs", "msdos", "proc", "nfs", "iso9660").
@@ -152,38 +156,53 @@ For Linux and Solaris based systems the mounts structure has the following field
 * **`env`** (array of strings, OPTIONAL) with the same semantics as [IEEE Std 1003.1-2008's `environ`][ieee-1003.1-2008-xbd-c8.1].
 * **`args`** (array of strings, REQUIRED) with similar semantics to [IEEE Std 1003.1-2008 `execvp`'s *argv*][ieee-1003.1-2008-xsh-exec].
     This specification extends the IEEE standard in that at least one entry is REQUIRED, and that entry is used with the same semantics as `execvp`'s *file*.
-* **`capabilities`** (object, OPTIONAL) is an object containing arrays that specifies the sets of capabilities for the process.
-    Valid values are platform-specific.
-    For example, valid values for Linux are defined in the [capabilities(7)][capabilities.7] man page, such as `CAP_CHOWN`.
-    Any value which cannot be mapped to a relevant kernel interface MUST cause an error.
-    `capabilities` contains the following properties:
-    * **`effective`** (array of strings, OPTIONAL) - the `effective` field is an array of effective capabilities that are kept for the process.
-    * **`bounding`** (array of strings, OPTIONAL) - the `bounding` field is an array of bounding capabilities that are kept for the process.
-    * **`inheritable`** (array of strings, OPTIONAL) - the `inheritable` field is an array of inheritable capabilities that are kept for the process.
-    * **`permitted`** (array of strings, OPTIONAL) - the `permitted` field is an array of permitted capabilities that are kept for the process.
-    * **`ambient`** (array of strings, OPTIONAL) - the `ambient` field is an array of ambient capabilities that are kept for the process.
+
+### <a name="configPOSIXProcess" />POSIX process
+
+For systems that support POSIX rlimits (for example Linux and Solaris), the `process` object supports the following process-specific properties:
+
 * **`rlimits`** (array of objects, OPTIONAL) allows setting resource limits for the process.
     Each entry has the following structure:
 
-    * **`type`** (string, REQUIRED) - the platform resource being limited, for example on Linux as defined in the [setrlimit(2)][setrlimit.2] man page.
-    * **`soft`** (uint64, REQUIRED) - the value of the limit enforced for the corresponding resource.
-    * **`hard`** (uint64, REQUIRED) - the ceiling for the soft limit that could be set by an unprivileged process.
-        Only a privileged process (e.g. under Linux: one with the CAP_SYS_RESOURCE capability) can raise a hard limit.
+    * **`type`** (string, REQUIRED) the platform resource being limited.
+        * Linux: valid values are defined in the [`getrlimit(2)`][getrlimit.2] man page, such as `RLIMIT_MSGQUEUE`.
+        * Solaris: valid values are defined in the [`getrlimit(3)`][getrlimit.3] man page, such as `RLIMIT_CORE`.
 
-    If `rlimits` contains duplicated entries with same `type`, the runtime MUST error out.
+        The runtime MUST [generate an error](runtime.md#errors) for any values which cannot be mapped to a relevant kernel interface.
+        For each entry in `rlimits`, a [`getrlimit(3)`][getrlimit.3] on `type` MUST succeed.
+        For the following properties, `rlim` refers to the status returned by the `getrlimit(3)` call.
 
-* **`noNewPrivileges`** (bool, OPTIONAL) setting `noNewPrivileges` to true prevents the process from gaining additional privileges.
-    As an example, the ['no_new_privs'][no-new-privs] article in the kernel documentation has information on how this is achieved using a prctl system call on Linux.
+    * **`soft`** (uint64, REQUIRED) the value of the limit enforced for the corresponding resource.
+        `rlim.rlim_cur` MUST match the configured value.
+    * **`hard`** (uint64, REQUIRED) the ceiling for the soft limit that could be set by an unprivileged process.
+        `rlim.rlim_max` MUST match the configured value.
+        Only a privileged process (e.g. one with the `CAP_SYS_RESOURCE` capability) can raise a hard limit.
 
-For Linux-based systems the process structure supports the following process-specific fields.
+    If `rlimits` contains duplicated entries with same `type`, the runtime MUST [generate an error](runtime.md#errors).
+
+### <a name="configLinuxProcess" />Linux Process
+
+For Linux-based systems, the `process` object supports the following process-specific properties.
 
 * **`apparmorProfile`** (string, OPTIONAL) specifies the name of the AppArmor profile for the process.
     For more information about AppArmor, see [AppArmor documentation][apparmor].
-* **`oomScoreAdj`** *(int, OPTIONAL)* adjusts the oom-killer score in `[pid]/oom_score_adj` for the process's `[pid]` in a [proc pseudo-filesystem][procfs].
+* **`capabilities`** (object, OPTIONAL) is an object containing arrays that specifies the sets of capabilities for the process.
+    Valid values are defined in the [capabilities(7)][capabilities.7] man page, such as `CAP_CHOWN`.
+    Any value which cannot be mapped to a relevant kernel interface MUST cause an error.
+    `capabilities` contains the following properties:
+
+    * **`effective`** (array of strings, OPTIONAL) the `effective` field is an array of effective capabilities that are kept for the process.
+    * **`bounding`** (array of strings, OPTIONAL) the `bounding` field is an array of bounding capabilities that are kept for the process.
+    * **`inheritable`** (array of strings, OPTIONAL) the `inheritable` field is an array of inheritable capabilities that are kept for the process.
+    * **`permitted`** (array of strings, OPTIONAL) the `permitted` field is an array of permitted capabilities that are kept for the process.
+    * **`ambient`** (array of strings, OPTIONAL) the `ambient` field is an array of ambient capabilities that are kept for the process.
+* **`noNewPrivileges`** (bool, OPTIONAL) setting `noNewPrivileges` to true prevents the process from gaining additional privileges.
+    As an example, the [`no_new_privs`][no-new-privs] article in the kernel documentation has information on how this is achieved using a `prctl` system call on Linux.
+* **`oomScoreAdj`** *(int, OPTIONAL)* adjusts the oom-killer score in `[pid]/oom_score_adj` for the process's `[pid]` in a [proc pseudo-filesystem][proc_2].
     If `oomScoreAdj` is set, the runtime MUST set `oom_score_adj` to the given value.
     If `oomScoreAdj` is not set, the runtime MUST NOT change the value of `oom_score_adj`.
 
-    This is a per-process setting, where as [`disableOOMKiller`](config-linux.md#disable-out-of-memory-killer) is scoped for a memory cgroup.
+    This is a per-process setting, where as [`disableOOMKiller`](config-linux.md#memory) is scoped for a memory cgroup.
     For more information on how these two settings work together, see [the memory cgroup documentation section 10. OOM Contol][cgroup-v1-memory_2].
 * **`selinuxLabel`** (string, OPTIONAL) specifies the SELinux label for the process.
     For more information about SELinux, see  [SELinux documentation][selinux].
@@ -192,9 +211,9 @@ For Linux-based systems the process structure supports the following process-spe
 
 The user for the process is a platform-specific structure that allows specific control over which user the process runs as.
 
-#### <a name="configLinuxAndSolarisUser" />Linux and Solaris User
+#### <a name="configPOSIXUser" />POSIX-platform User
 
-For Linux and Solaris based systems the user structure has the following fields:
+For POSIX platforms the `user` structure has the following fields:
 
 * **`uid`** (int, REQUIRED) specifies the user ID in the [container namespace](glossary.md#container-namespace).
 * **`gid`** (int, REQUIRED) specifies the group ID in the [container namespace](glossary.md#container-namespace).
@@ -345,9 +364,9 @@ For Windows based systems the user structure has the following fields:
 }
 ```
 
-## <a name="configHooks" />Linux and Solaris Hooks
+## <a name="configHooks" />POSIX-platform Hooks
 
-For Linux- and Solaris-based systems, the configuration structure supports `hooks` for configuring custom actions related to the [lifecycle](runtime.md#lifecycle) of the container.
+For POSIX platforms, the configuration structure supports `hooks` for configuring custom actions related to the [lifecycle](runtime.md#lifecycle) of the container.
 
 * **`hooks`** (object, OPTIONAL) MAY contain any of the following properties:
     * **`prestart`** (array of objects, OPTIONAL) is an array of [pre-start hooks](#prestart).
@@ -691,7 +710,8 @@ Here is a full example `config.json` for reference.
                 "swap": 536870912,
                 "kernel": -1,
                 "kernelTCP": -1,
-                "swappiness": 0
+                "swappiness": 0,
+                "disableOOMKiller": false
             },
             "cpu": {
                 "shares": 1024,
@@ -702,7 +722,6 @@ Here is a full example `config.json` for reference.
                 "cpus": "2-3",
                 "mems": "0-7"
             },
-            "disableOOMKiller": false,
             "devices": [
                 {
                     "allow": false,
@@ -823,7 +842,7 @@ Here is a full example `config.json` for reference.
 [cgroup-v1-memory_2]: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 [selinux]:http://selinuxproject.org/page/Main_Page
 [no-new-privs]: https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt
-[procfs_2]: https://www.kernel.org/doc/Documentation/filesystems/proc.txt
+[proc_2]: https://www.kernel.org/doc/Documentation/filesystems/proc.txt
 [semver-v2.0.0]: http://semver.org/spec/v2.0.0.html
 [ieee-1003.1-2008-xbd-c8.1]: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_01
 [ieee-1003.1-2008-xsh-exec]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/exec.html
@@ -834,7 +853,8 @@ Here is a full example `config.json` for reference.
 [mount.8]: http://man7.org/linux/man-pages/man8/mount.8.html
 [mount.8-filesystem-independent]: http://man7.org/linux/man-pages/man8/mount.8.html#FILESYSTEM-INDEPENDENT_MOUNT%20OPTIONS
 [mount.8-filesystem-specific]: http://man7.org/linux/man-pages/man8/mount.8.html#FILESYSTEM-SPECIFIC_MOUNT%20OPTIONS
-[setrlimit.2]: http://man7.org/linux/man-pages/man2/setrlimit.2.html
+[getrlimit.2]: http://man7.org/linux/man-pages/man2/getrlimit.2.html
+[getrlimit.3]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/getrlimit.html
 [stdin.3]: http://man7.org/linux/man-pages/man3/stdin.3.html
 [uts-namespace.7]: http://man7.org/linux/man-pages/man7/namespaces.7.html
 [zonecfg.1m]: http://docs.oracle.com/cd/E86824_01/html/E54764/zonecfg-1m.html
