@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/01org/ciao"
   packages = ["qemu","ssntp/uuid"]
-  revision = "869b251b614ba2f6320fd61758f29dd5a06147a6"
+  revision = "8c505ffb1e9b0397bee3a65569f517ca4821fe81"
 
 [[projects]]
   branch = "master"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
-  revision = "05713958f2fa2a6f649eb2467c517a3245fbb536"
+  revision = "400713a58bedb88678e84b72d4620847c8d27fec"
 
 [[projects]]
   branch = "master"
