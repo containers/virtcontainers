@@ -457,7 +457,13 @@ func (q *qemu) init(config HypervisorConfig) error {
 	}
 
 	virtLog.Debugf("Running inside a VM = %v", nested)
-	q.nestedRun = nested
+
+	if config.DisableNestingChecks {
+		//Intentionally ignore the nesting check
+		q.nestedRun = false
+	} else {
+		q.nestedRun = nested
+	}
 
 	return nil
 }

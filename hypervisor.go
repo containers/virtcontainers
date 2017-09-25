@@ -162,6 +162,10 @@ type HypervisorConfig struct {
 	// Realtime=true and Mlock=false, allows for swapping out of VM memory
 	// enabling higher density
 	Mlock bool
+
+	// DisableNestingChecks is used to override customizations performed
+	// when running on top of another VMM.
+	DisableNestingChecks bool
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {
