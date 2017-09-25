@@ -42,6 +42,7 @@ groups:
       - sameo
       - sboeuf
       - amshinde
+      - jodh-intel
 
   reviewers:
     required: 1
