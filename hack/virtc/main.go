@@ -26,7 +26,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/01org/ciao/ssntp/uuid"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
 	vc "github.com/containers/virtcontainers"

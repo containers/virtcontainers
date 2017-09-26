@@ -6,7 +6,7 @@
 # The version should be bumped and the '+' sign removed just before tagging a
 # new release.
 # A '+' sign should be added in the commit just after tagging a new release.
-VERSION := 3.0.0-beta.2+
+VERSION := 3.0.1+
 
 DESTDIR :=
 PREFIX := /usr
