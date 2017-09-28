@@ -13,6 +13,8 @@ ETCDIR ?= ${DESTDIR}/etc
 ETCDIR_CRIO ?= ${ETCDIR}/crio
 BUILDTAGS ?= selinux seccomp $(shell hack/btrfs_tag.sh) $(shell hack/libdm_tag.sh)
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
+OCIUMOUNTINSTALLDIR=$(PREFIX)/share/oci-umount/oci-umount.d
+
 SELINUXOPT ?= $(shell test -x /usr/sbin/selinuxenabled && selinuxenabled && echo -Z)
 PACKAGES ?= $(shell go list -tags "${BUILDTAGS}" ./... | grep -v github.com/kubernetes-incubator/cri-o/vendor)
 
@@ -138,12 +140,16 @@ docs/%.8: docs/%.8.md .gopathok
 
 docs: $(MANPAGES)
 
-install: .gopathok
+install: .gopathok install.bin install.man
+
+install.bin:
 	install ${SELINUXOPT} -D -m 755 crio $(BINDIR)/crio
 	install ${SELINUXOPT} -D -m 755 crioctl $(BINDIR)/crioctl
 	install ${SELINUXOPT} -D -m 755 kpod $(BINDIR)/kpod
 	install ${SELINUXOPT} -D -m 755 conmon/conmon $(LIBEXECDIR)/crio/conmon
 	install ${SELINUXOPT} -D -m 755 pause/pause $(LIBEXECDIR)/crio/pause
+
+install.man:
 	install ${SELINUXOPT} -d -m 755 $(MANDIR)/man1
 	install ${SELINUXOPT} -d -m 755 $(MANDIR)/man5
 	install ${SELINUXOPT} -d -m 755 $(MANDIR)/man8
@@ -154,6 +160,7 @@ install: .gopathok
 install.config:
 	install ${SELINUXOPT} -D -m 644 crio.conf $(ETCDIR_CRIO)/crio.conf
 	install ${SELINUXOPT} -D -m 644 seccomp.json $(ETCDIR_CRIO)/seccomp.json
+	install ${SELINUXOPT} -D -m 644 crio-umount.conf $(OCIUMOUNTINSTALLDIR)/crio-umount.conf
 
 install.completions:
 	install ${SELINUXOPT} -d -m 755 ${BASHINSTALLDIR}
