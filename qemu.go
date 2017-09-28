@@ -566,6 +566,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		NoGraphic:    true,
 		Daemonize:    true,
 		MemPrealloc:  q.config.MemPrealloc,
+		HugePages:    q.config.HugePages,
 		Realtime:     q.config.Realtime,
 		Mlock:        q.config.Mlock,
 	}
