@@ -79,6 +79,9 @@ type ContainerConfig struct {
 	Annotations map[string]string
 
 	Mounts []Mount
+
+	// Devices are devices that must be available within the container.
+	Devices []Device
 }
 
 // valid checks that the container configuration is valid.
@@ -115,6 +118,8 @@ type Container struct {
 	process Process
 
 	mounts []Mount
+
+	devices []Device
 }
 
 // ID returns the container identifier string.
@@ -326,6 +331,7 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		state:         State{},
 		process:       Process{},
 		mounts:        contConfig.Mounts,
+		devices:       contConfig.Devices,
 	}
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
