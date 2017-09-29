@@ -154,7 +154,7 @@ func isBlock(hostPath string) bool {
 }
 
 func createDevice(devInfo DeviceInfo) Device {
-	path := devInfo.ContainerPath
+	path := devInfo.HostPath
 
 	if isVFIO(path) {
 		return newVFIODevice(devInfo)
