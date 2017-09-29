@@ -494,6 +494,11 @@ func (c *Container) start() error {
 		}
 	}
 
+	// Attach devices
+	if err := c.attachDevices(); err != nil {
+		return err
+	}
+
 	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		virtLog.Error("Failed to start container: ", err)
 
@@ -566,6 +571,10 @@ func (c *Container) stop() error {
 
 	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
+		return err
+	}
+
+	if err = c.detachDevices(); err != nil {
 		return err
 	}
 
@@ -784,6 +793,26 @@ func (c *Container) removeDrive() (err error) {
 
 		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
 			virtLog.Errorf("Error while unplugging block device : %s", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) attachDevices() error {
+	for _, device := range c.devices {
+		if err := device.attach(c.pod.hypervisor); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) detachDevices() error {
+	for _, device := range c.devices {
+		if err := device.detach(c.pod.hypervisor); err != nil {
 			return err
 		}
 	}
