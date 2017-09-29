@@ -129,3 +129,109 @@ func testNewDevice(t *testing.T) {
 	assert.Equal(t, vfioDev.UID, 2)
 	assert.Equal(t, vfioDev.GID, 2)
 }
+
+func TestGetBDF(t *testing.T) {
+	type testData struct {
+		deviceStr   string
+		expectedBDF string
+	}
+
+	data := []testData{
+		{"0000:02:10.0", "02:10.0"},
+		{"0000:0210.0", ""},
+		{"test", ""},
+		{"", ""},
+	}
+
+	for _, d := range data {
+		deviceBDF, err := getBDF(d.deviceStr)
+		assert.Equal(t, d.expectedBDF, deviceBDF)
+		if d.expectedBDF == "" {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func TestAttachVFIODevice(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "")
+	assert.Nil(t, err)
+	os.RemoveAll(tmpDir)
+
+	testFDIOGroup := "2"
+	testDeviceBDFPath := "0000:00:1c.0"
+
+	devicesDir := filepath.Join(tmpDir, testFDIOGroup, "devices")
+	err = os.MkdirAll(devicesDir, dirMode)
+	assert.Nil(t, err)
+
+	deviceFile := filepath.Join(devicesDir, testDeviceBDFPath)
+	_, err = os.Create(deviceFile)
+	assert.Nil(t, err)
+
+	savedIOMMUPath := sysIOMMUPath
+	sysIOMMUPath = tmpDir
+
+	defer func() {
+		sysIOMMUPath = savedIOMMUPath
+	}()
+
+	path := filepath.Join(vfioPath, testFDIOGroup)
+	deviceInfo := DeviceInfo{
+		HostPath:      path,
+		ContainerPath: path,
+		DevType:       "c",
+	}
+
+	device := createDevice(deviceInfo)
+	_, ok := device.(*VFIODevice)
+	assert.True(t, ok)
+
+	hypervisor := &mockHypervisor{}
+	err = device.attach(hypervisor)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+}
+
+func TestAttachGenericDevice(t *testing.T) {
+	path := "/dev/tty2"
+	deviceInfo := DeviceInfo{
+		HostPath:      path,
+		ContainerPath: path,
+		DevType:       "c",
+	}
+
+	device := createDevice(deviceInfo)
+	_, ok := device.(*GenericDevice)
+	assert.True(t, ok)
+
+	hypervisor := &mockHypervisor{}
+	err := device.attach(hypervisor)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+}
+
+func TestAttachBlockDevice(t *testing.T) {
+	path := "/dev/hda"
+	deviceInfo := DeviceInfo{
+		HostPath:      path,
+		ContainerPath: path,
+		DevType:       "c",
+	}
+
+	device := createDevice(deviceInfo)
+	_, ok := device.(*BlockDevice)
+	assert.True(t, ok)
+
+	hypervisor := &mockHypervisor{}
+	err := device.attach(hypervisor)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+}

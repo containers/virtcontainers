@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -25,6 +26,10 @@ import (
 
 	"github.com/go-ini/ini"
 )
+
+// Defining this as a variable instead of a const, to allow
+// overriding this in the tests.
+var sysIOMMUPath = "/sys/kernel/iommu_groups"
 
 var sysDevPrefix = "/sys/dev"
 
@@ -88,6 +93,30 @@ func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
 }
 
 func (device *VFIODevice) attach(h hypervisor) error {
+	vfioGroup := filepath.Base(device.HostPath)
+	iommuDevicesPath := filepath.Join(sysIOMMUPath, vfioGroup, "devices")
+
+	deviceFiles, err := ioutil.ReadDir(iommuDevicesPath)
+	if err != nil {
+		return err
+	}
+
+	// Pass all devices in iommu group
+	for _, deviceFile := range deviceFiles {
+
+		//Get bdf of device eg 0000:00:1c.0
+		deviceBDF, err := getBDF(deviceFile.Name())
+		if err != nil {
+			return err
+		}
+
+		device.BDF = deviceBDF
+
+		if err := h.addDevice(device, vfioDev); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -227,4 +256,17 @@ func NewDevice(path, devType string, major, minor int64, fileMode *os.FileMode, 
 
 	device := createDevice(devInfo)
 	return device, nil
+}
+
+// bdf returns the BDF of pci device
+// Expected input strng format is [<domain>]:[<bus>][<slot>].[<func>] eg. 0000:02:10.0
+func getBDF(deviceSysStr string) (string, error) {
+	tokens := strings.Split(deviceSysStr, ":")
+
+	if len(tokens) != 3 {
+		return "", fmt.Errorf("Incorrect number of tokens found while parsing bdf for device : %s", deviceSysStr)
+	}
+
+	tokens = strings.SplitN(deviceSysStr, ":", 2)
+	return tokens[1], nil
 }
