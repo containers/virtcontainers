@@ -660,7 +660,9 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
+	const timeout = time.Duration(1) * time.Second
 
+	virtLog.Info("Stopping Pod")
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
 	if err != nil {
 		virtLog.Errorf("Failed to connect to QEMU instance %v", err)
@@ -681,8 +683,8 @@ func (q *qemu) stopPod() error {
 	select {
 	case <-q.qmpControlCh.disconnectCh:
 		break
-	case <-time.After(time.Second):
-		return fmt.Errorf("Did not receive the VM disconnection notification")
+	case <-time.After(timeout):
+		return fmt.Errorf("Did not receive the VM disconnection notification (timeout %ds)", timeout)
 	}
 
 	return nil
