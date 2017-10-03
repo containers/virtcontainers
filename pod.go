@@ -707,6 +707,9 @@ func (p *Pod) startSetState() error {
 func (p *Pod) startVM(netNsPath string) error {
 	vmStartedCh := make(chan struct{})
 	vmStoppedCh := make(chan struct{})
+	const timeout = time.Duration(10) * time.Second
+
+	virtLog.Info("Starting VM")
 
 	go func() {
 		p.network.run(netNsPath, func() error {
@@ -719,8 +722,8 @@ func (p *Pod) startVM(netNsPath string) error {
 	select {
 	case <-vmStartedCh:
 		break
-	case <-time.After(time.Second):
-		return fmt.Errorf("Did not receive the pod started notification")
+	case <-time.After(timeout):
+		return fmt.Errorf("Did not receive the pod started notification (timeout %ds)", timeout)
 	}
 
 	virtLog.Infof("VM started")
@@ -885,6 +888,8 @@ func (p *Pod) resumeSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
+	virtLog.Info("Stopping VM")
+
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
 	}
