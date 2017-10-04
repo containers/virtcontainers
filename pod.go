@@ -522,6 +522,11 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// Passthrough devices
+	if err := p.attachDevices(); err != nil {
+		return nil, err
+	}
+
 	// fetch agent capabilities and call addDrives if the agent has support
 	// for block devices.
 	caps := p.agent.capabilities()
@@ -1155,6 +1160,26 @@ func togglePausePod(podID string, pause bool) (*Pod, error) {
 	}
 
 	return p, nil
+}
+
+func (p *Pod) attachDevices() error {
+	for _, container := range p.containers {
+		if err := container.attachDevices(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Pod) detachDevices() error {
+	for _, container := range p.containers {
+		if err := container.detachDevices(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.

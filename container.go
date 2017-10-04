@@ -79,6 +79,9 @@ type ContainerConfig struct {
 	Annotations map[string]string
 
 	Mounts []Mount
+
+	// Devices are devices that must be available within the container.
+	Devices []Device
 }
 
 // valid checks that the container configuration is valid.
@@ -115,6 +118,8 @@ type Container struct {
 	process Process
 
 	mounts []Mount
+
+	devices []Device
 }
 
 // ID returns the container identifier string.
@@ -326,6 +331,7 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		state:         State{},
 		process:       Process{},
 		mounts:        contConfig.Mounts,
+		devices:       contConfig.Devices,
 	}
 
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
@@ -488,6 +494,11 @@ func (c *Container) start() error {
 		}
 	}
 
+	// Attach devices
+	if err := c.attachDevices(); err != nil {
+		return err
+	}
+
 	if err = c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		virtLog.Error("Failed to start container: ", err)
 
@@ -560,6 +571,10 @@ func (c *Container) stop() error {
 
 	err = c.pod.agent.stopContainer(*(c.pod), *c)
 	if err != nil {
+		return err
+	}
+
+	if err = c.detachDevices(); err != nil {
 		return err
 	}
 
@@ -778,6 +793,26 @@ func (c *Container) removeDrive() (err error) {
 
 		if err := c.pod.hypervisor.hotplugRemoveDevice(drive, blockDev); err != nil {
 			virtLog.Errorf("Error while unplugging block device : %s", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) attachDevices() error {
+	for _, device := range c.devices {
+		if err := device.attach(c.pod.hypervisor); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) detachDevices() error {
+	for _, device := range c.devices {
+		if err := device.detach(c.pod.hypervisor); err != nil {
 			return err
 		}
 	}

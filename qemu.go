@@ -258,6 +258,20 @@ func (q *qemu) appendBlockDevice(devices []ciaoQemu.Device, drive Drive) []ciaoQ
 	return devices
 }
 
+func (q *qemu) appendVFIODevice(devices []ciaoQemu.Device, vfDevice VFIODevice) []ciaoQemu.Device {
+	if vfDevice.BDF == "" {
+		return devices
+	}
+
+	devices = append(devices,
+		ciaoQemu.VFIODevice{
+			BDF: vfDevice.BDF,
+		},
+	)
+
+	return devices
+}
+
 func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu.Device {
 	devID := socket.ID
 	if len(devID) > maxDevIDSize {
@@ -829,6 +843,9 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 	case blockDev:
 		drive := devInfo.(Drive)
 		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)
+	case vfioDev:
+		vfDevice := devInfo.(VFIODevice)
+		q.qemuConfig.Devices = q.appendVFIODevice(q.qemuConfig.Devices, vfDevice)
 	default:
 		break
 	}
