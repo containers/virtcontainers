@@ -674,7 +674,7 @@ func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: qmpLogger{}}
 	q.qmpControlCh.disconnectCh = make(chan struct{})
-	const timeout = time.Duration(1) * time.Second
+	const timeout = time.Duration(10) * time.Second
 
 	virtLog.Info("Stopping Pod")
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
