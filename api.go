@@ -590,8 +590,12 @@ func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 				}
 
 				if !running {
-					if err := container.stop(); err != nil {
-						return ContainerStatus{}, err
+					err = container.state.validTransition(container.state.State, StateStopped)
+					if err == nil {
+						err = container.setContainerState(StateStopped)
+						if err != nil {
+							return ContainerStatus{}, err
+						}
 					}
 				}
 			}
