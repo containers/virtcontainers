@@ -142,7 +142,7 @@ func TestCreateDeleteNetNS(t *testing.T) {
 func TestCreateNetworkEndpoint(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
-	expected := Endpoint{
+	expected := &VirtualEndpoint{
 		NetPair: NetworkInterfacePair{
 			ID:   "uniqueTestID-4",
 			Name: "br4",
@@ -154,6 +154,7 @@ func TestCreateNetworkEndpoint(t *testing.T) {
 				Name: "tap4",
 			},
 		},
+		Type: VirtualEndpointType,
 	}
 
 	result, err := createNetworkEndpoint(4, "uniqueTestID", "")
@@ -169,7 +170,7 @@ func TestCreateNetworkEndpoint(t *testing.T) {
 func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
-	expected := Endpoint{
+	expected := &VirtualEndpoint{
 		NetPair: NetworkInterfacePair{
 			ID:   "uniqueTestID-4",
 			Name: "br4",
@@ -181,6 +182,7 @@ func TestCreateNetworkEndpointChooseIfaceName(t *testing.T) {
 				Name: "tap4",
 			},
 		},
+		Type: VirtualEndpointType,
 	}
 
 	result, err := createNetworkEndpoint(4, "uniqueTestID", "eth1")
