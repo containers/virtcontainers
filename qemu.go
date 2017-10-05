@@ -329,22 +329,25 @@ func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
 
 func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
 	for idx, endpoint := range endpoints {
-		devices = append(devices,
-			ciaoQemu.NetDevice{
-				Type:          networkModelToQemuType(endpoint.NetPair.NetInterworkingModel),
-				Driver:        ciaoQemu.VirtioNetPCI,
-				ID:            fmt.Sprintf("network-%d", idx),
-				IFName:        endpoint.NetPair.TAPIface.Name,
-				MACAddress:    endpoint.NetPair.TAPIface.HardAddr,
-				DownScript:    "no",
-				Script:        "no",
-				VHost:         true,
-				DisableModern: q.nestedRun,
-				FDs:           endpoint.NetPair.VMFds,
-			},
-		)
-	}
+		virtualEndpoint, ok := endpoint.(*VirtualEndpoint)
+		if ok {
+			devices = append(devices,
+				ciaoQemu.NetDevice{
+					Type:          networkModelToQemuType(virtualEndpoint.NetPair.NetInterworkingModel),
+					Driver:        ciaoQemu.VirtioNetPCI,
+					ID:            fmt.Sprintf("network-%d", idx),
+					IFName:        virtualEndpoint.NetPair.TAPIface.Name,
+					MACAddress:    virtualEndpoint.NetPair.TAPIface.HardAddr,
+					DownScript:    "no",
+					Script:        "no",
+					VHost:         true,
+					DisableModern: q.nestedRun,
+					FDs:           virtualEndpoint.NetPair.VMFds,
+				},
+			)
+		}
 
+	}
 	return devices
 }
 

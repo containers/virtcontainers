@@ -308,14 +308,24 @@ func runNetworkCommon(networkNSPath string, cb func() error) error {
 
 func addNetworkCommon(pod Pod, networkNS *NetworkNamespace) error {
 	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
-		for idx, endpoint := range networkNS.Endpoints {
+		for _, endpoint := range networkNS.Endpoints {
 			endpointType := endpoint.GetType()
 
-			if endpointType == VirtualEndpointType {
+			if endpointType == PhysicalEndpointType {
+				phyEndpoint := endpoint.(*PhysicalEndpoint)
+
+				// Unbind physical interface from host driver and bind to vfio
+				// so that it can be passed to qemu.
+				if err := bindNICToVFIO(phyEndpoint); err != nil {
+					return err
+				}
+			} else if endpointType == VirtualEndpointType {
 				virtualEndpoint := endpoint.(*VirtualEndpoint)
 				if err := xconnectVMNetwork(&(virtualEndpoint.NetPair), true); err != nil {
 					return err
 				}
+			} else {
+				return fmt.Errorf("Unsupported network endpoint type %s", endpointType)
 			}
 		}
 
@@ -332,13 +342,24 @@ func addNetworkCommon(pod Pod, networkNS *NetworkNamespace) error {
 func removeNetworkCommon(networkNS NetworkNamespace) error {
 	return doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
 		for _, endpoint := range networkNS.Endpoints {
-			if endpoint.GetType() == VirtualEndpointType {
+			endpointType := endpoint.GetType()
+
+			if endpointType == PhysicalEndpointType {
+				phyEndpoint := endpoint.(*PhysicalEndpoint)
+
+				// Bind back the physical network interface to host.
+				if err := bindNICToHost(phyEndpoint); err != nil {
+					return err
+				}
+			} else if endpointType == VirtualEndpointType {
 				virtualEndpoint := endpoint.(*VirtualEndpoint)
 
 				err := xconnectVMNetwork(&(virtualEndpoint.NetPair), false)
 				if err != nil {
 					return err
 				}
+			} else {
+				return fmt.Errorf("Unsupported network endpoint type %s", endpointType)
 			}
 		}
 
@@ -1038,6 +1059,14 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	}
 
 	return physicalEndpoint, nil
+}
+
+func bindNICToVFIO(endpoint *PhysicalEndpoint) error {
+	return bindDevicetoVFIO(endpoint.BDF, endpoint.Driver, endpoint.VendorDeviceID)
+}
+
+func bindNICToHost(endpoint *PhysicalEndpoint) error {
+	return bindDevicetoHost(endpoint.BDF, endpoint.Driver, endpoint.VendorDeviceID)
 }
 
 func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
