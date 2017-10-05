@@ -155,8 +155,24 @@ func (c *ContainerConfig) UnmarshalJSON(b []byte) error {
 				}
 
 				switch deviceType {
-				case deviceGeneric:
+				case DeviceGeneric:
 					device := newGenericDevice(info)
+					if err != nil {
+						virtLog.Errorf("Could not create new device %v", err)
+						continue
+					}
+
+					c.Devices = append(c.Devices, device)
+				case DeviceVFIO:
+					device := newVFIODevice(info)
+					if err != nil {
+						virtLog.Errorf("Could not create new device %v", err)
+						continue
+					}
+
+					c.Devices = append(c.Devices, device)
+				case DeviceBlock:
+					device := newBlockDevice(info)
 					if err != nil {
 						virtLog.Errorf("Could not create new device %v", err)
 						continue
