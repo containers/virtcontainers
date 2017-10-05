@@ -27,6 +27,17 @@ import (
 	"github.com/go-ini/ini"
 )
 
+const (
+	// DeviceVFIO is the VFIO device type
+	DeviceVFIO = "vfio"
+
+	// DeviceBlock is the block device type
+	DeviceBlock = "block"
+
+	// DeviceGeneric is a generic device type
+	DeviceGeneric = "generic"
+)
+
 // Defining this as a variable instead of a const, to allow
 // overriding this in the tests.
 var sysIOMMUPath = "/sys/kernel/iommu_groups"
@@ -70,7 +81,7 @@ type DeviceInfo struct {
 	Minor int64
 
 	// FileMode permission bits for the device.
-	FileMode *os.FileMode
+	FileMode os.FileMode
 
 	// id of the device owner.
 	UID uint32
@@ -79,21 +90,69 @@ type DeviceInfo struct {
 	GID uint32
 }
 
+func newDeviceInfo(m map[string]interface{}) (DeviceInfo, error) {
+	var d DeviceInfo
+
+	s, ok := m["HostPath"]
+	if ok {
+		d.HostPath = s.(string)
+	}
+
+	s, ok = m["ContainerPath"]
+	if ok {
+		d.ContainerPath = s.(string)
+	}
+
+	s, ok = m["DevType"]
+	if ok {
+		d.DevType = s.(string)
+	}
+
+	s, ok = m["Major"]
+	if ok {
+		d.Major = int64(s.(float64))
+	}
+
+	s, ok = m["Minor"]
+	if ok {
+		d.Minor = int64(s.(float64))
+	}
+
+	s, ok = m["UID"]
+	if ok {
+		d.UID = uint32(s.(float64))
+	}
+
+	s, ok = m["GID"]
+	if ok {
+		d.GID = uint32(s.(float64))
+	}
+
+	s, ok = m["FileMode"]
+	if ok {
+		d.FileMode = os.FileMode(s.(float64))
+	}
+
+	return d, nil
+}
+
 // VFIODevice is a vfio device meant to be passed to the hypervisor
 // to be used by the Virtual Machine.
 type VFIODevice struct {
-	DeviceInfo
-	BDF string
+	DeviceType string
+	DeviceInfo DeviceInfo
+	BDF        string
 }
 
 func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
-	d := &VFIODevice{}
-	d.DeviceInfo = devInfo
-	return d
+	return &VFIODevice{
+		DeviceType: DeviceVFIO,
+		DeviceInfo: devInfo,
+	}
 }
 
 func (device *VFIODevice) attach(h hypervisor) error {
-	vfioGroup := filepath.Base(device.HostPath)
+	vfioGroup := filepath.Base(device.DeviceInfo.HostPath)
 	iommuDevicesPath := filepath.Join(sysIOMMUPath, vfioGroup, "devices")
 
 	deviceFiles, err := ioutil.ReadDir(iommuDevicesPath)
@@ -126,13 +185,15 @@ func (device *VFIODevice) detach(h hypervisor) error {
 
 // BlockDevice refers to a block storage device implementation.
 type BlockDevice struct {
-	DeviceInfo
+	DeviceType string
+	DeviceInfo DeviceInfo
 }
 
 func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
-	d := &BlockDevice{}
-	d.DeviceInfo = devInfo
-	return d
+	return &BlockDevice{
+		DeviceType: DeviceBlock,
+		DeviceInfo: devInfo,
+	}
 }
 
 func (device *BlockDevice) attach(h hypervisor) error {
@@ -145,13 +206,15 @@ func (device BlockDevice) detach(h hypervisor) error {
 
 // GenericDevice refers to a device that is neither a VFIO device or block device.
 type GenericDevice struct {
-	DeviceInfo
+	DeviceType string
+	DeviceInfo DeviceInfo
 }
 
 func newGenericDevice(devInfo DeviceInfo) *GenericDevice {
-	d := &GenericDevice{}
-	d.DeviceInfo = devInfo
-	return d
+	return &GenericDevice{
+		DeviceType: DeviceGeneric,
+		DeviceInfo: devInfo,
+	}
 }
 
 func (device *GenericDevice) attach(h hypervisor) error {
@@ -243,8 +306,11 @@ func NewDevice(path, devType string, major, minor int64, fileMode *os.FileMode, 
 		UID:           uid,
 		GID:           gid,
 		DevType:       devType,
-		FileMode:      fileMode,
 		ContainerPath: path,
+	}
+
+	if fileMode != nil {
+		devInfo.FileMode = *fileMode
 	}
 
 	hostPath, err := GetHostPathFunc(devInfo)

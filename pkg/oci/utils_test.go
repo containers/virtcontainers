@@ -142,6 +142,7 @@ func TestMinimalPodConfig(t *testing.T) {
 
 	vfioDevice := vc.VFIODevice{}
 	vfioDevice.DeviceInfo = devInfo
+	vfioDevice.DeviceType = vc.DeviceVFIO
 
 	expectedDevices := []vc.Device{
 		&vfioDevice,

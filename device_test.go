@@ -121,13 +121,13 @@ func testNewDevice(t *testing.T) {
 
 	vfioDev, ok := device.(*VFIODevice)
 	assert.True(t, ok)
-	assert.Equal(t, vfioDev.HostPath, path)
-	assert.Equal(t, vfioDev.ContainerPath, path)
-	assert.Equal(t, vfioDev.DevType, "c")
-	assert.Equal(t, vfioDev.Major, major)
-	assert.Equal(t, vfioDev.Minor, minor)
-	assert.Equal(t, vfioDev.UID, 2)
-	assert.Equal(t, vfioDev.GID, 2)
+	assert.Equal(t, vfioDev.DeviceInfo.HostPath, path)
+	assert.Equal(t, vfioDev.DeviceInfo.ContainerPath, path)
+	assert.Equal(t, vfioDev.DeviceInfo.DevType, "c")
+	assert.Equal(t, vfioDev.DeviceInfo.Major, major)
+	assert.Equal(t, vfioDev.DeviceInfo.Minor, minor)
+	assert.Equal(t, vfioDev.DeviceInfo.UID, 2)
+	assert.Equal(t, vfioDev.DeviceInfo.GID, 2)
 }
 
 func TestGetBDF(t *testing.T) {
