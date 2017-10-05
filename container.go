@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,16 +82,102 @@ type ContainerConfig struct {
 	Mounts []Mount
 
 	// Devices are devices that must be available within the container.
-	Devices []Device
+	// We need the json:"-" tag so that the json package does not marshal
+	// or unmarshal that field. We need to handle it ourselves.
+	Devices []Device `json:"-"`
+}
+
+// MarshalJSON is the cutom ContainerConfig JSON marshalling routine.
+// We need such routine in order to properly marshall our Devices array.
+func (c *ContainerConfig) MarshalJSON() ([]byte, error) {
+	// We need a shadow structure in order to prevent json from
+	// entering a recursive loop when only calling json.Marshal().
+	type shadow struct {
+		ID             string
+		RootFs         string
+		ReadonlyRootfs bool
+		Cmd            Cmd
+		Annotations    map[string]string
+		Mounts         []Mount
+		Devices        []Device
+	}
+
+	s := &shadow{
+		ID:             c.ID,
+		RootFs:         c.RootFs,
+		ReadonlyRootfs: c.ReadonlyRootfs,
+		Cmd:            c.Cmd,
+		Annotations:    c.Annotations,
+		Mounts:         c.Mounts,
+		Devices:        c.Devices,
+	}
+
+	return json.Marshal(s)
+}
+
+// UnmarshalJSON is the custom ContainerConfig unmarshalling routine.
+// Unmarshalling the Devices array needs to be done through this
+// routine otherwise the json package has some hard time mapping
+// our serialized data back to the right Device.
+func (c *ContainerConfig) UnmarshalJSON(b []byte) error {
+	type tmp ContainerConfig
+	var s struct {
+		tmp
+		DevicesNoType []interface{} `json:"devices"`
+	}
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		virtLog.Errorf("Unmarshalling container config error: %s", err)
+		return err
+	}
+
+	*c = ContainerConfig(s.tmp)
+
+	for _, m := range s.DevicesNoType {
+		switch deviceMap := m.(type) {
+		case map[string]interface{}:
+			deviceType, ok := deviceMap["DeviceType"]
+			if !ok {
+				continue
+			}
+
+			deviceInfo, ok := deviceMap["DeviceInfo"]
+			if !ok {
+				continue
+			}
+
+			switch deviceInfoMap := deviceInfo.(type) {
+			case map[string]interface{}:
+				info, err := newDeviceInfo(deviceInfoMap)
+				if err != nil {
+					virtLog.Errorf("Could not create new device info %v", err)
+					continue
+				}
+
+				switch deviceType {
+				case deviceGeneric:
+					device := newGenericDevice(info)
+					if err != nil {
+						virtLog.Errorf("Could not create new device %v", err)
+						continue
+					}
+
+					c.Devices = append(c.Devices, device)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // valid checks that the container configuration is valid.
-func (containerConfig *ContainerConfig) valid() bool {
-	if containerConfig == nil {
+func (c *ContainerConfig) valid() bool {
+	if c == nil {
 		return false
 	}
 
-	if containerConfig.ID == "" {
+	if c.ID == "" {
 		return false
 	}
 
