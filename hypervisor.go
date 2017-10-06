@@ -127,6 +127,9 @@ type HypervisorConfig struct {
 	// ImagePath is the guest image host path.
 	ImagePath string
 
+	// FirmwarePath is the bios host path
+	FirmwarePath string
+
 	// HypervisorPath is the hypervisor executable host path.
 	HypervisorPath string
 

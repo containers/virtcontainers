@@ -87,7 +87,7 @@ var supportedQemuMachines = []ciaoQemu.Machine{
 	},
 	{
 		Type:         QemuQ35,
-		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit,nofw",
+		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit",
 	},
 }
 
@@ -648,6 +648,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Knobs:       knobs,
 		VGA:         "none",
 		GlobalParam: "kvm-pit.lost_tick_policy=discard",
+		Bios:        podConfig.HypervisorConfig.FirmwarePath,
 	}
 
 	q.qemuConfig = qemuConfig
