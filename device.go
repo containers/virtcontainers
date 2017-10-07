@@ -59,6 +59,7 @@ const (
 type Device interface {
 	attach(hypervisor) error
 	detach(hypervisor) error
+	deviceType() string
 }
 
 // DeviceInfo is an embedded type that contains device data common to all types of devices.
@@ -183,6 +184,10 @@ func (device *VFIODevice) detach(h hypervisor) error {
 	return nil
 }
 
+func (device *VFIODevice) deviceType() string {
+	return device.DeviceType
+}
+
 // BlockDevice refers to a block storage device implementation.
 type BlockDevice struct {
 	DeviceType string
@@ -204,6 +209,10 @@ func (device BlockDevice) detach(h hypervisor) error {
 	return nil
 }
 
+func (device *BlockDevice) deviceType() string {
+	return device.DeviceType
+}
+
 // GenericDevice refers to a device that is neither a VFIO device or block device.
 type GenericDevice struct {
 	DeviceType string
@@ -223,6 +232,10 @@ func (device *GenericDevice) attach(h hypervisor) error {
 
 func (device *GenericDevice) detach(h hypervisor) error {
 	return nil
+}
+
+func (device *GenericDevice) deviceType() string {
+	return device.DeviceType
 }
 
 // isVFIO checks if the device provided is a vfio group.
