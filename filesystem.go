@@ -547,6 +547,12 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		return nil, err
 	}
 
+	return fs.doFetchResource(containerID, path, resource)
+}
+
+func (fs *filesystem) doFetchResource(containerID, path string, resource podResource) (interface{}, error) {
+	var err error
+
 	switch resource {
 	case configFileType:
 		if containerID == "" {
