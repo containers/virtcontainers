@@ -91,52 +91,6 @@ type DeviceInfo struct {
 	GID uint32
 }
 
-func newDeviceInfo(m map[string]interface{}) (DeviceInfo, error) {
-	var d DeviceInfo
-
-	s, ok := m["HostPath"]
-	if ok {
-		d.HostPath = s.(string)
-	}
-
-	s, ok = m["ContainerPath"]
-	if ok {
-		d.ContainerPath = s.(string)
-	}
-
-	s, ok = m["DevType"]
-	if ok {
-		d.DevType = s.(string)
-	}
-
-	s, ok = m["Major"]
-	if ok {
-		d.Major = int64(s.(float64))
-	}
-
-	s, ok = m["Minor"]
-	if ok {
-		d.Minor = int64(s.(float64))
-	}
-
-	s, ok = m["UID"]
-	if ok {
-		d.UID = uint32(s.(float64))
-	}
-
-	s, ok = m["GID"]
-	if ok {
-		d.GID = uint32(s.(float64))
-	}
-
-	s, ok = m["FileMode"]
-	if ok {
-		d.FileMode = os.FileMode(s.(float64))
-	}
-
-	return d, nil
-}
-
 // VFIODevice is a vfio device meant to be passed to the hypervisor
 // to be used by the Virtual Machine.
 type VFIODevice struct {
@@ -310,34 +264,24 @@ func GetHostPath(devInfo DeviceInfo) (string, error) {
 // GetHostPathFunc is function pointer used to mock GetHostPath in tests.
 var GetHostPathFunc = GetHostPath
 
-// NewDevice returns a device interface implementation based on the host path of the device.
-// The hostpath itself is inferred based on the major-minor number of the device.
-func NewDevice(path, devType string, major, minor int64, fileMode *os.FileMode, uid, gid uint32) (Device, error) {
-	devInfo := DeviceInfo{
-		Major:         major,
-		Minor:         minor,
-		UID:           uid,
-		GID:           gid,
-		DevType:       devType,
-		ContainerPath: path,
+func newDevices(devInfos []DeviceInfo) ([]Device, error) {
+	var devices []Device
+
+	for _, devInfo := range devInfos {
+		hostPath, err := GetHostPathFunc(devInfo)
+		if err != nil {
+			return nil, err
+		}
+
+		devInfo.HostPath = hostPath
+		device := createDevice(devInfo)
+		devices = append(devices, device)
 	}
 
-	if fileMode != nil {
-		devInfo.FileMode = *fileMode
-	}
-
-	hostPath, err := GetHostPathFunc(devInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	devInfo.HostPath = hostPath
-
-	device := createDevice(devInfo)
-	return device, nil
+	return devices, nil
 }
 
-// bdf returns the BDF of pci device
+// getBDF returns the BDF of pci device
 // Expected input strng format is [<domain>]:[<bus>][<slot>].[<func>] eg. 0000:02:10.0
 func getBDF(deviceSysStr string) (string, error) {
 	tokens := strings.Split(deviceSysStr, ":")
