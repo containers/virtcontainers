@@ -126,9 +126,12 @@ func (device *VFIODevice) attach(h hypervisor) error {
 
 		device.BDF = deviceBDF
 
-		if err := h.addDevice(device, vfioDev); err != nil {
+		if err := h.addDevice(*device, vfioDev); err != nil {
+			virtLog.Errorf("Error while adding device : %v\n", err)
 			return err
 		}
+
+		virtLog.Infof("Device group %s attached via vfio passthrough", device.DeviceInfo.HostPath)
 	}
 
 	return nil
