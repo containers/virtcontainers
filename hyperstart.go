@@ -25,6 +25,7 @@ import (
 
 	cniTypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containers/virtcontainers/pkg/hyperstart"
+	"github.com/sirupsen/logrus"
 )
 
 var defaultSockPathTemplates = []string{"%s/%s/hyper.sock", "%s/%s/tty.sock"}
@@ -53,9 +54,14 @@ type HyperConfig struct {
 	PauseBinPath string
 }
 
+// Logger returns a logrus logger appropriate for logging HyperConfig messages
+func (c *HyperConfig) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "hyperstart")
+}
+
 func (c *HyperConfig) validate(pod Pod) bool {
 	if len(c.Sockets) == 0 {
-		virtLog.Infof("No sockets from configuration")
+		c.Logger().Info("No sockets from configuration")
 
 		podSocketPaths := []string{
 			fmt.Sprintf(defaultSockPathTemplates[0], runStoragePath, pod.id),
@@ -99,6 +105,11 @@ type hyperstartProxyCmd struct {
 	token   string
 }
 
+// Logger returns a logrus logger appropriate for logging hyper messages
+func (h *hyper) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "hyper")
+}
+
 func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error) {
 	var envVars []hyperstart.EnvironmentVar
 
@@ -137,7 +148,10 @@ func (h *hyper) processHyperRoute(route *cniTypes.Route, deviceName string) *hyp
 
 	// Skip IPv6 because not supported by hyperstart
 	if destination != defaultRouteDest && route.Dst.IP.To4() == nil {
-		virtLog.Warnf("IPv6 route destination %q not supported", destination)
+		h.Logger().WithFields(logrus.Fields{
+			"unsupported-route-type": "ipv6",
+			"destination":            destination,
+		}).Warn("unsupported route")
 		return nil
 	}
 
@@ -306,7 +320,10 @@ func (h *hyper) bindUnmountContainerMounts(mounts []Mount) error {
 			err := syscall.Unmount(m.HostPath, 0)
 
 			if err != nil {
-				virtLog.Warnf("Could not umount :%s", m.HostPath)
+				h.Logger().WithFields(logrus.Fields{
+					"host-path": m.HostPath,
+					"error":     err,
+				}).Warn("Could not umount")
 				return err
 			}
 		}

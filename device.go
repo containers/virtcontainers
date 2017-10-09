@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -99,6 +100,10 @@ type VFIODevice struct {
 	BDF        string
 }
 
+func deviceLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "device")
+}
+
 func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
 	return &VFIODevice{
 		DeviceType: DeviceVFIO,
@@ -127,11 +132,14 @@ func (device *VFIODevice) attach(h hypervisor) error {
 		device.BDF = deviceBDF
 
 		if err := h.addDevice(*device, vfioDev); err != nil {
-			virtLog.Errorf("Error while adding device : %v\n", err)
+			deviceLogger().WithError(err).Error("Failed to add device")
 			return err
 		}
 
-		virtLog.Infof("Device group %s attached via vfio passthrough", device.DeviceInfo.HostPath)
+		deviceLogger().WithFields(logrus.Fields{
+			"device-group": device.DeviceInfo.HostPath,
+			"device-type":  "vfio-passthrough",
+		}).Info("Device group attached")
 	}
 
 	return nil

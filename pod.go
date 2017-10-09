@@ -24,6 +24,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // controlSocket is the pod control socket.
@@ -419,6 +421,14 @@ func (p *Pod) ID() string {
 	return p.id
 }
 
+// Logger returns a logrus logger appropriate for logging Pod messages
+func (p *Pod) Logger() *logrus.Entry {
+	return virtLog.WithFields(logrus.Fields{
+		"subsystem": "pod",
+		"pod-id":    p.id,
+	})
+}
+
 // Annotations returns any annotation that a user could have stored through the pod.
 func (p *Pod) Annotations(key string) (string, error) {
 	value, exist := p.config.Annotations[key]
@@ -717,7 +727,8 @@ func (p *Pod) startVM(netNsPath string) error {
 	vmStoppedCh := make(chan struct{})
 	const timeout = time.Duration(10) * time.Second
 
-	virtLog.Info("Starting VM")
+	l := p.Logger()
+	l.Info("Starting VM")
 
 	go func() {
 		p.network.run(netNsPath, func() error {
@@ -734,7 +745,7 @@ func (p *Pod) startVM(netNsPath string) error {
 		return fmt.Errorf("Did not receive the pod started notification (timeout %ds)", timeout)
 	}
 
-	virtLog.Infof("VM started")
+	l.Info("VM started")
 
 	return nil
 }
@@ -760,6 +771,7 @@ func (p *Pod) startShims() error {
 		return err
 	}
 
+	shimCount := 0
 	for idx := range p.containers {
 		shimParams := ShimParams{
 			Container: p.containers[idx].id,
@@ -774,6 +786,8 @@ func (p *Pod) startShims() error {
 			return err
 		}
 
+		shimCount++
+
 		p.containers[idx].process = newProcess(proxyInfos[idx].Token, pid)
 
 		if err := p.containers[idx].storeProcess(); err != nil {
@@ -781,7 +795,7 @@ func (p *Pod) startShims() error {
 		}
 	}
 
-	virtLog.Infof("Shim(s) started")
+	p.Logger().WithField("shim-count", shimCount).Info("Started shims")
 
 	return nil
 }
@@ -813,7 +827,7 @@ func (p *Pod) start() error {
 		}
 	}
 
-	virtLog.Infof("Started Pod %s", p.ID())
+	p.Logger().Info("started")
 
 	return nil
 }
@@ -841,13 +855,17 @@ func (p *Pod) stopSetStates() error {
 // stopShims stops all remaining shims corresponfing to not started/stopped
 // containers.
 func (p *Pod) stopShims() error {
+	shimCount := 0
+
 	for _, c := range p.containers {
 		if err := stopShim(c.process.Pid); err != nil {
 			return err
 		}
+
+		shimCount++
 	}
 
-	virtLog.Infof("Shim(s) stopped")
+	p.Logger().WithField("shim-count", shimCount).Info("Stopped shims")
 
 	return nil
 }
@@ -897,7 +915,7 @@ func (p *Pod) resumeSetStates() error {
 
 // stopVM stops the agent inside the VM and shut down the VM itself.
 func (p *Pod) stopVM() error {
-	virtLog.Info("Stopping VM")
+	p.Logger().Info("Stopping VM")
 
 	if _, _, err := p.proxy.connect(*p, false); err != nil {
 		return err
