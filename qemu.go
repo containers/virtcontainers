@@ -87,7 +87,7 @@ var supportedQemuMachines = []ciaoQemu.Machine{
 	},
 	{
 		Type:         QemuQ35,
-		Acceleration: "kvm,kernel_irqchip,nvdimm,nosmm,nosmbus,nosata,nopit",
+		Acceleration: "kvm,kernel_irqchip,nvdimm",
 	},
 }
 
