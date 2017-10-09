@@ -58,6 +58,8 @@ const defaultQemuPath = "/usr/bin/qemu-system-x86_64"
 
 const defaultQemuMachineType = "pc-lite"
 
+const defaultQemuMachineAccelerators = "kvm,kernel_irqchip,nvdimm"
+
 const (
 	// QemuPCLite is the QEMU pc-lite machine type
 	QemuPCLite = defaultQemuMachineType
@@ -79,15 +81,15 @@ var qemuPaths = map[string]string{
 var supportedQemuMachines = []ciaoQemu.Machine{
 	{
 		Type:         QemuPCLite,
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 	{
 		Type:         QemuPC,
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 	{
 		Type:         QemuQ35,
-		Acceleration: "kvm,kernel_irqchip,nvdimm",
+		Acceleration: defaultQemuMachineAccelerators,
 	},
 }
 
