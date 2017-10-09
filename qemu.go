@@ -567,6 +567,14 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
+	accelerators := podConfig.HypervisorConfig.MachineAccelerators
+	if accelerators != "" {
+		if !strings.HasPrefix(accelerators, ",") {
+			accelerators = fmt.Sprintf(",%s", accelerators)
+		}
+		machine.Acceleration += accelerators
+	}
+
 	smp := q.setCPUResources(podConfig)
 
 	memory, err := q.setMemoryResources(podConfig)
