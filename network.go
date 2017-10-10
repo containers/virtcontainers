@@ -33,6 +33,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/ethtool"
 	"github.com/containers/virtcontainers/pkg/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -109,6 +110,8 @@ type Endpoint interface {
 	GetType() EndpointType
 
 	SetProperties(types.Result)
+	Attach(hypervisor) error
+	Detach() error
 }
 
 // VirtualEndpoint gathers a network pair and its properties.
@@ -156,6 +159,29 @@ func (endpoint *VirtualEndpoint) SetProperties(properties types.Result) {
 	endpoint.Properties = properties
 }
 
+func networkLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "network")
+}
+
+// Attach for virtual endpoint bridges the network pair and adds the
+// tap interface of the network pair to the hypervisor.
+func (endpoint *VirtualEndpoint) Attach(h hypervisor) error {
+	networkLogger().Info("Attaching virtual endpoint")
+	if err := xconnectVMNetwork(&(endpoint.NetPair), true); err != nil {
+		networkLogger().WithError(err).Error("Error bridging virtual ep")
+		return err
+	}
+
+	return h.addDevice(endpoint, netDev)
+}
+
+// Detach for the virtual endpoint tears down the tap and bridge
+// created for the veth interface.
+func (endpoint *VirtualEndpoint) Detach() error {
+	networkLogger().Info("Detaching virtual endpoint")
+	return xconnectVMNetwork(&(endpoint.NetPair), false)
+}
+
 // GetProperties returns the properties of the physical interface.
 func (endpoint *PhysicalEndpoint) GetProperties() types.Result {
 	return endpoint.Properties
@@ -179,6 +205,32 @@ func (endpoint *PhysicalEndpoint) GetType() EndpointType {
 // SetProperties sets the properties of the physical endpoint.
 func (endpoint *PhysicalEndpoint) SetProperties(properties types.Result) {
 	endpoint.Properties = properties
+}
+
+// Attach for physical endpoint binds the physical network interface to
+// vfio-pci and adds device to the hypervisor with vfio-passthrough.
+func (endpoint *PhysicalEndpoint) Attach(h hypervisor) error {
+	networkLogger().Info("Attaching physical endpoint")
+
+	// Unbind physical interface from host driver and bind to vfio
+	// so that it can be passed to qemu.
+	if err := bindNICToVFIO(endpoint); err != nil {
+		return err
+	}
+
+	d := VFIODevice{
+		BDF: endpoint.BDF,
+	}
+
+	return h.addDevice(d, vfioDev)
+}
+
+// Detach for physical endpoint unbinds the physical network interface from vfio-pci
+// and binds it back to the saved host driver.
+func (endpoint *PhysicalEndpoint) Detach() error {
+	// Bind back the physical network interface to host.
+	networkLogger().Info("Detaching physical endpoint")
+	return bindNICToHost(endpoint)
 }
 
 // EndpointType identifies the type of the network endpoint.
@@ -406,57 +458,22 @@ func runNetworkCommon(networkNSPath string, cb func() error) error {
 func addNetworkCommon(pod Pod, networkNS *NetworkNamespace) error {
 	err := doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
 		for _, endpoint := range networkNS.Endpoints {
-			endpointType := endpoint.GetType()
-
-			if endpointType == PhysicalEndpointType {
-				phyEndpoint := endpoint.(*PhysicalEndpoint)
-
-				// Unbind physical interface from host driver and bind to vfio
-				// so that it can be passed to qemu.
-				if err := bindNICToVFIO(phyEndpoint); err != nil {
-					return err
-				}
-			} else if endpointType == VirtualEndpointType {
-				virtualEndpoint := endpoint.(*VirtualEndpoint)
-				if err := xconnectVMNetwork(&(virtualEndpoint.NetPair), true); err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("Unsupported network endpoint type %s", endpointType)
+			if err := endpoint.Attach(pod.hypervisor); err != nil {
+				return err
 			}
 		}
 
 		return nil
 	})
 
-	if err != nil {
-		return err
-	}
-
-	return addNetDevHypervisor(pod, networkNS.Endpoints)
+	return err
 }
 
 func removeNetworkCommon(networkNS NetworkNamespace) error {
 	return doNetNS(networkNS.NetNsPath, func(_ ns.NetNS) error {
 		for _, endpoint := range networkNS.Endpoints {
-			endpointType := endpoint.GetType()
-
-			if endpointType == PhysicalEndpointType {
-				phyEndpoint := endpoint.(*PhysicalEndpoint)
-
-				// Bind back the physical network interface to host.
-				if err := bindNICToHost(phyEndpoint); err != nil {
-					return err
-				}
-			} else if endpointType == VirtualEndpointType {
-				virtualEndpoint := endpoint.(*VirtualEndpoint)
-
-				err := xconnectVMNetwork(&(virtualEndpoint.NetPair), false)
-				if err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("Unsupported network endpoint type %s", endpointType)
+			if err := endpoint.Detach(); err != nil {
+				return err
 			}
 		}
 
@@ -1164,10 +1181,6 @@ func bindNICToVFIO(endpoint *PhysicalEndpoint) error {
 
 func bindNICToHost(endpoint *PhysicalEndpoint) error {
 	return bindDevicetoHost(endpoint.BDF, endpoint.Driver, endpoint.VendorDeviceID)
-}
-
-func addNetDevHypervisor(pod Pod, endpoints []Endpoint) error {
-	return pod.hypervisor.addDevice(endpoints, netDev)
 }
 
 // network is the virtcontainers network interface.
