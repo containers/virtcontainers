@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -222,6 +223,102 @@ type NetworkNamespace struct {
 	NetNsPath    string
 	NetNsCreated bool
 	Endpoints    []Endpoint
+}
+
+// TypedJSONEndpoint is used as an intermediate representation for
+// marshalling and unmarshalling Endpoint objects.
+type TypedJSONEndpoint struct {
+	Type EndpointType
+	Data json.RawMessage
+}
+
+// MarshalJSON is the custom NetworkNamespace JSON marshalling routine.
+// This is needed to properly marshall Endpoints array.
+func (n NetworkNamespace) MarshalJSON() ([]byte, error) {
+	// We need a shadow structure in order to prevent json from
+	// entering a recursive loop when only calling json.Marshal().
+	type shadow struct {
+		NetNsPath    string
+		NetNsCreated bool
+		Endpoints    []TypedJSONEndpoint
+	}
+
+	s := &shadow{
+		NetNsPath:    n.NetNsPath,
+		NetNsCreated: n.NetNsCreated,
+	}
+
+	var typedEndpoints []TypedJSONEndpoint
+	for _, endpoint := range n.Endpoints {
+		tempJSON, _ := json.Marshal(endpoint)
+
+		t := TypedJSONEndpoint{
+			Type: endpoint.GetType(),
+			Data: tempJSON,
+		}
+
+		typedEndpoints = append(typedEndpoints, t)
+	}
+
+	s.Endpoints = typedEndpoints
+
+	b, err := json.Marshal(s)
+	return b, err
+}
+
+// UnmarshalJSON is the custom NetworkNamespace unmarshalling routine.
+// This is needed for unmarshalling the Endpoints interfaces array.
+func (n *NetworkNamespace) UnmarshalJSON(b []byte) error {
+	type tmp NetworkNamespace
+	var s struct {
+		NetNsPath    string
+		NetNsCreated bool
+		Endpoints    json.RawMessage
+	}
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	(*n).NetNsPath = s.NetNsPath
+	(*n).NetNsCreated = s.NetNsCreated
+
+	var typedEndpoints []TypedJSONEndpoint
+	if err := json.Unmarshal([]byte(string(s.Endpoints)), &typedEndpoints); err != nil {
+		return err
+	}
+
+	var endpoints []Endpoint
+
+	for _, e := range typedEndpoints {
+		switch e.Type {
+		case PhysicalEndpointType:
+			var endpoint PhysicalEndpoint
+			err := json.Unmarshal(e.Data, &endpoint)
+			if err != nil {
+				return err
+			}
+
+			endpoints = append(endpoints, &endpoint)
+			virtLog.Infof("Physical endpoint unmarshalled [%v]", endpoint)
+
+		case VirtualEndpointType:
+			var endpoint VirtualEndpoint
+			err := json.Unmarshal(e.Data, &endpoint)
+			if err != nil {
+				return err
+			}
+
+			endpoints = append(endpoints, &endpoint)
+			virtLog.Infof("Virtual endpoint unmarshalled [%v]", endpoint)
+
+		default:
+			virtLog.Errorf("Unknown endpoint type received %s\n", e.Type)
+		}
+	}
+
+	(*n).Endpoints = endpoints
+	return nil
 }
 
 // NetworkModel describes the type of network specification.
