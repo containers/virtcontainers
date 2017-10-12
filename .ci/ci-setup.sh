@@ -61,7 +61,7 @@ echo -e "Create symbolic link ${cc_img_path}/${cc_img_link_name}"
 chronic sudo ln -fs ${cc_img_path}/${containers_img} ${cc_img_path}/${cc_img_link_name}
 
 echo "Setup virtcontainers environment"
-chronic sudo -E bash utils/virtcontainers-setup.sh
+chronic sudo -E PATH=$PATH bash utils/virtcontainers-setup.sh
 
 echo "Install virtcontainers"
 chronic make
