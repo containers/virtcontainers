@@ -48,11 +48,13 @@ func main() {
 
 	tokenFlag := flag.String("t", "", "Proxy token")
 	urlFlag := flag.String("u", "", "Proxy URL")
+	containerFlag := flag.String("c", "", "Container ID")
 
 	flag.Parse()
 
 	fmt.Fprintf(f, "INFO: Token = %s\n", *tokenFlag)
 	fmt.Fprintf(f, "INFO: URL = %s\n", *urlFlag)
+	fmt.Fprintf(f, "INFO: Container = %s\n", *containerFlag)
 
 	if *tokenFlag == "" {
 		fmt.Fprintf(f, "ERROR: Token should not be empty\n")
@@ -66,6 +68,11 @@ func main() {
 
 	if _, err := url.Parse(*urlFlag); err != nil {
 		fmt.Fprintf(f, "ERROR: Could not parse the URL %q: %s\n", *urlFlag, err)
+		os.Exit(1)
+	}
+
+	if *containerFlag == "" {
+		fmt.Fprintf(f, "ERROR: Container should not be empty\n")
 		os.Exit(1)
 	}
 
