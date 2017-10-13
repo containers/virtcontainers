@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -94,6 +95,9 @@ type DeviceInfo struct {
 	// Hotplugged is used to store device state indicating if the
 	// device was hotplugged.
 	Hotplugged bool
+
+	// ID for the device that is passed to the hypervisor.
+	ID string
 }
 
 // VFIODevice is a vfio device meant to be passed to the hypervisor
@@ -170,11 +174,71 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 	}
 }
 
+func makeBlockDevIDForHypervisor(deviceID string) string {
+	devID := fmt.Sprintf("drive-%s", deviceID)
+	if len(devID) > maxDevIDSize {
+		devID = string(devID[:maxDevIDSize])
+	}
+
+	return devID
+}
+
 func (device *BlockDevice) attach(h hypervisor, c *Container) error {
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+
+	device.DeviceInfo.ID = hex.EncodeToString(randBytes)
+
+	drive := Drive{
+		File:   device.DeviceInfo.HostPath,
+		Format: "raw",
+		ID:     makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+	}
+
+	// Increment the block index for the pod. This is used to determine the name
+	// for the block device in the case where the block device is used as container
+	// rootfs and the predicted block device name needs to be provided to the agent.
+	_, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
+	deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Attaching block device")
+
+	// We are cold-plugging block devices for now until hot-plugging issues for vfio
+	// devices are fixed. After that we need to move towards  hotplugging all devices.
+	// See https://github.com/containers/virtcontainers/issues/444
+	if c.state.State == "" {
+		if err := h.addDevice(drive, blockDev); err != nil {
+			return err
+		}
+		device.DeviceInfo.Hotplugged = false
+	} else {
+		if err := h.hotplugAddDevice(drive, blockDev); err != nil {
+			return err
+		}
+		device.DeviceInfo.Hotplugged = true
+	}
+
 	return nil
 }
 
 func (device BlockDevice) detach(h hypervisor) error {
+	if device.DeviceInfo.Hotplugged {
+		deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Unplugging block device")
+
+		drive := Drive{
+			ID: makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+		}
+
+		if err := h.hotplugRemoveDevice(drive, blockDev); err != nil {
+			deviceLogger().WithError(err).Error("Failed to unplug block device")
+			return err
+		}
+
+	}
 	return nil
 }
 
