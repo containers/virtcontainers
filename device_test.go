@@ -222,7 +222,7 @@ func TestAttachVFIODevice(t *testing.T) {
 	assert.True(t, ok)
 
 	hypervisor := &mockHypervisor{}
-	err = device.attach(hypervisor)
+	err = device.attach(hypervisor, &Container{})
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
@@ -242,7 +242,7 @@ func TestAttachGenericDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	hypervisor := &mockHypervisor{}
-	err := device.attach(hypervisor)
+	err := device.attach(hypervisor, &Container{})
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
@@ -262,7 +262,7 @@ func TestAttachBlockDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	hypervisor := &mockHypervisor{}
-	err := device.attach(hypervisor)
+	err := device.attach(hypervisor, &Container{})
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
