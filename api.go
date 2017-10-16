@@ -103,7 +103,7 @@ func DeletePod(podID string) (VCPod, error) {
 		return nil, errNeedPodID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func StartPod(podID string) (VCPod, error) {
 		return nil, errNeedPodID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func StopPod(podID string) (VCPod, error) {
 		return nil, errNeedPod
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func RunPod(podConfig PodConfig) (VCPod, error) {
 		return nil, err
 	}
 
-	lockFile, err := lockPod(p.id)
+	lockFile, err := rwLockPod(p.id)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func StatusPod(podID string) (PodStatus, error) {
 		return PodStatus{}, errNeedPodID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return PodStatus{}, err
 	}
@@ -372,7 +372,7 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (VCPod, VCCo
 		return nil, nil, errNeedPodID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -417,7 +417,7 @@ func DeleteContainer(podID, containerID string) (VCContainer, error) {
 		return nil, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +466,7 @@ func StartContainer(podID, containerID string) (VCContainer, error) {
 		return nil, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +504,7 @@ func StopContainer(podID, containerID string) (VCContainer, error) {
 		return nil, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +542,7 @@ func EnterContainer(podID, containerID string, cmd Cmd) (VCPod, VCContainer, *Pr
 		return nil, nil, nil, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -579,7 +579,7 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 		return ContainerStatus{}, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return ContainerStatus{}, err
 	}
@@ -641,7 +641,7 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 		return errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return err
 	}
@@ -690,7 +690,7 @@ func ProcessListContainer(podID, containerID string, options ProcessListOptions)
 		return nil, errNeedContainerID
 	}
 
-	lockFile, err := lockPod(podID)
+	lockFile, err := rwLockPod(podID)
 	if err != nil {
 		return nil, err
 	}
