@@ -165,6 +165,9 @@ func (device *VFIODevice) deviceType() string {
 type BlockDevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
+
+	// Path at which the device appears inside the VM, outside of the container mount namespace.
+	VirtPath string
 }
 
 func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
@@ -200,7 +203,12 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) error {
 	// Increment the block index for the pod. This is used to determine the name
 	// for the block device in the case where the block device is used as container
 	// rootfs and the predicted block device name needs to be provided to the agent.
-	_, err := c.pod.getAndSetPodBlockIndex()
+	index, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
+	driveName, err := getVirtDriveName(index)
 	if err != nil {
 		return err
 	}
@@ -222,6 +230,7 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) error {
 		device.DeviceInfo.Hotplugged = true
 	}
 
+	device.VirtPath = filepath.Join("/dev", driveName)
 	return nil
 }
 
