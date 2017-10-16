@@ -331,16 +331,26 @@ func StatusPod(podID string) (PodStatus, error) {
 		return PodStatus{}, errNeedPodID
 	}
 
-	lockFile, err := rwLockPod(podID)
+	lockFile, err := rLockPod(podID)
 	if err != nil {
 		return PodStatus{}, err
 	}
-	defer unlockPod(lockFile)
 
 	pod, err := fetchPod(podID)
 	if err != nil {
+		unlockPod(lockFile)
 		return PodStatus{}, err
 	}
+
+	// We need to potentially wait for a separate container.stop() routine
+	// that needs to be terminated before we return from this function.
+	// Deferring the synchronization here is very important since we want
+	// to avoid a deadlock. Indeed, the goroutine started by statusContainer
+	// will need to lock an exclusive lock, meaning that all other locks have
+	// to be released to let this happen. This call ensures this will be the
+	// last operation executed by this function.
+	defer pod.wg.Wait()
+	defer unlockPod(lockFile)
 
 	var contStatusList []ContainerStatus
 	for _, container := range pod.containers {
@@ -542,7 +552,7 @@ func EnterContainer(podID, containerID string, cmd Cmd) (VCPod, VCContainer, *Pr
 		return nil, nil, nil, errNeedContainerID
 	}
 
-	lockFile, err := rwLockPod(podID)
+	lockFile, err := rLockPod(podID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -579,20 +589,32 @@ func StatusContainer(podID, containerID string) (ContainerStatus, error) {
 		return ContainerStatus{}, errNeedContainerID
 	}
 
-	lockFile, err := rwLockPod(podID)
+	lockFile, err := rLockPod(podID)
 	if err != nil {
 		return ContainerStatus{}, err
 	}
-	defer unlockPod(lockFile)
 
 	pod, err := fetchPod(podID)
 	if err != nil {
+		unlockPod(lockFile)
 		return ContainerStatus{}, err
 	}
+
+	// We need to potentially wait for a separate container.stop() routine
+	// that needs to be terminated before we return from this function.
+	// Deferring the synchronization here is very important since we want
+	// to avoid a deadlock. Indeed, the goroutine started by statusContainer
+	// will need to lock an exclusive lock, meaning that all other locks have
+	// to be released to let this happen. This call ensures this will be the
+	// last operation executed by this function.
+	defer pod.wg.Wait()
+	defer unlockPod(lockFile)
 
 	return statusContainer(pod, containerID)
 }
 
+// This function is going to spawn a goroutine and it needs to be waited for
+// by the caller.
 func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 	for _, container := range pod.containers {
 		if container.id == containerID {
@@ -602,15 +624,26 @@ func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 			if (container.state.State == StateRunning ||
 				container.state.State == StatePaused) &&
 				container.process.Pid > 0 {
+
 				running, err := isShimRunning(container.process.Pid)
 				if err != nil {
 					return ContainerStatus{}, err
 				}
 
 				if !running {
-					if err := container.stop(); err != nil {
-						return ContainerStatus{}, err
-					}
+					pod.wg.Add(1)
+					go func() {
+						defer pod.wg.Done()
+						lockFile, err := rwLockPod(pod.id)
+						if err != nil {
+							return
+						}
+						defer unlockPod(lockFile)
+
+						if err := container.stop(); err != nil {
+							return
+						}
+					}()
 				}
 			}
 
@@ -690,7 +723,7 @@ func ProcessListContainer(podID, containerID string, options ProcessListOptions)
 		return nil, errNeedContainerID
 	}
 
-	lockFile, err := rwLockPod(podID)
+	lockFile, err := rLockPod(podID)
 	if err != nil {
 		return nil, err
 	}

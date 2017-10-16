@@ -431,6 +431,8 @@ type Pod struct {
 	lockFile *os.File
 
 	annotationsLock *sync.RWMutex
+
+	wg *sync.WaitGroup
 }
 
 // ID returns the pod identifier string.
@@ -600,6 +602,7 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 		configPath:      filepath.Join(configStoragePath, podConfig.ID),
 		state:           State{},
 		annotationsLock: &sync.RWMutex{},
+		wg:              &sync.WaitGroup{},
 	}
 
 	containers, err := newContainers(p, podConfig.Containers)
