@@ -631,7 +631,7 @@ func (p *Pod) storePod() error {
 }
 
 // fetchPod fetches a pod config from a pod ID and returns a pod.
-func fetchPod(podID string) (*Pod, error) {
+func fetchPod(podID string) (pod *Pod, err error) {
 	if podID == "" {
 		return nil, errNeedPodID
 	}
@@ -642,9 +642,12 @@ func fetchPod(podID string) (*Pod, error) {
 		return nil, err
 	}
 
-	virtLog.Debugf("Pod config: %+v", config)
+	pod, err = createPod(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pod with config %+v: %v", config, err)
+	}
 
-	return createPod(config)
+	return pod, nil
 }
 
 // delete deletes an already created pod.
