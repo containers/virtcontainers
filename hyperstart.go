@@ -84,8 +84,6 @@ func (c *HyperConfig) validate(pod Pod) bool {
 		c.PauseBinPath = filepath.Join(defaultPauseBinDir, pauseBinName)
 	}
 
-	virtLog.Debugf("Hyperstart config %v", c)
-
 	return true
 }
 
@@ -339,7 +337,7 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	switch c := config.(type) {
 	case HyperConfig:
 		if c.validate(*pod) == false {
-			return fmt.Errorf("Invalid configuration")
+			return fmt.Errorf("Invalid hyperstart configuration: %v", c)
 		}
 		h.config = c
 	default:
