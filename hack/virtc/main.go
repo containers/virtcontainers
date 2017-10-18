@@ -165,10 +165,22 @@ var podConfigFlags = []cli.Flag{
 }
 
 var ccKernelParams = []vc.Param{
-	{"init", "/usr/lib/systemd/systemd"},
-	{"systemd.unit", "cc-agent.target"},
-	{"systemd.mask", "systemd-networkd.service"},
-	{"systemd.mask", "systemd-networkd.socket"},
+	{
+		Key:   "init",
+		Value: "/usr/lib/systemd/systemd",
+	},
+	{
+		Key:   "systemd.unit",
+		Value: "cc-agent.target",
+	},
+	{
+		Key:   "systemd.mask",
+		Value: "systemd-networkd.service",
+	},
+	{
+		Key:   "systemd.mask",
+		Value: "systemd-networkd.socket",
+	},
 }
 
 func buildKernelParams(config *vc.HypervisorConfig) error {
