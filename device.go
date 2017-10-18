@@ -286,11 +286,9 @@ func isVFIO(hostPath string) bool {
 }
 
 // isBlock checks if the device is a block device.
-func isBlock(hostPath string) bool {
-	for _, blockPath := range blockPaths {
-		if strings.HasPrefix(hostPath, blockPath) && len(hostPath) > len(blockPath) {
-			return true
-		}
+func isBlock(devInfo DeviceInfo) bool {
+	if devInfo.DevType == "b" {
+		return true
 	}
 
 	return false
@@ -301,7 +299,7 @@ func createDevice(devInfo DeviceInfo) Device {
 
 	if isVFIO(path) {
 		return newVFIODevice(devInfo)
-	} else if isBlock(path) {
+	} else if isBlock(devInfo) {
 		return newBlockDevice(devInfo)
 	} else {
 		deviceLogger().WithField("device", path).Info("Device has not been passed to the container")

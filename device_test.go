@@ -53,25 +53,18 @@ func TestIsVFIO(t *testing.T) {
 
 func TestIsBlock(t *testing.T) {
 	type testData struct {
-		path     string
+		devType  string
 		expected bool
 	}
 
 	data := []testData{
-		{"/dev/sda", true},
-		{"/dev/sdbb", true},
-		{"/dev/hda", true},
-		{"/dev/hdb", true},
-		{"/dev/vf", false},
-		{"/dev/vdj", true},
-		{"/dev/vdzzz", true},
-		{"/dev/ida", false},
-		{"/dev/ida/", false},
-		{"/dev/ida/c0d0p10", true},
+		{"b", true},
+		{"c", false},
+		{"u", false},
 	}
 
 	for _, d := range data {
-		isBlock := isBlock(d.path)
+		isBlock := isBlock(DeviceInfo{DevType: d.devType})
 		assert.Equal(t, d.expected, isBlock)
 	}
 }
@@ -79,6 +72,7 @@ func TestIsBlock(t *testing.T) {
 func TestCreateDevice(t *testing.T) {
 	devInfo := DeviceInfo{
 		HostPath: "/dev/vfio/8",
+		DevType:  "b",
 	}
 
 	device := createDevice(devInfo)
@@ -91,6 +85,7 @@ func TestCreateDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	devInfo.HostPath = "/dev/tty"
+	devInfo.DevType = "c"
 	device = createDevice(devInfo)
 	_, ok = device.(*GenericDevice)
 	assert.True(t, ok)
@@ -254,7 +249,7 @@ func TestAttachBlockDevice(t *testing.T) {
 	deviceInfo := DeviceInfo{
 		HostPath:      path,
 		ContainerPath: path,
-		DevType:       "c",
+		DevType:       "b",
 	}
 
 	device := createDevice(deviceInfo)
