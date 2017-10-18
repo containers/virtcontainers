@@ -205,6 +205,11 @@ func (device *GenericDevice) deviceType() string {
 
 // isVFIO checks if the device provided is a vfio group.
 func isVFIO(hostPath string) bool {
+	// Ignore /dev/vfio/vfio character device
+	if strings.HasPrefix(hostPath, filepath.Join(vfioPath, "vfio")) {
+		return false
+	}
+
 	if strings.HasPrefix(hostPath, vfioPath) && len(hostPath) > len(vfioPath) {
 		return true
 	}

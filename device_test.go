@@ -39,6 +39,8 @@ func TestIsVFIO(t *testing.T) {
 		{"/dev/vfio", false},
 		{"/dev/vf", false},
 		{"/dev", false},
+		{"/dev/vfio/vfio", false},
+		{"/dev/vfio/vfio/12", false},
 	}
 
 	for _, d := range data {
