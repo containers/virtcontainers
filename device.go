@@ -259,6 +259,20 @@ func GetHostPath(devInfo DeviceInfo) (string, error) {
 	format := strconv.FormatInt(devInfo.Major, 10) + ":" + strconv.FormatInt(devInfo.Minor, 10)
 	sysDevPath := filepath.Join(sysDevPrefix, pathComp, format, "uevent")
 
+	if _, err := os.Stat(sysDevPath); err != nil {
+		// Some devices(eg. /dev/fuse, /dev/cuse) do not always implement sysfs interface under /sys/dev
+		// These devices are passed by default by docker.
+		//
+		// Simply return the path passed in the device configuration, this does mean that no device renames are
+		// supported for these devices.
+
+		if os.IsNotExist(err) {
+			return devInfo.ContainerPath, nil
+		}
+
+		return "", err
+	}
+
 	content, err := ini.Load(sysDevPath)
 	if err != nil {
 		return "", err
