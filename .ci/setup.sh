@@ -1,5 +1,7 @@
+#!/bin/bash
+#
 # Copyright (c) 2017 Intel Corporation
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,55 +15,23 @@
 # limitations under the License.
 #
 
-#!/bin/bash
-
 set -e
 
-echo "Install chronic"
-sudo apt-get install -y moreutils
+cidir=$(dirname "$0")
+tests_repo="github.com/clearcontainers/tests"
 
-echo "Install curl"
-chronic sudo apt-get install -y curl
+# Clone Tests repository.
+go get "$tests_repo"
 
-echo "Add clear containers sources to apt list"
-sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/clearlinux:/preview:/clear-containers-2.1/xUbuntu_16.10/ /' >> /etc/apt/sources.list.d/cc-oci-runtime.list"
+tests_repo_dir="${GOPATH}/src/${tests_repo}"
 
-echo "Update apt repositories"
-chronic sudo apt-get update
-
-echo "Install linux-container kernel"
-chronic sudo apt-get install -y --force-yes linux-container
-
-echo "Install qemu-lite binary"
-chronic sudo apt-get install -y --force-yes qemu-lite
-
-echo "Download clear containers image"
-clear_linux_base_url="https://download.clearlinux.org"
-latest_version=$(curl -sL ${clear_linux_base_url}/latest)
-clear_linux_current_path="${clear_linux_base_url}/current"
-containers_img="clear-${latest_version}-containers.img"
-compressed_containers_img="${containers_img}.xz"
-chronic curl -LO "${clear_linux_current_path}/${compressed_containers_img}"
-
-echo "Validate clear containers image checksum"
-compressed_signed_cont_img="${compressed_containers_img}-SHA512SUMS"
-chronic curl -LO "${clear_linux_current_path}/${compressed_signed_cont_img}"
-chronic sha512sum -c ${compressed_signed_cont_img}
-
-echo "Extract clear containers image"
-chronic unxz ${compressed_containers_img}
-
-cc_img_path="/usr/share/clear-containers"
-cc_img_link_name="clear-containers.img"
-chronic sudo mkdir -p ${cc_img_path}
-echo "Install clear containers image"
-chronic sudo install --owner root --group root --mode 0644 ${containers_img} ${cc_img_path}
-
-echo -e "Create symbolic link ${cc_img_path}/${cc_img_link_name}"
-chronic sudo ln -fs ${cc_img_path}/${containers_img} ${cc_img_path}/${cc_img_link_name}
+pushd "${tests_repo_dir}"
+echo "Setup Clear Containers"
+sudo -E PATH=$PATH bash -c ".ci/setup.sh"
+popd
 
 echo "Setup virtcontainers environment"
-chronic sudo -E PATH=$PATH bash utils/virtcontainers-setup.sh
+chronic sudo -E PATH=$PATH bash -c "${cidir}/../utils/virtcontainers-setup.sh"
 
 echo "Install virtcontainers"
 chronic make
