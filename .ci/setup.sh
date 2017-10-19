@@ -36,3 +36,6 @@ chronic sudo -E PATH=$PATH bash -c "${cidir}/../utils/virtcontainers-setup.sh"
 echo "Install virtcontainers"
 chronic make
 chronic sudo make install
+
+echo "Update proxy and runtime vendoring"
+sudo -E PATH=$PATH bash -c "${cidir}/update-vendoring.sh"
