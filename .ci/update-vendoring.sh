@@ -20,25 +20,26 @@
 
 set -e
 
-test_repo="github.com/clearcontainers/tests"
 proxy_repo="github.com/clearcontainers/proxy"
 runtime_repo="github.com/clearcontainers/runtime"
 virtcontainers_repo="github.com/containers/virtcontainers"
 
+blacklist=".ci documentation hack hook pause shim test utils vendor"
 # Copy virtcontainers changes to the vendor directory of the repo
 function update_repo(){
 	repo="$1"
+	if [ ! -d "${GOPATH}/src/${repo}" ]; then
+		go get -d "$repo" || true
+	fi
 	vc_vendor_dir="${GOPATH}/src/${repo}/vendor/${virtcontainers_repo}"
 	rm -rf "${vc_vendor_dir}"
 	cp -r "${GOPATH}/src/${virtcontainers_repo}" "${vc_vendor_dir}"
-	pushd "${GOPATH}/src/${repo}"
-	git clean -fd
+	pushd "${vc_vendor_dir}"
+	for item in $blacklist; do
+		rm -rf "$item"
+	done
 	popd
 }
 
 update_repo "${proxy_repo}"
 update_repo "${runtime_repo}"
-pushd "${GOPATH}/src/${test_repo}"
-.ci/install_proxy.sh
-.ci/install_runtime.sh
-popd

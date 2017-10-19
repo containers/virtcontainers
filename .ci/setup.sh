@@ -25,6 +25,9 @@ go get "$tests_repo"
 
 tests_repo_dir="${GOPATH}/src/${tests_repo}"
 
+echo "Update proxy and runtime vendoring"
+sudo -E PATH=$PATH bash -c "${cidir}/update-vendoring.sh"
+
 pushd "${tests_repo_dir}"
 echo "Setup Clear Containers"
 sudo -E PATH=$PATH bash -c ".ci/setup.sh"
@@ -36,6 +39,3 @@ chronic sudo -E PATH=$PATH bash -c "${cidir}/../utils/virtcontainers-setup.sh"
 echo "Install virtcontainers"
 chronic make
 chronic sudo make install
-
-echo "Update proxy and runtime vendoring"
-sudo -E PATH=$PATH bash -c "${cidir}/update-vendoring.sh"
