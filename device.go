@@ -205,6 +205,11 @@ func (device *GenericDevice) deviceType() string {
 
 // isVFIO checks if the device provided is a vfio group.
 func isVFIO(hostPath string) bool {
+	// Ignore /dev/vfio/vfio character device
+	if strings.HasPrefix(hostPath, filepath.Join(vfioPath, "vfio")) {
+		return false
+	}
+
 	if strings.HasPrefix(hostPath, vfioPath) && len(hostPath) > len(vfioPath) {
 		return true
 	}
@@ -231,6 +236,7 @@ func createDevice(devInfo DeviceInfo) Device {
 	} else if isBlock(path) {
 		return newBlockDevice(devInfo)
 	} else {
+		deviceLogger().WithField("device", path).Info("Device has not been passed to the container")
 		return newGenericDevice(devInfo)
 	}
 }
@@ -258,6 +264,20 @@ func GetHostPath(devInfo DeviceInfo) (string, error) {
 
 	format := strconv.FormatInt(devInfo.Major, 10) + ":" + strconv.FormatInt(devInfo.Minor, 10)
 	sysDevPath := filepath.Join(sysDevPrefix, pathComp, format, "uevent")
+
+	if _, err := os.Stat(sysDevPath); err != nil {
+		// Some devices(eg. /dev/fuse, /dev/cuse) do not always implement sysfs interface under /sys/dev
+		// These devices are passed by default by docker.
+		//
+		// Simply return the path passed in the device configuration, this does mean that no device renames are
+		// supported for these devices.
+
+		if os.IsNotExist(err) {
+			return devInfo.ContainerPath, nil
+		}
+
+		return "", err
+	}
 
 	content, err := ini.Load(sysDevPath)
 	if err != nil {
