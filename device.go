@@ -236,6 +236,7 @@ func createDevice(devInfo DeviceInfo) Device {
 	} else if isBlock(path) {
 		return newBlockDevice(devInfo)
 	} else {
+		deviceLogger().WithField("device", path).Info("Device has not been passed to the container")
 		return newGenericDevice(devInfo)
 	}
 }
