@@ -186,7 +186,7 @@ func makeBlockDevIDForHypervisor(deviceID string) string {
 	return devID
 }
 
-func (device *BlockDevice) attach(h hypervisor, c *Container) error {
+func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 	randBytes, err := generateRandomBytes(8)
 	if err != nil {
 		return err
@@ -204,6 +204,13 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) error {
 	// for the block device in the case where the block device is used as container
 	// rootfs and the predicted block device name needs to be provided to the agent.
 	index, err := c.pod.getAndSetPodBlockIndex()
+
+	defer func() {
+		if err != nil {
+			c.pod.decrementPodBlockIndex()
+		}
+	}()
+
 	if err != nil {
 		return err
 	}
@@ -219,14 +226,16 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) error {
 	// devices are fixed. After that we need to move towards  hotplugging all devices.
 	// See https://github.com/containers/virtcontainers/issues/444
 	if c.state.State == "" {
-		if err := h.addDevice(drive, blockDev); err != nil {
+		if err = h.addDevice(drive, blockDev); err != nil {
 			return err
 		}
+
 		device.DeviceInfo.Hotplugged = false
 	} else {
-		if err := h.hotplugAddDevice(drive, blockDev); err != nil {
+		if err = h.hotplugAddDevice(drive, blockDev); err != nil {
 			return err
 		}
+
 		device.DeviceInfo.Hotplugged = true
 	}
 

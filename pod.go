@@ -1016,6 +1016,20 @@ func (p *Pod) getAndSetPodBlockIndex() (int, error) {
 	return currentIndex, nil
 }
 
+// decrementPodBlockIndex decrements the current pod block index.
+// This is used to recover from failure while adding a block device.
+func (p *Pod) decrementPodBlockIndex() error {
+	p.state.BlockIndex--
+
+	// update on-disk state
+	err := p.storage.storePodResource(p.id, stateFileType, p.state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *Pod) getContainer(containerID string) (*Container, error) {
 	if containerID == "" {
 		return &Container{}, errNeedContainerID
