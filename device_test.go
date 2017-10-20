@@ -245,7 +245,40 @@ func TestAttachGenericDevice(t *testing.T) {
 }
 
 func TestAttachBlockDevice(t *testing.T) {
-	path := "/dev/hda"
+	fs := &filesystem{}
+	hypervisor := &mockHypervisor{}
+
+	pod := &Pod{
+		id:         testPodID,
+		storage:    fs,
+		hypervisor: hypervisor,
+	}
+
+	contID := "100"
+	container := Container{
+		pod: pod,
+		id:  contID,
+	}
+
+	// create state file
+	path := filepath.Join(runStoragePath, testPodID, container.ID())
+	err := os.MkdirAll(path, dirMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(path)
+
+	stateFilePath := filepath.Join(path, stateFile)
+	os.Remove(stateFilePath)
+
+	_, err = os.Create(stateFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(stateFilePath)
+
+	path = "/dev/hda"
 	deviceInfo := DeviceInfo{
 		HostPath:      path,
 		ContainerPath: path,
@@ -256,8 +289,15 @@ func TestAttachBlockDevice(t *testing.T) {
 	_, ok := device.(*BlockDevice)
 	assert.True(t, ok)
 
-	hypervisor := &mockHypervisor{}
-	err := device.attach(hypervisor, &Container{})
+	container.state.State = ""
+	err = device.attach(hypervisor, &container)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+
+	container.state.State = StateReady
+	err = device.attach(hypervisor, &container)
 	assert.Nil(t, err)
 
 	err = device.detach(hypervisor)
