@@ -491,18 +491,14 @@ func (p *Pod) GetContainer(containerID string) VCContainer {
 }
 
 func (p *Pod) createSetStates() error {
-	podState := State{
-		State: StateReady,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateReady
 
-	err := p.setPodState(podState)
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
 
-	err = p.setContainersState(podState.State)
+	err = p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
@@ -706,13 +702,9 @@ func (p *Pod) startCheckStates() error {
 }
 
 func (p *Pod) startSetState() error {
-	podState := State{
-		State: StateRunning,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateRunning
 
-	err := p.setPodState(podState)
+	err := p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -833,18 +825,14 @@ func (p *Pod) start() error {
 }
 
 func (p *Pod) stopSetStates() error {
-	podState := State{
-		State: StateStopped,
-		// retain existing URL value
-		URL: p.state.URL,
-	}
+	p.state.State = StateStopped
 
-	err := p.setContainersState(podState.State)
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(podState)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -871,20 +859,16 @@ func (p *Pod) stopShims() error {
 }
 
 func (p *Pod) pauseSetStates() error {
-	state := State{
-		State: StatePaused,
-		URL:   p.state.URL,
-	}
-
 	// XXX: When a pod is paused, all its containers are forcibly
 	// paused too.
+	p.state.State = StatePaused
 
-	err := p.setContainersState(state.State)
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(state)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
@@ -893,19 +877,16 @@ func (p *Pod) pauseSetStates() error {
 }
 
 func (p *Pod) resumeSetStates() error {
-	state := State{
-		State: StateRunning,
-		URL:   p.state.URL,
-	}
-
 	// XXX: Resuming a paused pod puts all containers back into the
 	// running state.
-	err := p.setContainersState(state.State)
+	p.state.State = StateRunning
+
+	err := p.setContainersState(p.state.State)
 	if err != nil {
 		return err
 	}
 
-	err = p.setPodState(state)
+	err = p.setPodState(p.state)
 	if err != nil {
 		return err
 	}
