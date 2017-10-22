@@ -533,15 +533,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// fetch agent capabilities and call addDrives if the agent has support
-	// for block devices.
-	caps := p.agent.capabilities()
-	if caps.isBlockDeviceSupported() {
-		if err := p.addDrives(); err != nil {
-			return nil, err
-		}
-	}
-
 	if err := p.createSetStates(); err != nil {
 		p.storage.deletePodResources(p.id, nil)
 		return nil, err
@@ -1185,17 +1176,23 @@ func (p *Pod) detachDevices() error {
 	return nil
 }
 
-// addDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
+// hotplugDrives can be used to pass block storage devices to the hypervisor in case of devicemapper storage.
 // The container then uses the block device as its rootfs instead of overlay.
 // The container fstype is assigned the file system type of the block device to indicate this.
-func (p *Pod) addDrives() error {
+func (p *Pod) hotplugDrives() error {
+	// fetch agent capabilities and hotplug if the agent has support
+	// for block devices.
+	caps := p.agent.capabilities()
+	if !caps.isBlockDeviceSupported() {
+		return nil
+	}
 
 	if p.config.HypervisorConfig.DisableBlockDeviceUse {
 		return nil
 	}
 
 	for _, c := range p.containers {
-		if err := c.addDrive(true); err != nil {
+		if err := c.addDrive(false); err != nil {
 			return err
 		}
 	}
