@@ -1192,7 +1192,7 @@ func (p *Pod) hotplugDrives() error {
 	}
 
 	for _, c := range p.containers {
-		if err := c.addDrive(false); err != nil {
+		if err := c.hotplugDrive(); err != nil {
 			return err
 		}
 	}

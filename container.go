@@ -521,7 +521,7 @@ func (c *Container) start() error {
 		hypervisorCaps := c.pod.hypervisor.capabilities()
 
 		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-			if err := c.addDrive(false); err != nil {
+			if err := c.hotplugDrive(); err != nil {
 				return err
 			}
 		}
@@ -738,7 +738,7 @@ func newProcess(token string, pid int) Process {
 	}
 }
 
-func (c *Container) addDrive(create bool) error {
+func (c *Container) hotplugDrive() error {
 	defer func() {
 		c.setStateRootfsBlockChecked(true)
 	}()
@@ -787,18 +787,10 @@ func (c *Container) addDrive(create bool) error {
 		ID:     devID,
 	}
 
-	// if pod in create stage
-	if create {
-		if err := c.pod.hypervisor.addDevice(drive, blockDev); err != nil {
-			return err
-		}
-		c.setStateHotpluggedDrive(false)
-	} else {
-		if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
-			return err
-		}
-		c.setStateHotpluggedDrive(true)
+	if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
+		return err
 	}
+	c.setStateHotpluggedDrive(true)
 
 	driveIndex, err := c.pod.getAndSetPodBlockIndex()
 	if err != nil {
