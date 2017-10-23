@@ -16,14 +16,17 @@
 #!/bin/bash
 
 set -e
-set -x
 
 export CI=true
+tests_repo="github.com/clearcontainers/tests"
 
 make check
 
-sudo -E PATH=$PATH go test -bench=.
+sudo -E PATH=$PATH sh -c "go test -bench=."
 
-sudo -E PATH=$PATH go test -bench=CreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI -benchtime=60s
+sudo -E PATH=$PATH sh -c "go test -bench=CreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI -benchtime=60s"
 
-sudo -E PATH=$PATH go test -bench=CreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI -benchtime=60s
+sudo -E PATH=$PATH sh -c "go test -bench=CreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI -benchtime=60s"
+
+cd "${GOPATH}/src/${tests_repo}"
+.ci/run.sh
