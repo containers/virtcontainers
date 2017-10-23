@@ -111,11 +111,11 @@ All following commands __MUST__ be run as root. By default, and unless you decid
 
 #### Run a new pod (Create + Start)
 ```
-# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim"
 ```
 #### Create a new pod
 ```
-# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim" --pause-path="/tmp/bundles/pause_bundle/rootfs/bin/pause"
+# ./virtc pod run --agent="hyperstart" --network="CNI" --proxy="ccProxy" --proxy-url="unix:///var/run/clearcontainers/proxy.sock" --shim="ccShim" --shim-path="/usr/libexec/cc-shim"
 ```
 This will generate output similar to the following:
 ```
