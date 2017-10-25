@@ -27,7 +27,7 @@ import (
 	"time"
 
 	ciaoQemu "github.com/01org/ciao/qemu"
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 )
 
