@@ -649,3 +649,32 @@ func (h *hyper) killOneContainer(cID string, signal syscall.Signal, all bool) er
 
 	return nil
 }
+
+func (h *hyper) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
+	return h.processListOneContainer(pod.id, c.id, options)
+}
+
+func (h *hyper) processListOneContainer(podID, cID string, options ProcessListOptions) (ProcessList, error) {
+	psCmd := hyperstart.PsCommand{
+		Container: cID,
+		Format:    options.Format,
+		PsArgs:    options.Args,
+	}
+
+	proxyCmd := hyperstartProxyCmd{
+		cmd:     hyperstart.PsContainer,
+		message: psCmd,
+	}
+
+	response, err := h.proxy.sendCmd(proxyCmd)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, ok := response.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("failed to get response message from container %s pod %s", cID, podID)
+	}
+
+	return msg, nil
+}
