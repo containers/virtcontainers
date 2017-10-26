@@ -25,7 +25,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/01org/ciao/ssntp/uuid"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
