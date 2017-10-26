@@ -268,28 +268,32 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 		return nil, fmt.Errorf("LinkByName() failed for %s name %s: %s", expectedLink.Type(), name, err)
 	}
 
-	switch expectedLink.Type() {
-	case (&netlink.Bridge{}).Type():
-		if l, ok := link.(*netlink.Bridge); ok {
-			return l, nil
-		}
-	case (&netlink.Tuntap{}).Type():
-		if l, ok := link.(*netlink.GenericLink); ok {
-			return l, nil
-		}
-	case (&netlink.Veth{}).Type():
-		if l, ok := link.(*netlink.Veth); ok {
-			return l, nil
-		}
-	case (&netlink.Macvtap{}).Type():
-		if l, ok := link.(*netlink.Macvtap); ok {
-			return l, nil
-		}
-	default:
-		return nil, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
-	}
+	return link, nil
 
-	return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
+	/*
+		switch expectedLink.Type() {
+		case (&netlink.Bridge{}).Type():
+			if l, ok := link.(*netlink.Bridge); ok {
+				return l, nil
+			}
+		case (&netlink.Tuntap{}).Type():
+			if l, ok := link.(*netlink.GenericLink); ok {
+				return l, nil
+			}
+		case (&netlink.Veth{}).Type():
+			if l, ok := link.(*netlink.Veth); ok {
+				return l, nil
+			}
+		case (&netlink.Macvtap{}).Type():
+			if l, ok := link.(*netlink.Macvtap); ok {
+				return l, nil
+			}
+		default:
+			return nil, fmt.Errorf("Unsupported link type %s", expectedLink.Type())
+		}
+
+		return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
+	*/
 }
 
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
@@ -428,10 +432,14 @@ func tapNetworkPair(netPair *NetworkInterfacePair) error {
 		return fmt.Errorf("Could not set TAP MTU %d: %s", vethLinkAttrs.MTU, err)
 	}
 
-	hardAddr, err := net.ParseMAC(netPair.VirtIface.HardAddr)
+	//hardAddr, err := net.ParseMAC(netPair.VirtIface.HardAddr)
+	hardAddr, err := net.ParseMAC(netPair.TAPIface.HardAddr)
 	if err != nil {
 		return err
 	}
+	hardAddr[0] = 0x02
+	hardAddr[1] = 0x00
+
 	if err := netHandle.LinkSetHardwareAddr(vethLink, hardAddr); err != nil {
 		return fmt.Errorf("Could not set MAC address %s for veth interface %s: %s",
 			netPair.VirtIface.HardAddr, netPair.VirtIface.Name, err)
