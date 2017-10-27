@@ -488,7 +488,7 @@ func (q *qemu) init(config HypervisorConfig) error {
 		return err
 	}
 
-	q.Logger().WithField("inside-vm", nested).Debug("Checking nesting environment")
+	q.Logger().WithField("inside-vm", fmt.Sprintf("%t", nested)).Debug("Checking nesting environment")
 
 	if config.DisableNestingChecks {
 		//Intentionally ignore the nesting check
