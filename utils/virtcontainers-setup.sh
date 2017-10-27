@@ -52,9 +52,6 @@ docker export $(docker create busybox) | tar -C ${rootfsdir} -xvf -
 echo -e '#!/bin/sh\ncd "\"\n"sh"' > ${rootfsdir}/.containerexec
 echo -e 'HOME=/root\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nTERM=xterm' > ${rootfsdir}/.containerenv
 popd
-pause_bundle="${bundlesdir}/pause_bundle"
-mkdir -p ${pause_bundle}
-cp -r ${busybox_bundle}/* ${pause_bundle}/
 
 echo -e "Move to ${tmpdir}/${virtcontainers_build_dir}"
 pushd ${tmpdir}/${virtcontainers_build_dir}
@@ -65,10 +62,6 @@ echo "Copy CNI config files"
 cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf ${ETCDIR}/cni/net.d/
 cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf ${ETCDIR}/cni/net.d/
 
-echo -e "Build pause binary and copy it to pause bundle (${pause_bundle}/${rootfsdir}/bin)"
-pushd $GOPATH/src/github.com/containers/virtcontainers/pause
-go build -o ${pause_bundle}/${rootfsdir}/bin/pause
-popd
 pushd plugins
 ./build.sh
 cp ./bin/bridge ${TMPDIR}/cni/bin/cni-bridge

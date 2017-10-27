@@ -133,12 +133,6 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the hyperstart tty socket name",
 	},
 
-	cli.StringFlag{
-		Name:  "pause-path",
-		Value: "",
-		Usage: "the hyperstart path to pause binary",
-	},
-
 	cli.GenericFlag{
 		Name:  "volume",
 		Value: new(vc.Volumes),
@@ -202,7 +196,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	sshdKey := context.String("sshd-auth-file")
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
-	hyperPauseBinPath := context.String("pause-path")
 	proxyURL := context.String("proxy-url")
 	shimPath := context.String("shim-path")
 	vmVCPUs := context.Uint("vm-vcpus")
@@ -273,11 +266,10 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		}
 	case vc.HyperstartAgent:
 		agConfig = vc.HyperConfig{
-			SockCtlName:  hyperCtlSockName,
-			SockTtyName:  hyperTtySockName,
-			Volumes:      *volumes,
-			Sockets:      *sockets,
-			PauseBinPath: hyperPauseBinPath,
+			SockCtlName: hyperCtlSockName,
+			SockTtyName: hyperTtySockName,
+			Volumes:     *volumes,
+			Sockets:     *sockets,
 		}
 	default:
 		agConfig = nil
