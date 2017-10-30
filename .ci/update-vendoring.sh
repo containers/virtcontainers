@@ -24,6 +24,35 @@ proxy_repo="github.com/clearcontainers/proxy"
 runtime_repo="github.com/clearcontainers/runtime"
 virtcontainers_repo="github.com/containers/virtcontainers"
 
+function apply_depends_on(){
+	pushd "${GOPATH}/src/${virtcontainers_repo}"
+	label_lines=$(git log --format=%s%b -n 1 | grep "Depends-on:" || true)
+
+	if [ "${label_lines}" == "" ]; then
+		return 0
+	fi
+
+	nb_lines=$(echo ${label_lines} | wc -l)
+
+	for i in `seq 1 ${nb_lines}`
+	do
+		label_line=$(echo $label_lines | sed "${i}q;d")
+		label_str=$(echo "${label_line}" | cut -d' ' -f2)
+		repo=$(echo "${label_str}" | cut -d'#' -f1)
+		pr_id=$(echo "${label_str}" | cut -d'#' -f2)
+
+		if [ ! -d "${GOPATH}/src/${repo}" ]; then
+			go get -d "$repo" || true
+		fi
+
+		pushd "${GOPATH}/src/${repo}"
+		git fetch origin "pull/${pr_id}/head" && git checkout FETCH_HEAD && git rebase origin/master
+		popd
+	done
+
+	popd
+}
+
 blacklist=".ci documentation hack hook pause shim test utils vendor"
 # Copy virtcontainers changes to the vendor directory of the repo
 function update_repo(){
@@ -41,5 +70,6 @@ function update_repo(){
 	popd
 }
 
+apply_depends_on
 update_repo "${proxy_repo}"
 update_repo "${runtime_repo}"
