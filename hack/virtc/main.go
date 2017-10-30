@@ -63,7 +63,7 @@ var podConfigFlags = []cli.Flag{
 
 	cli.StringFlag{
 		Name:  "machine-type",
-		Value: vc.QemuPCLite,
+		Value: vc.QemuPC,
 		Usage: "hypervisor machine type",
 	},
 
@@ -165,7 +165,7 @@ var ccKernelParams = []vc.Param{
 	},
 	{
 		Key:   "systemd.unit",
-		Value: "cc-agent.target",
+		Value: "clear-containers.target",
 	},
 	{
 		Key:   "systemd.mask",
@@ -198,6 +198,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	proxyURL := context.String("proxy-url")
 	shimPath := context.String("shim-path")
+	machineType := context.String("machine-type")
 	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
@@ -240,10 +241,15 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		sshdUser = u.Username
 	}
 
+	kernelPath := "/usr/share/clear-containers/vmlinuz.container"
+	if machineType == vc.QemuPCLite {
+		kernelPath = "/usr/share/clear-containers/vmlinux.container"
+	}
+
 	hypervisorConfig := vc.HypervisorConfig{
-		KernelPath:            "/usr/share/clear-containers/vmlinux.container",
+		KernelPath:            kernelPath,
 		ImagePath:             "/usr/share/clear-containers/clear-containers.img",
-		HypervisorMachineType: context.String("machine-type"),
+		HypervisorMachineType: machineType,
 	}
 
 	if err := buildKernelParams(&hypervisorConfig); err != nil {
