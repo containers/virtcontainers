@@ -113,7 +113,7 @@ func stopShim(pid int) error {
 		return nil
 	}
 
-	shimLogger().WithField("shim-pid", pid).Info("Stopping shim")
+	shimLogger().WithField("shim-pid", fmt.Sprintf("%d", pid)).Info("Stopping shim")
 
 	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
 		return err
