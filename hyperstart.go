@@ -164,7 +164,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, nil
 	}
 
-	netIfaces, err := getIfacesFromNetNs(networkNS.NetNsPath)
+	netIfaces, err := getIfacesFromNetNsAll(networkNS.NetNsPath)
 	if err != nil {
 		return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 	}
