@@ -34,8 +34,8 @@ sudo -E PATH=$PATH bash -c ".ci/setup.sh"
 popd
 
 echo "Setup virtcontainers environment"
-sudo -E PATH=$PATH bash -c "${cidir}/../utils/virtcontainers-setup.sh"
+chronic sudo -E PATH=$PATH bash -c "${cidir}/../utils/virtcontainers-setup.sh"
 
 echo "Install virtcontainers"
-make
-sudo make install
+chronic make
+chronic sudo make install
