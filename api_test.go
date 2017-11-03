@@ -595,6 +595,9 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 		KernelPath:     filepath.Join(testDir, testKernel),
 		ImagePath:      filepath.Join(testDir, testImage),
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
+		DefaultVCPUs:   defaultVCPUs,
+		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 
 	expectedStatus := PodStatus{
@@ -648,6 +651,9 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 		KernelPath:     filepath.Join(testDir, testKernel),
 		ImagePath:      filepath.Join(testDir, testImage),
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
+		DefaultVCPUs:   defaultVCPUs,
+		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 
 	expectedStatus := PodStatus{
