@@ -139,6 +139,60 @@ func TestCreateDeleteNetNS(t *testing.T) {
 	}
 }
 
+func testEndpointTypeSet(t *testing.T, value string, expected EndpointType) {
+	//var netModel NetworkModel
+	var endpointType EndpointType
+
+	err := endpointType.Set(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if endpointType != expected {
+		t.Fatal()
+	}
+}
+
+func TestPhysicalEndpointTypeSet(t *testing.T) {
+	testEndpointTypeSet(t, "physical", PhysicalEndpointType)
+}
+
+func TestVirtualEndpointTypeSet(t *testing.T) {
+	testEndpointTypeSet(t, "virtual", VirtualEndpointType)
+}
+
+func TestEndpointTypeSetFailure(t *testing.T) {
+	var endpointType EndpointType
+
+	err := endpointType.Set("wrong-value")
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func testEndpointTypeString(t *testing.T, endpointType *EndpointType, expected string) {
+	result := endpointType.String()
+
+	if result != expected {
+		t.Fatal()
+	}
+}
+
+func TestPhysicalEndpointTypeString(t *testing.T) {
+	endpointType := PhysicalEndpointType
+	testEndpointTypeString(t, &endpointType, string(PhysicalEndpointType))
+}
+
+func TestVirtualEndpointTypeString(t *testing.T) {
+	endpointType := VirtualEndpointType
+	testEndpointTypeString(t, &endpointType, string(VirtualEndpointType))
+}
+
+func TestIncorrectEndpointTypeString(t *testing.T) {
+	var endpointType EndpointType
+	testEndpointTypeString(t, &endpointType, "")
+}
+
 func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
