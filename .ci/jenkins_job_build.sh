@@ -36,9 +36,9 @@ go get ${vc_repo} || true
 cd "${GOPATH}/src/${vc_repo}"
 if [ "${ghprbPullId}" ] && [ "${ghprbTargetBranch}" ]
 then
-	git fetch origin "pull/${ghprbPullId}/head" && git checkout FETCH_HEAD && git rebase "origin/${ghprbTargetBranch}"
+	git fetch origin "pull/${ghprbPullId}/head" && git checkout master && git reset --hard FETCH_HEAD && git rebase "origin/${ghprbTargetBranch}"
 else
-	git fetch origin && git checkout origin/master
+	git fetch origin && git checkout master && git reset --hard origin/master
 fi
 
 # Setup environment and run the tests
