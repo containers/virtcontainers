@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 # Copyright (c) 2017 Intel Corporation
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +15,6 @@
 # limitations under the License.
 #
 
-#!/bin/bash
-
 set -e
 
 export CI=true
@@ -28,5 +28,6 @@ sudo -E PATH=$PATH sh -c "go test -bench=CreateStartStopDeletePodQemuHypervisorN
 
 sudo -E PATH=$PATH sh -c "go test -bench=CreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI -benchtime=60s"
 
-cd "${GOPATH}/src/${tests_repo}"
+pushd "${GOPATH}/src/${tests_repo}"
 .ci/run.sh
+popd

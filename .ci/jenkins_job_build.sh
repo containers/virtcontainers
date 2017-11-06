@@ -24,6 +24,13 @@ export GOPATH=${HOME}/go
 export PATH=${GOPATH}/bin:/usr/local/go/bin:/usr/sbin:${PATH}
 export CI=true
 
+# Download and build goveralls binary in case we need to submit the code
+# coverage.
+if [ ${COVERALLS_REPO_TOKEN} ]
+then
+	go get github.com/mattn/goveralls
+fi
+
 # Get the repository and move HEAD to the appropriate commit.
 go get ${vc_repo} || true
 cd "${GOPATH}/src/${vc_repo}"
@@ -37,3 +44,9 @@ fi
 # Setup environment and run the tests
 sudo -E PATH=$PATH bash .ci/setup.sh
 sudo -E PATH=$PATH bash .ci/run.sh
+
+# Publish the code coverage if needed.
+if [ ${COVERALLS_REPO_TOKEN} ]
+then
+	sudo -E PATH=${PATH} bash -c "${GOPATH}/bin/goveralls -repotoken=${COVERALLS_REPO_TOKEN} -coverprofile=profile.cov"
+fi
