@@ -206,9 +206,11 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 			MACAddr:     endpoint.GetHardwareAddr(),
 		}
 
-		switch endpoint.(type) {
+		switch ep := endpoint.(type) {
 		case *VirtualEndpoint:
 			iface.MTU = netIface.MTU
+		case *PhysicalEndpoint:
+			iface.MTU = ep.MTU
 		}
 
 		ifaces = append(ifaces, iface)

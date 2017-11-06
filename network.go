@@ -126,6 +126,7 @@ type VirtualEndpoint struct {
 type PhysicalEndpoint struct {
 	IfaceName      string
 	HardAddr       string
+	MTU            int
 	Properties     types.Result
 	Type           EndpointType
 	BDF            string
@@ -1162,10 +1163,12 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	}
 
 	mac := link.Attrs().HardwareAddr.String()
+	MTU := link.Attrs().MTU
 
 	physicalEndpoint := &PhysicalEndpoint{
 		IfaceName:      ifaceName,
 		HardAddr:       mac,
+		MTU:            MTU,
 		VendorDeviceID: vendorDeviceID,
 		Type:           PhysicalEndpointType,
 		Driver:         driver,
