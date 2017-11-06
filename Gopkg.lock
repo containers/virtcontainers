@@ -2,11 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/01org/ciao"
-  packages = ["qemu"]
-  revision = "b2a8a2ecea1318ae28a0861191ec385532491b5a"
-
-[[projects]]
   name = "github.com/clearcontainers/proxy"
   packages = ["api","client"]
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
@@ -96,6 +91,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "82781172d7b56c5605cb416f72f21b8cd71ae5f49ef87cfe940e8f7b3d0f3c21"
+  inputs-digest = "02a19323adf4ac6b8c1436844f7212bb6ec4cf38e05d9fbb7f9d1891c1faedfd"
   solver-name = "gps-cdcl"
   solver-version = 1

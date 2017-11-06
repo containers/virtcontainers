@@ -21,9 +21,9 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/ciao-project/ciao/testutil"
 )
+
+const agentUUID = "4cb19522-1e18-439a-883a-f9b2a3a95f5e"
 
 func testAppend(structure interface{}, expected string, t *testing.T) {
 	var config Config
@@ -141,8 +141,8 @@ func TestAppendDeviceNetwork(t *testing.T) {
 var deviceNetworkStringMq = "-netdev tap,id=tap0,vhost=on,fds=3:4 -device driver=virtio-net-pci,netdev=tap0,mac=01:02:de:ad:be:ef,disable-modern=true,mq=on,vectors=6"
 
 func TestAppendDeviceNetworkMq(t *testing.T) {
-	foo, _ := ioutil.TempFile(os.TempDir(), "qemu-ciao-test")
-	bar, _ := ioutil.TempFile(os.TempDir(), "qemu-ciao-test")
+	foo, _ := ioutil.TempFile(os.TempDir(), "qemu-test")
+	bar, _ := ioutil.TempFile(os.TempDir(), "qemu-test")
 
 	defer func() {
 		foo.Close()
@@ -191,8 +191,8 @@ func TestAppendDeviceNetworkPCI(t *testing.T) {
 var deviceNetworkPCIStringMq = "-netdev tap,id=tap0,vhost=on,fds=3:4 -device driver=virtio-net-pci,netdev=tap0,mac=01:02:de:ad:be:ef,bus=/pci-bus/pcie.0,addr=ff,disable-modern=true,mq=on,vectors=6"
 
 func TestAppendDeviceNetworkPCIMq(t *testing.T) {
-	foo, _ := ioutil.TempFile(os.TempDir(), "qemu-ciao-test")
-	bar, _ := ioutil.TempFile(os.TempDir(), "qemu-ciao-test")
+	foo, _ := ioutil.TempFile(os.TempDir(), "qemu-test")
+	bar, _ := ioutil.TempFile(os.TempDir(), "qemu-test")
 
 	defer func() {
 		foo.Close()
@@ -246,13 +246,13 @@ func TestAppendDeviceSerialPort(t *testing.T) {
 	testAppend(chardev, deviceSerialPortString, t)
 }
 
-var deviceBlockString = "-device virtio-blk,disable-modern=true,drive=hd0,scsi=off,config-wce=off -drive id=hd0,file=/var/lib/ciao.img,aio=threads,format=qcow2,if=none"
+var deviceBlockString = "-device virtio-blk,disable-modern=true,drive=hd0,scsi=off,config-wce=off -drive id=hd0,file=/var/lib/rootfs.img,aio=threads,format=qcow2,if=none"
 
 func TestAppendDeviceBlock(t *testing.T) {
 	blkdev := BlockDevice{
 		Driver:        VirtioBlock,
 		ID:            "hd0",
-		File:          "/var/lib/ciao.img",
+		File:          "/var/lib/rootfs.img",
 		AIO:           Threads,
 		Format:        QCOW2,
 		Interface:     NoInterface,
@@ -390,13 +390,13 @@ func TestAppendQMPSocketServer(t *testing.T) {
 	testAppend(qmp, qmpSocketServerString, t)
 }
 
-var qemuString = "-name cc-qemu -cpu host -uuid " + testutil.AgentUUID
+var qemuString = "-name cc-qemu -cpu host -uuid " + agentUUID
 
 func TestAppendStrings(t *testing.T) {
 	config := Config{
 		Path:     "qemu",
 		Name:     "cc-qemu",
-		UUID:     testutil.AgentUUID,
+		UUID:     agentUUID,
 		CPUModel: "host",
 	}
 
