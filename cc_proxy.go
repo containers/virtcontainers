@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var defaultCCProxyURL = "unix:///run/cc-oci-runtime/proxy.sock"
+var defaultCCProxyURL = "unix:///var/run/clear-containers/proxy.sock"
 
 const (
 	// Number of seconds to wait for the proxy to respond to a connection
