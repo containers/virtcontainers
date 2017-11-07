@@ -29,12 +29,12 @@ import (
 	"strings"
 	"time"
 
-	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/ethtool"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -74,9 +74,26 @@ const (
 	defaultQueues     = 8
 )
 
-type netIfaceAddrs struct {
-	iface net.Interface
-	addrs []net.Addr
+// NetIfaceAddrs describes a network interface an its associated IP addresses.
+type NetIfaceAddrs struct {
+	Iface net.Interface
+	Addrs []net.IPNet
+}
+
+// DNSInfo describes the DNS setup related to a network interface.
+type DNSInfo struct {
+	Servers  []string
+	Domain   string
+	Searches []string
+	Options  []string
+}
+
+// NetworkInfo gathers all information related to a network interface.
+// It can be used to store the description of the underlying network.
+type NetworkInfo struct {
+	Iface  NetIfaceAddrs
+	Routes []netlink.Route
+	DNS    DNSInfo
 }
 
 // NetworkInterface defines a network interface.
@@ -104,12 +121,12 @@ type NetworkConfig struct {
 
 // Endpoint represents a physical or virtual network interface.
 type Endpoint interface {
-	Properties() types.Result
+	Properties() NetworkInfo
 	Name() string
 	HardwareAddr() string
 	Type() EndpointType
 
-	SetProperties(types.Result)
+	SetProperties(NetworkInfo)
 	Attach(hypervisor) error
 	Detach() error
 }
@@ -117,7 +134,7 @@ type Endpoint interface {
 // VirtualEndpoint gathers a network pair and its properties.
 type VirtualEndpoint struct {
 	NetPair            NetworkInterfacePair
-	EndpointProperties types.Result
+	EndpointProperties NetworkInfo
 	Physical           bool
 	EndpointType       EndpointType
 }
@@ -127,7 +144,7 @@ type PhysicalEndpoint struct {
 	IfaceName          string
 	HardAddr           string
 	MTU                int
-	EndpointProperties types.Result
+	EndpointProperties NetworkInfo
 	EndpointType       EndpointType
 	BDF                string
 	Driver             string
@@ -135,7 +152,7 @@ type PhysicalEndpoint struct {
 }
 
 // Properties returns properties for the veth interface in the network pair.
-func (endpoint *VirtualEndpoint) Properties() types.Result {
+func (endpoint *VirtualEndpoint) Properties() NetworkInfo {
 	return endpoint.EndpointProperties
 }
 
@@ -156,7 +173,7 @@ func (endpoint *VirtualEndpoint) Type() EndpointType {
 }
 
 // SetProperties sets the properties for the endpoint.
-func (endpoint *VirtualEndpoint) SetProperties(properties types.Result) {
+func (endpoint *VirtualEndpoint) SetProperties(properties NetworkInfo) {
 	endpoint.EndpointProperties = properties
 }
 
@@ -184,7 +201,7 @@ func (endpoint *VirtualEndpoint) Detach() error {
 }
 
 // Properties returns the properties of the physical interface.
-func (endpoint *PhysicalEndpoint) Properties() types.Result {
+func (endpoint *PhysicalEndpoint) Properties() NetworkInfo {
 	return endpoint.EndpointProperties
 }
 
@@ -204,7 +221,7 @@ func (endpoint *PhysicalEndpoint) Type() EndpointType {
 }
 
 // SetProperties sets the properties of the physical endpoint.
-func (endpoint *PhysicalEndpoint) SetProperties(properties types.Result) {
+func (endpoint *PhysicalEndpoint) SetProperties(properties NetworkInfo) {
 	endpoint.EndpointProperties = properties
 }
 
@@ -1015,11 +1032,52 @@ func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error
 	return endpoints, nil
 }
 
-func getIfacesFromNetNsFilter(networkNSPath string, ipFilter bool) ([]netIfaceAddrs, error) {
-	var netIfaces []netIfaceAddrs
+func getIfaceByNameFromNetNs(networkNSPath string, ifaceName string) (NetIfaceAddrs, error) {
+	var netIface NetIfaceAddrs
+
+	err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		iface, err := net.InterfaceByName(ifaceName)
+		if err != nil {
+			return err
+		}
+		if iface == nil {
+			return fmt.Errorf("Interface is nil")
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return err
+		}
+
+		var ipNetList []net.IPNet
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+
+			ipNetList = append(ipNetList, *ipNet)
+		}
+
+		netIface = NetIfaceAddrs{
+			Iface: *iface,
+			Addrs: ipNetList,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return NetIfaceAddrs{}, err
+	}
+
+	return netIface, nil
+}
+
+func getIfacesFromNetNsFilter(networkNSPath string, ipFilter bool) ([]NetIfaceAddrs, error) {
+	var netIfaces []NetIfaceAddrs
 
 	if networkNSPath == "" {
-		return []netIfaceAddrs{}, fmt.Errorf("Network namespace path cannot be empty")
+		return []NetIfaceAddrs{}, fmt.Errorf("Network namespace path cannot be empty")
 	}
 
 	err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
@@ -1045,9 +1103,19 @@ func getIfacesFromNetNsFilter(networkNSPath string, ipFilter bool) ([]netIfaceAd
 				}
 			}
 
-			netIface := netIfaceAddrs{
-				iface: iface,
-				addrs: addrs,
+			var ipNetList []net.IPNet
+			for _, addr := range addrs {
+				ipNet, ok := addr.(*net.IPNet)
+				if !ok {
+					continue
+				}
+
+				ipNetList = append(ipNetList, *ipNet)
+			}
+
+			netIface := NetIfaceAddrs{
+				Iface: iface,
+				Addrs: ipNetList,
 			}
 
 			netIfaces = append(netIfaces, netIface)
@@ -1056,30 +1124,50 @@ func getIfacesFromNetNsFilter(networkNSPath string, ipFilter bool) ([]netIfaceAd
 		return nil
 	})
 	if err != nil {
-		return []netIfaceAddrs{}, err
+		return []NetIfaceAddrs{}, err
 	}
 
 	return netIfaces, nil
 }
 
-func getIfacesFromNetNsAll(networkNSPath string) ([]netIfaceAddrs, error) {
+func getIfacesFromNetNsAll(networkNSPath string) ([]NetIfaceAddrs, error) {
 	// get all interfaces, even those without IP
 	return getIfacesFromNetNsFilter(networkNSPath, false)
 }
 
-func getIfacesFromNetNs(networkNSPath string) ([]netIfaceAddrs, error) {
+func getIfacesFromNetNs(networkNSPath string) ([]NetIfaceAddrs, error) {
 	// get only the interfaces with valid IP addrsses
 	return getIfacesFromNetNsFilter(networkNSPath, true)
 }
 
-func getNetIfaceByName(name string, netIfaces []netIfaceAddrs) (net.Interface, error) {
-	for _, netIface := range netIfaces {
-		if netIface.iface.Name == name {
-			return netIface.iface, nil
-		}
+func getNetIfaceRoutesWithinNetNs(networkNSPath string, ifaceName string) ([]netlink.Route, error) {
+	if networkNSPath == "" {
+		return []netlink.Route{}, fmt.Errorf("Network namespace path cannot be empty")
 	}
 
-	return net.Interface{}, fmt.Errorf("Could not find the interface %s in the list", name)
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+	defer netnsHandle.Close()
+
+	netHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+	defer netHandle.Delete()
+
+	link, err := netHandle.LinkByName(ifaceName)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+
+	routes, err := netHandle.RouteList(link, netlink.FAMILY_ALL)
+	if err != nil {
+		return []netlink.Route{}, err
+	}
+
+	return routes, nil
 }
 
 // isPhysicalIface checks if an interface is a physical device.

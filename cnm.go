@@ -17,16 +17,9 @@
 package virtcontainers
 
 import (
-	"fmt"
-	"net"
-
-	cniTypes "github.com/containernetworking/cni/pkg/types"
-	types "github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 )
 
 // cnm is a network implementation for the CNM plugin.
@@ -36,94 +29,6 @@ type cnm struct {
 
 func cnmLogger() *logrus.Entry {
 	return virtLog.WithField("subsystem", "cnm")
-}
-
-func (n *cnm) getNetIfaceRoutesWithinNetNs(networkNSPath string, ifaceName string) ([]netlink.Route, error) {
-	if networkNSPath == "" {
-		return []netlink.Route{}, fmt.Errorf("Network namespace path cannot be empty")
-	}
-
-	netnsHandle, err := netns.GetFromPath(networkNSPath)
-	if err != nil {
-		return []netlink.Route{}, err
-	}
-	defer netnsHandle.Close()
-
-	netHandle, err := netlink.NewHandleAt(netnsHandle)
-	if err != nil {
-		return []netlink.Route{}, err
-	}
-	defer netHandle.Delete()
-
-	link, err := netHandle.LinkByName(ifaceName)
-	if err != nil {
-		return []netlink.Route{}, err
-	}
-
-	routes, err := netHandle.RouteList(link, netlink.FAMILY_ALL)
-	if err != nil {
-		return []netlink.Route{}, err
-	}
-
-	return routes, nil
-}
-
-func (n *cnm) createResult(iface net.Interface, addrs []net.Addr, routes []netlink.Route) (types.Result, error) {
-	var ipConfigs []*types.IPConfig
-	for _, addr := range addrs {
-		ip, ipNet, err := net.ParseCIDR(addr.String())
-		if err != nil {
-			return types.Result{}, err
-		}
-
-		version := "6"
-		if ip.To4() != nil {
-			version = "4"
-		}
-		ipNet.IP = ip
-
-		ipConfig := &types.IPConfig{
-			Version:   version,
-			Interface: &iface.Index,
-			Address:   *ipNet,
-		}
-
-		ipConfigs = append(ipConfigs, ipConfig)
-	}
-
-	ifaceList := []*types.Interface{
-		{
-			Name: iface.Name,
-			Mac:  iface.HardwareAddr.String(),
-		},
-	}
-
-	var resultRoutes []*cniTypes.Route
-	for _, route := range routes {
-		if route.Dst == nil {
-			_, defaultRoute, err := net.ParseCIDR(defaultRouteDest)
-			if err != nil {
-				return types.Result{}, err
-			}
-
-			route.Dst = defaultRoute
-		}
-
-		r := &cniTypes.Route{
-			Dst: *(route.Dst),
-			GW:  route.Gw,
-		}
-
-		resultRoutes = append(resultRoutes, r)
-	}
-
-	res := types.Result{
-		Interfaces: ifaceList,
-		IPs:        ipConfigs,
-		Routes:     resultRoutes,
-	}
-
-	return res, nil
 }
 
 func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
@@ -140,23 +45,23 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 	for _, netIface := range netIfaces {
 		var endpoint Endpoint
 
-		if netIface.iface.Name == "lo" {
+		if netIface.Iface.Name == "lo" {
 			continue
 		}
 
 		err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
 			// Check if interface is a physical interface. Do not create
 			// tap interface/bridge if it is.
-			isPhysical, err := isPhysicalIface(netIface.iface.Name)
+			isPhysical, err := isPhysicalIface(netIface.Iface.Name)
 			if err != nil {
 				return err
 			}
 
 			if isPhysical {
-				cnmLogger().WithField("interface", netIface.iface.Name).Info("Physical network interface found")
-				endpoint, err = createPhysicalEndpoint(netIface.iface.Name)
+				cnmLogger().WithField("interface", netIface.Iface.Name).Info("Physical network interface found")
+				endpoint, err = createPhysicalEndpoint(netIface.Iface.Name)
 			} else {
-				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netIface.iface.Name)
+				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netIface.Iface.Name)
 			}
 
 			return err
@@ -166,14 +71,14 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 			return []Endpoint{}, err
 		}
 
-		routes, err := n.getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.iface.Name)
+		routes, err := getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.Iface.Name)
 		if err != nil {
 			return []Endpoint{}, err
 		}
 
-		properties, err := n.createResult(netIface.iface, netIface.addrs, routes)
-		if err != nil {
-			return []Endpoint{}, err
+		properties := NetworkInfo{
+			Iface:  netIface,
+			Routes: routes,
 		}
 
 		endpoint.SetProperties(properties)

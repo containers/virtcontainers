@@ -362,7 +362,7 @@ func TestIsPhysicalIface(t *testing.T) {
 	}
 }
 
-func testGetIfacesFromNetNsSuccessful(t *testing.T, link netlink.Link, expected []netIfaceAddrs) {
+func testGetIfacesFromNetNsSuccessful(t *testing.T, link netlink.Link, expected []NetIfaceAddrs) {
 	lAttrs := link.Attrs()
 
 	n, err := ns.NewNS()
@@ -420,38 +420,7 @@ func TestGetIfacesFromNetNsSuccessfulBridge(t *testing.T) {
 		},
 	}
 
-	expected := []netIfaceAddrs(nil)
+	expected := []NetIfaceAddrs(nil)
 
 	testGetIfacesFromNetNsSuccessful(t, link, expected)
-}
-
-func TestGetNetIfaceByNameFailureEmptyList(t *testing.T) {
-	if _, err := getNetIfaceByName("testIface", []netIfaceAddrs{}); err == nil {
-		t.Fatal("Should fail because network interface list is empty")
-	}
-}
-
-func TestGetNetIfaceByNameSuccessful(t *testing.T) {
-	testIfaceName := "testIfaceName"
-
-	expected := net.Interface{
-		Name: testIfaceName,
-	}
-
-	netIfaces := []netIfaceAddrs{
-		{
-			iface: net.Interface{
-				Name: testIfaceName,
-			},
-		},
-	}
-
-	result, err := getNetIfaceByName(testIfaceName, netIfaces)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if reflect.DeepEqual(result, expected) == false {
-		t.Fatalf("Got %+v\nExpecting %+v", result, expected)
-	}
 }

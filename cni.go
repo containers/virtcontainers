@@ -17,6 +17,11 @@
 package virtcontainers
 
 import (
+	"fmt"
+
+	cniTypes "github.com/containernetworking/cni/pkg/types"
+	cniV2Types "github.com/containernetworking/cni/pkg/types/020"
+	cniLatestTypes "github.com/containernetworking/cni/pkg/types/current"
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
 	"github.com/sirupsen/logrus"
 )
@@ -27,6 +32,38 @@ type cni struct{}
 // Logger returns a logrus logger appropriate for logging cni messages
 func (n *cni) Logger() *logrus.Entry {
 	return virtLog.WithField("subsystem", "cni")
+}
+
+func cniDNSToDNSInfo(cniDNS cniTypes.DNS) DNSInfo {
+	return DNSInfo{
+		Servers:  cniDNS.Nameservers,
+		Domain:   cniDNS.Domain,
+		Searches: cniDNS.Search,
+		Options:  cniDNS.Options,
+	}
+}
+
+func convertLatestCNIResult(result *cniLatestTypes.Result) NetworkInfo {
+	return NetworkInfo{
+		DNS: cniDNSToDNSInfo(result.DNS),
+	}
+}
+
+func convertV2CNIResult(result *cniV2Types.Result) NetworkInfo {
+	return NetworkInfo{
+		DNS: cniDNSToDNSInfo(result.DNS),
+	}
+}
+
+func convertCNIResult(cniResult cniTypes.Result) (NetworkInfo, error) {
+	switch result := cniResult.(type) {
+	case *cniLatestTypes.Result:
+		return convertLatestCNIResult(result), nil
+	case *cniV2Types.Result:
+		return convertV2CNIResult(result), nil
+	default:
+		return NetworkInfo{}, fmt.Errorf("Unknown CNI result type %T", result)
+	}
 }
 
 func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
@@ -46,10 +83,14 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 			return err
 		}
 
-		virtualEndpoint.SetProperties(*result)
-		networkNS.Endpoints[idx] = virtualEndpoint
+		netInfo, err := convertCNIResult(result)
+		if err != nil {
+			return err
+		}
 
-		n.Logger().Infof("AddNetwork results %v", *result)
+		networkNS.Endpoints[idx].SetProperties(netInfo)
+
+		n.Logger().Infof("AddNetwork results %s", result.String())
 	}
 
 	return nil
@@ -71,6 +112,30 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (n *cni) fillEndpointsPropertiesFromScan(networkNS *NetworkNamespace) error {
+	for idx, endpoint := range networkNS.Endpoints {
+		prop := endpoint.Properties()
+
+		netIface, err := getIfaceByNameFromNetNs(networkNS.NetNsPath, endpoint.Name())
+		if err != nil {
+			return err
+		}
+
+		prop.Iface = netIface
+
+		routes, err := getNetIfaceRoutesWithinNetNs(networkNS.NetNsPath, netIface.Iface.Name)
+		if err != nil {
+			return err
+		}
+
+		prop.Routes = routes
+
+		networkNS.Endpoints[idx].SetProperties(prop)
 	}
 
 	return nil
@@ -100,6 +165,10 @@ func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated 
 	}
 
 	if err := n.addVirtInterfaces(&networkNS); err != nil {
+		return NetworkNamespace{}, err
+	}
+
+	if err := n.fillEndpointsPropertiesFromScan(&networkNS); err != nil {
 		return NetworkNamespace{}, err
 	}
 
