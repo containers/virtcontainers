@@ -22,14 +22,26 @@ const (
 	// KernelPath is a pod annotation for passing a per container path pointing at the kernel needed to boot the container VM.
 	KernelPath = vcAnnotationsPrefix + "KernelPath"
 
-	// ImagePath is an pod annotation for passing a per container path pointing at the guest image that will run in the container VM.
+	// ImagePath is a pod annotation for passing a per container path pointing at the guest image that will run in the container VM.
 	ImagePath = vcAnnotationsPrefix + "ImagePath"
+
+	// HypervisorPath is a pod annotation for passing a per container path pointing at the hypervisor that will run the container VM.
+	HypervisorPath = vcAnnotationsPrefix + "HypervisorPath"
+
+	// FirmwarePath is a pod annotation for passing a per container path pointing at the guest firmware that will run the container VM.
+	FirmwarePath = vcAnnotationsPrefix + "FirmwarePath"
 
 	// KernelHash is a pod annotation for passing a container kernel image SHA-512 hash value.
 	KernelHash = vcAnnotationsPrefix + "KernelHash"
 
 	// ImageHash is an pod annotation for passing a container guest image SHA-512 hash value.
 	ImageHash = vcAnnotationsPrefix + "ImageHash"
+
+	// HypervisorHash is an pod annotation for passing a container hypervisor binary SHA-512 hash value.
+	HypervisorHash = vcAnnotationsPrefix + "HypervisorHash"
+
+	// FirmwareHash is an pod annotation for passing a container guest firmware SHA-512 hash value.
+	FirmwareHash = vcAnnotationsPrefix + "FirmwareHash"
 
 	// AssetHashType is the hash type used for assets verification
 	AssetHashType = vcAnnotationsPrefix + "AssetHashType"

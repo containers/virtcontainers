@@ -253,6 +253,10 @@ func (conf *HypervisorConfig) assetPath(t assetType) (string, error) {
 		return conf.KernelPath, nil
 	case imageAsset:
 		return conf.ImagePath, nil
+	case hypervisorAsset:
+		return conf.HypervisorPath, nil
+	case firmwareAsset:
+		return conf.FirmwarePath, nil
 	default:
 		return "", fmt.Errorf("Unknown asset type %v", t)
 	}
@@ -266,6 +270,16 @@ func (conf *HypervisorConfig) KernelAssetPath() (string, error) {
 // ImageAssetPath returns the guest image path
 func (conf *HypervisorConfig) ImageAssetPath() (string, error) {
 	return conf.assetPath(imageAsset)
+}
+
+// HypervisorAssetPath returns the VM hypervisor path
+func (conf *HypervisorConfig) HypervisorAssetPath() (string, error) {
+	return conf.assetPath(hypervisorAsset)
+}
+
+// FirmwareAssetPath returns the guest firmware path
+func (conf *HypervisorConfig) FirmwareAssetPath() (string, error) {
+	return conf.assetPath(firmwareAsset)
 }
 
 func appendParam(params []Param, parameter string, value string) []Param {

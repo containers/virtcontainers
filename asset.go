@@ -34,14 +34,20 @@ func (t assetType) annotations() (string, string, error) {
 		return annotations.KernelPath, annotations.KernelHash, nil
 	case imageAsset:
 		return annotations.ImagePath, annotations.ImageHash, nil
+	case hypervisorAsset:
+		return annotations.HypervisorPath, annotations.HypervisorHash, nil
+	case firmwareAsset:
+		return annotations.FirmwarePath, annotations.FirmwareHash, nil
 	}
 
 	return "", "", fmt.Errorf("Wrong asset type %s", t)
 }
 
 const (
-	kernelAsset assetType = "kernel"
-	imageAsset  assetType = "image"
+	kernelAsset     assetType = "kernel"
+	imageAsset      assetType = "image"
+	hypervisorAsset assetType = "hypervisor"
+	firmwareAsset   assetType = "firmware"
 )
 
 type asset struct {
@@ -59,6 +65,10 @@ func (a *asset) valid() bool {
 	case kernelAsset:
 		return true
 	case imageAsset:
+		return true
+	case hypervisorAsset:
+		return true
+	case firmwareAsset:
 		return true
 	}
 
