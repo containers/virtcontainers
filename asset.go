@@ -100,26 +100,6 @@ func (a *asset) hash(hashType string) (string, error) {
 	return hash, nil
 }
 
-func (a *asset) override(podConfig *PodConfig) error {
-	if a == nil || a.path == "" {
-		virtLog.Debug("Using default asset as no custom value specified")
-		return nil
-	}
-
-	if !a.valid() {
-		return fmt.Errorf("Invalid %s at %s", a.kind, a.path)
-	}
-
-	switch a.kind {
-	case kernelAsset:
-		podConfig.HypervisorConfig.KernelPath = a.path
-	case imageAsset:
-		podConfig.HypervisorConfig.ImagePath = a.path
-	}
-
-	return nil
-}
-
 // newAsset returns a new asset from the pod annotations.
 func newAsset(podConfig *PodConfig, t assetType) (*asset, error) {
 	pathAnnotation, hashAnnotation, err := t.annotations()

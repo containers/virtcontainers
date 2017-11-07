@@ -1291,7 +1291,7 @@ func TestPodAttachDevicesVFIO(t *testing.T) {
 	assert.Nil(t, err, "Error while detaching devices %s", err)
 }
 
-func TestPodSelectAssets(t *testing.T) {
+func TestPodCreateAssets(t *testing.T) {
 	assert := assert.New(t)
 
 	tmpfile, err := ioutil.TempFile("", "virtcontainers-test-")
@@ -1321,9 +1321,12 @@ func TestPodSelectAssets(t *testing.T) {
 		HypervisorConfig: hc,
 	}
 
-	err = selectAssets(p)
+	err = createAssets(p)
 	assert.Nil(err)
-	assert.Equal(p.HypervisorConfig.KernelPath, tmpfile.Name())
+
+	a, ok := p.HypervisorConfig.customAssets[kernelAsset]
+	assert.True(ok)
+	assert.Equal(a.path, tmpfile.Name())
 
 	p = &PodConfig{
 		Annotations: map[string]string{
@@ -1334,6 +1337,6 @@ func TestPodSelectAssets(t *testing.T) {
 		HypervisorConfig: hc,
 	}
 
-	err = selectAssets(p)
+	err = createAssets(p)
 	assert.NotNil(err)
 }

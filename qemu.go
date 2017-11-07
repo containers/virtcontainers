@@ -405,7 +405,12 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 }
 
 func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ciaoQemu.Device, error) {
-	imageFile, err := os.Open(q.config.ImagePath)
+	imagePath, err := q.config.ImageAssetPath()
+	if err != nil {
+		return nil, err
+	}
+
+	imageFile, err := os.Open(imagePath)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +426,7 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 		Type:     ciaoQemu.MemoryBackendFile,
 		DeviceID: "nv0",
 		ID:       "mem0",
-		MemPath:  q.config.ImagePath,
+		MemPath:  imagePath,
 		Size:     (uint64)(imageStat.Size()),
 	}
 
@@ -637,8 +642,13 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Mlock:        q.config.Mlock,
 	}
 
+	kernelPath, err := q.config.KernelAssetPath()
+	if err != nil {
+		return err
+	}
+
 	kernel := ciaoQemu.Kernel{
-		Path:   q.config.KernelPath,
+		Path:   kernelPath,
 		Params: strings.Join(q.kernelParams, " "),
 	}
 

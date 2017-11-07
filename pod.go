@@ -525,7 +525,7 @@ func (p *Pod) createSetStates() error {
 	return nil
 }
 
-func selectAssets(podConfig *PodConfig) error {
+func createAssets(podConfig *PodConfig) error {
 	kernel, err := newAsset(podConfig, kernelAsset)
 	if err != nil {
 		return err
@@ -537,7 +537,7 @@ func selectAssets(podConfig *PodConfig) error {
 	}
 
 	for _, a := range []*asset{kernel, image} {
-		if err := a.override(podConfig); err != nil {
+		if err := podConfig.HypervisorConfig.addCustomAsset(a); err != nil {
 			return err
 		}
 	}
@@ -551,7 +551,7 @@ func selectAssets(podConfig *PodConfig) error {
 // to physically create that pod i.e. starts a VM for that pod to eventually
 // be started.
 func createPod(podConfig PodConfig) (*Pod, error) {
-	if err := selectAssets(&podConfig); err != nil {
+	if err := createAssets(&podConfig); err != nil {
 		return nil, err
 	}
 

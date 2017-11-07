@@ -178,6 +178,12 @@ type HypervisorConfig struct {
 	// DisableNestingChecks is used to override customizations performed
 	// when running on top of another VMM.
 	DisableNestingChecks bool
+
+	// customAssets is a map of assets.
+	// Each value in that map takes precedence over the configured assets.
+	// For example, if there is a value for the "kernel" key in this map,
+	// it will be used for the pod's kernel path instead of KernelPath.
+	customAssets map[assetType]*asset
 }
 
 func (conf *HypervisorConfig) valid() (bool, error) {
@@ -210,6 +216,56 @@ func (conf *HypervisorConfig) AddKernelParam(p Param) error {
 	conf.KernelParams = append(conf.KernelParams, p)
 
 	return nil
+}
+
+func (conf *HypervisorConfig) addCustomAsset(a *asset) error {
+	if a == nil || a.path == "" {
+		// We did not get a custom asset, we will use the default one.
+		return nil
+	}
+
+	if !a.valid() {
+		return fmt.Errorf("Invalid %s at %s", a.kind, a.path)
+	}
+
+	virtLog.Debugf("Using custom %v asset %s", a.kind, a.path)
+
+	if conf.customAssets == nil {
+		conf.customAssets = make(map[assetType]*asset)
+	}
+
+	conf.customAssets[a.kind] = a
+
+	return nil
+}
+
+func (conf *HypervisorConfig) assetPath(t assetType) (string, error) {
+	// Custom assets take precedence over the configured ones
+	a, ok := conf.customAssets[t]
+	if ok {
+		return a.path, nil
+	}
+
+	// We could not find a custom asset for the given type, let's
+	// fall back to the configured ones.
+	switch t {
+	case kernelAsset:
+		return conf.KernelPath, nil
+	case imageAsset:
+		return conf.ImagePath, nil
+	default:
+		return "", fmt.Errorf("Unknown asset type %v", t)
+	}
+}
+
+// KernelAssetPath returns the guest kernel path
+func (conf *HypervisorConfig) KernelAssetPath() (string, error) {
+	return conf.assetPath(kernelAsset)
+}
+
+// ImageAssetPath returns the guest image path
+func (conf *HypervisorConfig) ImageAssetPath() (string, error) {
+	return conf.assetPath(imageAsset)
 }
 
 func appendParam(params []Param, parameter string, value string) []Param {
