@@ -208,7 +208,7 @@ func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 				Name: "tap4",
 			},
 		},
-		Type: VirtualEndpointType,
+		EndpointType: VirtualEndpointType,
 	}
 
 	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "")
@@ -236,7 +236,7 @@ func TestCreateVirtualNetworkEndpointChooseIfaceName(t *testing.T) {
 				Name: "tap4",
 			},
 		},
-		Type: VirtualEndpointType,
+		EndpointType: VirtualEndpointType,
 	}
 
 	result, err := createVirtualNetworkEndpoint(4, "uniqueTestID", "eth1")

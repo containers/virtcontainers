@@ -177,14 +177,14 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 
 		switch ep := endpoint.(type) {
 		case *VirtualEndpoint:
-			netIface, err = getNetIfaceByName(ep.GetName(), netIfaces)
+			netIface, err = getNetIfaceByName(ep.Name(), netIfaces)
 			if err != nil {
 				return []hyperstart.NetworkIface{}, []hyperstart.Route{}, err
 			}
 		}
 
 		var ipAddrs []hyperstart.IPAddress
-		for _, ipConfig := range endpoint.GetProperties().IPs {
+		for _, ipConfig := range endpoint.Properties().IPs {
 			// Skip IPv6 because not supported by hyperstart
 			if ipConfig.Version == "6" || ipConfig.Address.IP.To4() == nil {
 				continue
@@ -201,9 +201,9 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		}
 
 		iface := hyperstart.NetworkIface{
-			NewDevice:   endpoint.GetName(),
+			NewDevice:   endpoint.Name(),
 			IPAddresses: ipAddrs,
-			MACAddr:     endpoint.GetHardwareAddr(),
+			MACAddr:     endpoint.HardwareAddr(),
 		}
 
 		switch ep := endpoint.(type) {
@@ -215,8 +215,8 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 
 		ifaces = append(ifaces, iface)
 
-		for _, r := range endpoint.GetProperties().Routes {
-			route := h.processHyperRoute(r, endpoint.GetName())
+		for _, r := range endpoint.Properties().Routes {
+			route := h.processHyperRoute(r, endpoint.Name())
 			if route == nil {
 				continue
 			}

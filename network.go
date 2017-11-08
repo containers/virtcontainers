@@ -104,10 +104,10 @@ type NetworkConfig struct {
 
 // Endpoint represents a physical or virtual network interface.
 type Endpoint interface {
-	GetProperties() types.Result
-	GetName() string
-	GetHardwareAddr() string
-	GetType() EndpointType
+	Properties() types.Result
+	Name() string
+	HardwareAddr() string
+	Type() EndpointType
 
 	SetProperties(types.Result)
 	Attach(hypervisor) error
@@ -116,48 +116,48 @@ type Endpoint interface {
 
 // VirtualEndpoint gathers a network pair and its properties.
 type VirtualEndpoint struct {
-	NetPair    NetworkInterfacePair
-	Properties types.Result
-	Physical   bool
-	Type       EndpointType
+	NetPair            NetworkInterfacePair
+	EndpointProperties types.Result
+	Physical           bool
+	EndpointType       EndpointType
 }
 
 // PhysicalEndpoint gathers a physical network interface and its properties
 type PhysicalEndpoint struct {
-	IfaceName      string
-	HardAddr       string
-	MTU            int
-	Properties     types.Result
-	Type           EndpointType
-	BDF            string
-	Driver         string
-	VendorDeviceID string
+	IfaceName          string
+	HardAddr           string
+	MTU                int
+	EndpointProperties types.Result
+	EndpointType       EndpointType
+	BDF                string
+	Driver             string
+	VendorDeviceID     string
 }
 
-// GetProperties returns properties for the veth interface in the network pair.
-func (endpoint *VirtualEndpoint) GetProperties() types.Result {
-	return endpoint.Properties
+// Properties returns properties for the veth interface in the network pair.
+func (endpoint *VirtualEndpoint) Properties() types.Result {
+	return endpoint.EndpointProperties
 }
 
-// GetName returns name of the veth interface in the network pair.
-func (endpoint *VirtualEndpoint) GetName() string {
+// Name returns name of the veth interface in the network pair.
+func (endpoint *VirtualEndpoint) Name() string {
 	return endpoint.NetPair.VirtIface.Name
 }
 
-// GetHardwareAddr returns the mac address that is assigned to the tap interface
+// HardwareAddr returns the mac address that is assigned to the tap interface
 // in th network pair.
-func (endpoint *VirtualEndpoint) GetHardwareAddr() string {
+func (endpoint *VirtualEndpoint) HardwareAddr() string {
 	return endpoint.NetPair.TAPIface.HardAddr
 }
 
-// GetType identifies the endpoint as a virtual endpoint.
-func (endpoint *VirtualEndpoint) GetType() EndpointType {
-	return endpoint.Type
+// Type identifies the endpoint as a virtual endpoint.
+func (endpoint *VirtualEndpoint) Type() EndpointType {
+	return endpoint.EndpointType
 }
 
 // SetProperties sets the properties for the endpoint.
 func (endpoint *VirtualEndpoint) SetProperties(properties types.Result) {
-	endpoint.Properties = properties
+	endpoint.EndpointProperties = properties
 }
 
 func networkLogger() *logrus.Entry {
@@ -183,29 +183,29 @@ func (endpoint *VirtualEndpoint) Detach() error {
 	return xconnectVMNetwork(&(endpoint.NetPair), false)
 }
 
-// GetProperties returns the properties of the physical interface.
-func (endpoint *PhysicalEndpoint) GetProperties() types.Result {
-	return endpoint.Properties
+// Properties returns the properties of the physical interface.
+func (endpoint *PhysicalEndpoint) Properties() types.Result {
+	return endpoint.EndpointProperties
 }
 
-// GetHardwareAddr returns the mac address of the physical network interface.
-func (endpoint *PhysicalEndpoint) GetHardwareAddr() string {
+// HardwareAddr returns the mac address of the physical network interface.
+func (endpoint *PhysicalEndpoint) HardwareAddr() string {
 	return endpoint.HardAddr
 }
 
-// GetName returns name of the physical interface.
-func (endpoint *PhysicalEndpoint) GetName() string {
+// Name returns name of the physical interface.
+func (endpoint *PhysicalEndpoint) Name() string {
 	return endpoint.IfaceName
 }
 
-// GetType indentifies the endpoint as a physical endpoint.
-func (endpoint *PhysicalEndpoint) GetType() EndpointType {
-	return endpoint.Type
+// Type indentifies the endpoint as a physical endpoint.
+func (endpoint *PhysicalEndpoint) Type() EndpointType {
+	return endpoint.EndpointType
 }
 
 // SetProperties sets the properties of the physical endpoint.
 func (endpoint *PhysicalEndpoint) SetProperties(properties types.Result) {
-	endpoint.Properties = properties
+	endpoint.EndpointProperties = properties
 }
 
 // Attach for physical endpoint binds the physical network interface to
@@ -306,7 +306,7 @@ func (n NetworkNamespace) MarshalJSON() ([]byte, error) {
 		tempJSON, _ := json.Marshal(endpoint)
 
 		t := TypedJSONEndpoint{
-			Type: endpoint.GetType(),
+			Type: endpoint.Type(),
 			Data: tempJSON,
 		}
 
@@ -987,7 +987,7 @@ func createVirtualNetworkEndpoint(idx int, uniqueID string, ifName string) (*Vir
 				Name: fmt.Sprintf("tap%d", idx),
 			},
 		},
-		Type: VirtualEndpointType,
+		EndpointType: VirtualEndpointType,
 	}
 
 	if ifName != "" {
@@ -1170,7 +1170,7 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 		HardAddr:       mac,
 		MTU:            MTU,
 		VendorDeviceID: vendorDeviceID,
-		Type:           PhysicalEndpointType,
+		EndpointType:   PhysicalEndpointType,
 		Driver:         driver,
 		BDF:            bdf,
 	}
