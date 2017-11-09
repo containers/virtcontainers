@@ -82,10 +82,16 @@ type DNSInfo struct {
 	Options  []string
 }
 
+// NetlinkIface describes fully a network interface.
+type NetlinkIface struct {
+	netlink.LinkAttrs
+	Type string
+}
+
 // NetworkInfo gathers all information related to a network interface.
 // It can be used to store the description of the underlying network.
 type NetworkInfo struct {
-	Iface  netlink.LinkAttrs
+	Iface  NetlinkIface
 	Addrs  []netlink.Addr
 	Routes []netlink.Route
 	DNS    DNSInfo
@@ -1037,10 +1043,11 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 		return NetworkInfo{}, err
 	}
 
-	attrs := link.Attrs()
-
 	return NetworkInfo{
-		Iface:  *attrs,
+		Iface: NetlinkIface{
+			LinkAttrs: *(link.Attrs()),
+			Type:      link.Type(),
+		},
 		Addrs:  addrs,
 		Routes: routes,
 	}, nil
