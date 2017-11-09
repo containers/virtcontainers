@@ -173,17 +173,17 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	var routes []hyperstart.Route
 	for _, endpoint := range networkNS.Endpoints {
 		var ipAddresses []hyperstart.IPAddress
-		for _, ipNet := range endpoint.Properties().Iface.Addrs {
+		for _, addr := range endpoint.Properties().Addrs {
 			// Skip IPv6 because not supported by hyperstart.
 			// Skip localhost interface.
-			if ipNet.IP.To4() == nil || ipNet.IP.IsLoopback() {
+			if addr.IP.To4() == nil || addr.IP.IsLoopback() {
 				continue
 			}
 
-			netMask, _ := ipNet.Mask.Size()
+			netMask, _ := addr.Mask.Size()
 
 			ipAddress := hyperstart.IPAddress{
-				IPAddress: ipNet.IP.String(),
+				IPAddress: addr.IP.String(),
 				NetMask:   fmt.Sprintf("%d", netMask),
 			}
 
@@ -193,13 +193,12 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 		iface := hyperstart.NetworkIface{
 			NewDevice:   endpoint.Name(),
 			IPAddresses: ipAddresses,
-			MTU:         endpoint.Properties().Iface.Iface.MTU,
 			MACAddr:     endpoint.HardwareAddr(),
 		}
 
 		switch ep := endpoint.(type) {
 		case *VirtualEndpoint:
-			iface.MTU = endpoint.Properties().Iface.Iface.MTU
+			iface.MTU = endpoint.Properties().Iface.MTU
 		case *PhysicalEndpoint:
 			iface.MTU = ep.MTU
 		}

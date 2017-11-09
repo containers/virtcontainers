@@ -24,6 +24,8 @@ import (
 	cniLatestTypes "github.com/containernetworking/cni/pkg/types/current"
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // cni is a network implementation for the CNI plugin.
@@ -118,24 +120,26 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 }
 
 func (n *cni) fillEndpointsPropertiesFromScan(networkNS *NetworkNamespace) error {
+	netnsHandle, err := netns.GetFromPath(networkNS.NetNsPath)
+	if err != nil {
+		return err
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return err
+	}
+	defer netlinkHandle.Delete()
+
 	for idx, endpoint := range networkNS.Endpoints {
-		prop := endpoint.Properties()
-
-		netIface, err := getIfaceByNameFromNetNs(networkNS.NetNsPath, endpoint.Name())
+		netInfo, err := networkInfoFromIfaceName(netlinkHandle, endpoint.Name())
 		if err != nil {
 			return err
 		}
 
-		prop.Iface = netIface
-
-		routes, err := getNetIfaceRoutesWithinNetNs(networkNS.NetNsPath, netIface.Iface.Name)
-		if err != nil {
-			return err
-		}
-
-		prop.Routes = routes
-
-		networkNS.Endpoints[idx].SetProperties(prop)
+		netInfo.DNS = endpoint.Properties().DNS
+		networkNS.Endpoints[idx].SetProperties(netInfo)
 	}
 
 	return nil

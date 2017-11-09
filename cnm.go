@@ -17,9 +17,13 @@
 package virtcontainers
 
 import (
+	"net"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // cnm is a network implementation for the CNM plugin.
@@ -34,7 +38,19 @@ func cnmLogger() *logrus.Entry {
 func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
-	netIfaces, err := getIfacesFromNetNs(networkNSPath)
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netlinkHandle.Delete()
+
+	netInfoList, err := networkInfoListFromNetworkScan(netlinkHandle)
 	if err != nil {
 		return []Endpoint{}, err
 	}
@@ -42,46 +58,35 @@ func (n *cnm) createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) 
 	uniqueID := uuid.Generate().String()
 
 	idx := 0
-	for _, netIface := range netIfaces {
+	for _, netInfo := range netInfoList {
 		var endpoint Endpoint
 
-		if netIface.Iface.Name == "lo" {
+		// Skip any loopback interface.
+		if (netInfo.Iface.Flags & net.FlagLoopback) != 0 {
 			continue
 		}
 
-		err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+		if err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
 			// Check if interface is a physical interface. Do not create
 			// tap interface/bridge if it is.
-			isPhysical, err := isPhysicalIface(netIface.Iface.Name)
+			isPhysical, err := isPhysicalIface(netInfo.Iface.Name)
 			if err != nil {
 				return err
 			}
 
 			if isPhysical {
-				cnmLogger().WithField("interface", netIface.Iface.Name).Info("Physical network interface found")
-				endpoint, err = createPhysicalEndpoint(netIface.Iface.Name)
+				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
+				endpoint, err = createPhysicalEndpoint(netInfo.Iface.Name)
 			} else {
-				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netIface.Iface.Name)
+				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netInfo.Iface.Name)
 			}
 
 			return err
-		})
-
-		if err != nil {
+		}); err != nil {
 			return []Endpoint{}, err
 		}
 
-		routes, err := getNetIfaceRoutesWithinNetNs(networkNSPath, netIface.Iface.Name)
-		if err != nil {
-			return []Endpoint{}, err
-		}
-
-		properties := NetworkInfo{
-			Iface:  netIface,
-			Routes: routes,
-		}
-
-		endpoint.SetProperties(properties)
+		endpoint.SetProperties(netInfo)
 		endpoints = append(endpoints, endpoint)
 
 		idx++

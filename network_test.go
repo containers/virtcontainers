@@ -299,12 +299,6 @@ func TestCreateNetworkEndpointsFailure(t *testing.T) {
 	}
 }
 
-func TestGetIfacesFromNetNsFailureEmptyNetNsPath(t *testing.T) {
-	if _, err := getIfacesFromNetNs(""); err == nil {
-		t.Fatal("Should fail because network namespace is empty")
-	}
-}
-
 func TestIsPhysicalIface(t *testing.T) {
 	testNetIface := "testIface0"
 	testMTU := 1500
@@ -360,67 +354,4 @@ func TestIsPhysicalIface(t *testing.T) {
 	if isPhysical == true {
 		t.Fatalf("Got %+v\nExpecting %+v", isPhysical, false)
 	}
-}
-
-func testGetIfacesFromNetNsSuccessful(t *testing.T, link netlink.Link, expected []NetIfaceAddrs) {
-	lAttrs := link.Attrs()
-
-	n, err := ns.NewNS()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer n.Close()
-
-	netnsHandle, err := netns.GetFromPath(n.Path())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer netnsHandle.Close()
-
-	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer netlinkHandle.Delete()
-
-	if err := netlinkHandle.LinkAdd(link); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := netlinkHandle.LinkSetHardwareAddr(link, lAttrs.HardwareAddr); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := getIfacesFromNetNs(n.Path())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if reflect.DeepEqual(result, expected) == false {
-		t.Fatalf("Got %+v\nExpecting %+v", result, expected)
-	}
-}
-
-func TestGetIfacesFromNetNsSuccessfulBridge(t *testing.T) {
-	testNetIface := "testIface0"
-	testMTU := 1500
-	testMACAddr := "00:00:00:00:00:01"
-
-	hwAddr, err := net.ParseMAC(testMACAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	link := &netlink.Bridge{
-		LinkAttrs: netlink.LinkAttrs{
-			Name:         testNetIface,
-			MTU:          testMTU,
-			HardwareAddr: hwAddr,
-			TxQLen:       -1,
-		},
-	}
-
-	expected := []NetIfaceAddrs(nil)
-
-	testGetIfacesFromNetNsSuccessful(t, link, expected)
 }
