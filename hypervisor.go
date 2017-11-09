@@ -262,9 +262,23 @@ func (conf *HypervisorConfig) assetPath(t assetType) (string, error) {
 	}
 }
 
+func (conf *HypervisorConfig) isCustomAsset(t assetType) bool {
+	_, ok := conf.customAssets[t]
+	if ok {
+		return true
+	}
+
+	return false
+}
+
 // KernelAssetPath returns the guest kernel path
 func (conf *HypervisorConfig) KernelAssetPath() (string, error) {
 	return conf.assetPath(kernelAsset)
+}
+
+// CustomKernelAsset returns true if the kernel asset is a custom one, false otherwise.
+func (conf *HypervisorConfig) CustomKernelAsset() bool {
+	return conf.isCustomAsset(kernelAsset)
 }
 
 // ImageAssetPath returns the guest image path
@@ -272,14 +286,29 @@ func (conf *HypervisorConfig) ImageAssetPath() (string, error) {
 	return conf.assetPath(imageAsset)
 }
 
+// CustomImageAsset returns true if the image asset is a custom one, false otherwise.
+func (conf *HypervisorConfig) CustomImageAsset() bool {
+	return conf.isCustomAsset(imageAsset)
+}
+
 // HypervisorAssetPath returns the VM hypervisor path
 func (conf *HypervisorConfig) HypervisorAssetPath() (string, error) {
 	return conf.assetPath(hypervisorAsset)
 }
 
+// CustomHypervisorAsset returns true if the hypervisor asset is a custom one, false otherwise.
+func (conf *HypervisorConfig) CustomHypervisorAsset() bool {
+	return conf.isCustomAsset(hypervisorAsset)
+}
+
 // FirmwareAssetPath returns the guest firmware path
 func (conf *HypervisorConfig) FirmwareAssetPath() (string, error) {
 	return conf.assetPath(firmwareAsset)
+}
+
+// CustomFirmwareAsset returns true if the firmware asset is a custom one, false otherwise.
+func (conf *HypervisorConfig) CustomFirmwareAsset() bool {
+	return conf.isCustomAsset(firmwareAsset)
 }
 
 func appendParam(params []Param, parameter string, value string) []Param {
