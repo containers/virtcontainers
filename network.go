@@ -34,6 +34,7 @@ import (
 	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -1052,15 +1053,6 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 	}, nil
 }
 
-func networkInfoFromIfaceName(handle *netlink.Handle, ifaceName string) (NetworkInfo, error) {
-	link, err := handle.LinkByName(ifaceName)
-	if err != nil {
-		return NetworkInfo{}, err
-	}
-
-	return networkInfoFromLink(handle, link)
-}
-
 func networkInfoListFromNetworkScan(handle *netlink.Handle) ([]NetworkInfo, error) {
 	var netInfoList []NetworkInfo
 
@@ -1087,6 +1079,66 @@ func networkInfoListFromNetworkScan(handle *netlink.Handle) ([]NetworkInfo, erro
 	}
 
 	return netInfoList, nil
+}
+
+func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
+	var endpoints []Endpoint
+
+	netnsHandle, err := netns.GetFromPath(networkNSPath)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netnsHandle.Close()
+
+	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+	defer netlinkHandle.Delete()
+
+	netInfoList, err := networkInfoListFromNetworkScan(netlinkHandle)
+	if err != nil {
+		return []Endpoint{}, err
+	}
+
+	uniqueID := uuid.Generate().String()
+
+	idx := 0
+	for _, netInfo := range netInfoList {
+		var endpoint Endpoint
+
+		// Skip any loopback interface.
+		if (netInfo.Iface.Flags & net.FlagLoopback) != 0 {
+			continue
+		}
+
+		if err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+			// Check if interface is a physical interface. Do not create
+			// tap interface/bridge if it is.
+			isPhysical, err := isPhysicalIface(netInfo.Iface.Name)
+			if err != nil {
+				return err
+			}
+
+			if isPhysical {
+				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
+				endpoint, err = createPhysicalEndpoint(netInfo.Iface.Name)
+			} else {
+				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netInfo.Iface.Name)
+			}
+
+			return err
+		}); err != nil {
+			return []Endpoint{}, err
+		}
+
+		endpoint.SetProperties(netInfo)
+		endpoints = append(endpoints, endpoint)
+
+		idx++
+	}
+
+	return endpoints, nil
 }
 
 // isPhysicalIface checks if an interface is a physical device.

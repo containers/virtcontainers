@@ -24,8 +24,6 @@ import (
 	cniLatestTypes "github.com/containernetworking/cni/pkg/types/current"
 	cniPlugin "github.com/containers/virtcontainers/pkg/cni"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 )
 
 // cni is a network implementation for the CNI plugin.
@@ -80,7 +78,7 @@ func (n *cni) addVirtInterfaces(networkNS *NetworkNamespace) error {
 			continue
 		}
 
-		result, err := netPlugin.AddNetwork(virtualEndpoint.NetPair.ID, networkNS.NetNsPath, virtualEndpoint.NetPair.VirtIface.Name)
+		result, err := netPlugin.AddNetwork(virtualEndpoint.NetPair.ID, networkNS.NetNsPath, virtualEndpoint.Name())
 		if err != nil {
 			return err
 		}
@@ -119,28 +117,28 @@ func (n *cni) deleteVirtInterfaces(networkNS NetworkNamespace) error {
 	return nil
 }
 
-func (n *cni) fillEndpointsPropertiesFromScan(networkNS *NetworkNamespace) error {
-	netnsHandle, err := netns.GetFromPath(networkNS.NetNsPath)
+func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
+	endpoints, err := createEndpointsFromScan(networkNS.NetNsPath)
 	if err != nil {
 		return err
 	}
-	defer netnsHandle.Close()
 
-	netlinkHandle, err := netlink.NewHandleAt(netnsHandle)
-	if err != nil {
-		return err
-	}
-	defer netlinkHandle.Delete()
-
-	for idx, endpoint := range networkNS.Endpoints {
-		netInfo, err := networkInfoFromIfaceName(netlinkHandle, endpoint.Name())
-		if err != nil {
-			return err
+	for idx, endpoint := range endpoints {
+		for _, ep := range networkNS.Endpoints {
+			if ep.Name() == endpoint.Name() {
+				// Update endpoint properties with info from
+				// the scan. Do not update DNS since the scan
+				// cannot provide it. 
+				prop := endpoint.Properties()
+				prop.DNS = ep.Properties().DNS
+				ep.SetProperties(prop)
+				endpoints[idx] = ep
+				break
+			}
 		}
-
-		netInfo.DNS = endpoint.Properties().DNS
-		networkNS.Endpoints[idx].SetProperties(netInfo)
 	}
+
+	networkNS.Endpoints = endpoints
 
 	return nil
 }
@@ -172,7 +170,7 @@ func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated 
 		return NetworkNamespace{}, err
 	}
 
-	if err := n.fillEndpointsPropertiesFromScan(&networkNS); err != nil {
+	if err := n.updateEndpointsFromScan(&networkNS); err != nil {
 		return NetworkNamespace{}, err
 	}
 
