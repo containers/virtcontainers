@@ -1,3 +1,8 @@
+1.0.6:
+	Added SRIOV support
+	Added Multi-OS support
+	Removed Travis CI
+
 1.0.5:
 	Added full CI (unit, functional and integration tests)
 	Added docker ps command support
