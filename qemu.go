@@ -405,7 +405,12 @@ func (q *qemu) appendConsoles(devices []ciaoQemu.Device, podConfig PodConfig) []
 }
 
 func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ciaoQemu.Device, error) {
-	imageFile, err := os.Open(q.config.ImagePath)
+	imagePath, err := q.config.ImageAssetPath()
+	if err != nil {
+		return nil, err
+	}
+
+	imageFile, err := os.Open(imagePath)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +426,7 @@ func (q *qemu) appendImage(devices []ciaoQemu.Device, podConfig PodConfig) ([]ci
 		Type:     ciaoQemu.MemoryBackendFile,
 		DeviceID: "nv0",
 		ID:       "mem0",
-		MemPath:  q.config.ImagePath,
+		MemPath:  imagePath,
 		Size:     (uint64)(imageStat.Size()),
 	}
 
@@ -461,7 +466,11 @@ func (q *qemu) getMachine(name string) (ciaoQemu.Machine, error) {
 
 // Build the QEMU binary path
 func (q *qemu) buildPath() error {
-	p := q.config.HypervisorPath
+	p, err := q.config.HypervisorAssetPath()
+	if err != nil {
+		return err
+	}
+
 	if p != "" {
 		q.path = p
 		return nil
@@ -637,8 +646,13 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Mlock:        q.config.Mlock,
 	}
 
+	kernelPath, err := q.config.KernelAssetPath()
+	if err != nil {
+		return err
+	}
+
 	kernel := ciaoQemu.Kernel{
-		Path:   q.config.KernelPath,
+		Path:   kernelPath,
 		Params: strings.Join(q.kernelParams, " "),
 	}
 
@@ -684,6 +698,11 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		cpuModel += ",pmu=off"
 	}
 
+	firmwarePath, err := podConfig.HypervisorConfig.FirmwareAssetPath()
+	if err != nil {
+		return err
+	}
+
 	qemuConfig := ciaoQemu.Config{
 		Name:        fmt.Sprintf("pod-%s", podConfig.ID),
 		UUID:        q.forceUUIDFormat(podConfig.ID),
@@ -700,7 +719,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		Knobs:       knobs,
 		VGA:         "none",
 		GlobalParam: "kvm-pit.lost_tick_policy=discard",
-		Bios:        podConfig.HypervisorConfig.FirmwarePath,
+		Bios:        firmwarePath,
 	}
 
 	q.qemuConfig = qemuConfig
