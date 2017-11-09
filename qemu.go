@@ -327,22 +327,26 @@ func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
 	}
 }
 
-func (q *qemu) appendNetworks(devices []ciaoQemu.Device, endpoints []Endpoint) []ciaoQemu.Device {
-	for idx, endpoint := range endpoints {
+var networkIndex = 0
+
+func (q *qemu) appendNetwork(devices []ciaoQemu.Device, endpoint Endpoint) []ciaoQemu.Device {
+	switch ep := endpoint.(type) {
+	case *VirtualEndpoint:
 		devices = append(devices,
 			ciaoQemu.NetDevice{
-				Type:          networkModelToQemuType(endpoint.NetPair.NetInterworkingModel),
+				Type:          networkModelToQemuType(ep.NetPair.NetInterworkingModel),
 				Driver:        ciaoQemu.VirtioNetPCI,
-				ID:            fmt.Sprintf("network-%d", idx),
-				IFName:        endpoint.NetPair.TAPIface.Name,
-				MACAddress:    endpoint.NetPair.TAPIface.HardAddr,
+				ID:            fmt.Sprintf("network-%d", networkIndex),
+				IFName:        ep.NetPair.TAPIface.Name,
+				MACAddress:    ep.NetPair.TAPIface.HardAddr,
 				DownScript:    "no",
 				Script:        "no",
 				VHost:         true,
 				DisableModern: q.nestedRun,
-				FDs:           endpoint.NetPair.VMFds,
+				FDs:           ep.NetPair.VMFds,
 			},
 		)
+		networkIndex++
 	}
 
 	return devices
@@ -887,8 +891,8 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 		socket := devInfo.(Socket)
 		q.qemuConfig.Devices = q.appendSocket(q.qemuConfig.Devices, socket)
 	case netDev:
-		endpoints := devInfo.([]Endpoint)
-		q.qemuConfig.Devices = q.appendNetworks(q.qemuConfig.Devices, endpoints)
+		endpoint := devInfo.(Endpoint)
+		q.qemuConfig.Devices = q.appendNetwork(q.qemuConfig.Devices, endpoint)
 	case blockDev:
 		drive := devInfo.(Drive)
 		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)
