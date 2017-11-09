@@ -74,12 +74,6 @@ const (
 	defaultQueues     = 8
 )
 
-// NetIfaceAddrs describes a network interface and its associated IP addresses.
-type NetIfaceAddrs struct {
-	Iface netlink.LinkAttrs
-	Addrs []netlink.Addr
-}
-
 // DNSInfo describes the DNS setup related to a network interface.
 type DNSInfo struct {
 	Servers  []string
@@ -144,7 +138,6 @@ type VirtualEndpoint struct {
 type PhysicalEndpoint struct {
 	IfaceName          string
 	HardAddr           string
-	MTU                int
 	EndpointProperties NetworkInfo
 	EndpointType       EndpointType
 	BDF                string
@@ -1122,7 +1115,7 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 
 			if isPhysical {
 				cnmLogger().WithField("interface", netInfo.Iface.Name).Info("Physical network interface found")
-				endpoint, err = createPhysicalEndpoint(netInfo.Iface.Name)
+				endpoint, err = createPhysicalEndpoint(netInfo)
 			} else {
 				endpoint, err = createVirtualNetworkEndpoint(idx, uniqueID, netInfo.Iface.Name)
 			}
@@ -1169,7 +1162,7 @@ func isPhysicalIface(ifaceName string) (bool, error) {
 
 var sysPCIDevicesPath = "/sys/bus/pci/devices"
 
-func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
+func createPhysicalEndpoint(netInfo NetworkInfo) (*PhysicalEndpoint, error) {
 	// Get ethtool handle to derive driver and bus
 	ethHandle, err := ethtool.NewEthtool()
 	if err != nil {
@@ -1177,13 +1170,13 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	}
 
 	// Get BDF
-	bdf, err := ethHandle.BusInfo(ifaceName)
+	bdf, err := ethHandle.BusInfo(netInfo.Iface.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get Driver
-	driver, err := ethHandle.DriverName(ifaceName)
+	driver, err := ethHandle.DriverName(netInfo.Iface.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1209,25 +1202,9 @@ func createPhysicalEndpoint(ifaceName string) (*PhysicalEndpoint, error) {
 	vendorDeviceID := fmt.Sprintf("%s %s", vendorID, deviceID)
 	vendorDeviceID = strings.TrimSpace(vendorDeviceID)
 
-	// Get mac address
-	netHandle, err := netlink.NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer netHandle.Delete()
-
-	link, err := netHandle.LinkByName(ifaceName)
-	if err != nil {
-		return nil, err
-	}
-
-	mac := link.Attrs().HardwareAddr.String()
-	MTU := link.Attrs().MTU
-
 	physicalEndpoint := &PhysicalEndpoint{
-		IfaceName:      ifaceName,
-		HardAddr:       mac,
-		MTU:            MTU,
+		IfaceName:      netInfo.Iface.Name,
+		HardAddr:       netInfo.Iface.HardwareAddr.String(),
 		VendorDeviceID: vendorDeviceID,
 		EndpointType:   PhysicalEndpointType,
 		Driver:         driver,

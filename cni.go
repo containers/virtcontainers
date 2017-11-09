@@ -128,7 +128,7 @@ func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
 			if ep.Name() == endpoint.Name() {
 				// Update endpoint properties with info from
 				// the scan. Do not update DNS since the scan
-				// cannot provide it. 
+				// cannot provide it.
 				prop := endpoint.Properties()
 				prop.DNS = ep.Properties().DNS
 				ep.SetProperties(prop)
