@@ -187,16 +187,6 @@ func (c *Container) setStateFstype(fstype string) error {
 	return nil
 }
 
-func (c *Container) setStateRootfsBlockChecked(checked bool) error {
-	c.state.RootfsBlockChecked = checked
-	err := c.pod.storage.storeContainerResource(c.pod.id, c.id, stateFileType, c.state)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *Container) setStateHotpluggedDrive(hotplugged bool) error {
 	c.state.HotpluggedDrive = hotplugged
 
@@ -519,14 +509,12 @@ func (c *Container) start() error {
 	}
 	defer c.pod.proxy.disconnect()
 
-	if !c.state.RootfsBlockChecked {
-		agentCaps := c.pod.agent.capabilities()
-		hypervisorCaps := c.pod.hypervisor.capabilities()
+	agentCaps := c.pod.agent.capabilities()
+	hypervisorCaps := c.pod.hypervisor.capabilities()
 
-		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-			if err := c.hotplugDrive(); err != nil {
-				return err
-			}
+	if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
+		if err := c.hotplugDrive(); err != nil {
+			return err
 		}
 	}
 
@@ -760,10 +748,6 @@ func newProcess(token string, pid int) Process {
 }
 
 func (c *Container) hotplugDrive() error {
-	defer func() {
-		c.setStateRootfsBlockChecked(true)
-	}()
-
 	dev, err := getDeviceForPath(c.rootFs)
 
 	if err == errMountPointNotFound {
