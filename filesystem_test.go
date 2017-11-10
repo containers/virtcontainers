@@ -551,8 +551,7 @@ func TestFilesystemFetchResourceFailingWrongResourceType(t *testing.T) {
 	fs := &filesystem{}
 
 	for _, b := range []bool{true, false} {
-		_, err := fs.fetchResource(b, testPodID, "100", lockFileType)
-		if err == nil {
+		if err := fs.fetchResource(b, testPodID, "100", lockFileType, nil); err == nil {
 			t.Fatal()
 		}
 	}
