@@ -242,7 +242,7 @@ func (fs *filesystem) storeDeviceFile(file string, data interface{}) error {
 	return nil
 }
 
-func (fs *filesystem) fetchFile(file string, data interface{}) error {
+func (fs *filesystem) fetchFile(file string, resource podResource, data interface{}) error {
 	if file == "" {
 		return errNeedFile
 	}
@@ -252,28 +252,23 @@ func (fs *filesystem) fetchFile(file string, data interface{}) error {
 		return err
 	}
 
-	if err := json.Unmarshal(fileData, data); err != nil {
-		return err
+	switch resource {
+	case devicesFileType:
+		devices, ok := data.(*[]Device)
+		if !ok {
+			return fmt.Errorf("Could not cast %v into *[]Device type", data)
+		}
+
+		return fs.fetchDeviceFile(fileData, devices)
 	}
 
-	return nil
+	return json.Unmarshal(fileData, data)
 }
 
 // fetchDeviceFile is used for custom unmarshalling of device interface objects.
-func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
-	if file == "" {
-		return errNeedFile
-	}
-
-	fileData, err := ioutil.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
+func (fs *filesystem) fetchDeviceFile(fileData []byte, devices *[]Device) error {
 	var typedDevices []TypedDevice
-	err = json.Unmarshal([]byte(string(fileData)), &typedDevices)
-
-	if err != nil {
+	if err := json.Unmarshal(fileData, &typedDevices); err != nil {
 		return err
 	}
 
@@ -285,8 +280,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 		switch d.Type {
 		case DeviceVFIO:
 			var device VFIODevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -294,8 +288,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 
 		case DeviceBlock:
 			var device BlockDevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -303,8 +296,7 @@ func (fs *filesystem) fetchDeviceFile(file string, devices *[]Device) error {
 
 		case DeviceGeneric:
 			var device GenericDevice
-			err := json.Unmarshal(d.Data, &device)
-			if err != nil {
+			if err := json.Unmarshal(d.Data, &device); err != nil {
 				return err
 			}
 			tempDevices = append(tempDevices, &device)
@@ -565,7 +557,7 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		return err
 	}
 
-	if err := fs.fetchFile(path, data); err != nil {
+	if err := fs.fetchFile(path, resource, data); err != nil {
 		return err
 	}
 

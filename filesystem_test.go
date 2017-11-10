@@ -221,7 +221,7 @@ func TestFilesystemFetchFileSuccessful(t *testing.T) {
 	}
 	f.Close()
 
-	err = fs.fetchFile(path, &data)
+	err = fs.fetchFile(path, podResource(-1), &data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestFilesystemFetchFileFailingNoFile(t *testing.T) {
 	path := filepath.Join(testDir, "testFilesystem")
 	os.Remove(path)
 
-	err := fs.fetchFile(path, &data)
+	err := fs.fetchFile(path, podResource(-1), &data)
 	if err == nil {
 		t.Fatal()
 	}
@@ -262,7 +262,7 @@ func TestFilesystemFetchFileFailingUnMarshalling(t *testing.T) {
 	}
 	f.Close()
 
-	err = fs.fetchFile(path, data)
+	err = fs.fetchFile(path, podResource(-1), data)
 	if err == nil {
 		t.Fatal()
 	}
