@@ -606,13 +606,54 @@ func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
 	return nil
 }
 
+func (q *qemu) hotplugVFIODevice(device VFIODevice, op operation) error {
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	qmp, err := q.qmpSetup()
+	if err != nil {
+		return err
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	devID := "vfio-" + device.DeviceInfo.ID
+
+	if op == addDevice {
+		addr, bus, err := q.addDeviceToBridge(devID)
+		if err != nil {
+			return err
+		}
+
+		if err := q.qmpMonitorCh.qmp.ExecutePCIVFIODeviceAdd(q.qmpMonitorCh.ctx, devID, device.BDF, addr, bus); err != nil {
+			return err
+		}
+	} else {
+		if err := q.removeDeviceFromBridge(devID); err != nil {
+			return err
+		}
+
+		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, devID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (q *qemu) hotplugDevice(devInfo interface{}, devType deviceType, op operation) error {
 	switch devType {
 	case blockDev:
 		drive := devInfo.(Drive)
 		return q.hotplugBlockDevice(drive, op)
+	case vfioDev:
+		device := devInfo.(VFIODevice)
+		return q.hotplugVFIODevice(device, op)
 	default:
-		return fmt.Errorf("Only hotplug for block devices supported for now, provided device type : %v", devType)
+		return fmt.Errorf("Only hotplug for block and VFIO devices supported for now, provided device type : %v", devType)
 	}
 }
 

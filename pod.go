@@ -598,11 +598,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Passthrough devices
-	if err := p.attachDevices(); err != nil {
-		return nil, err
-	}
-
 	// Set pod state
 	if err := p.setPodState(StateReady); err != nil {
 		return nil, err
