@@ -803,7 +803,6 @@ func (q *qemu) waitPod(timeout int) error {
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 	disconnectCh := make(chan struct{})
-	const timeout = time.Duration(10) * time.Second
 
 	q.Logger().Info("Stopping Pod")
 	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
@@ -818,19 +817,7 @@ func (q *qemu) stopPod() error {
 		return err
 	}
 
-	if err := qmp.ExecuteQuit(q.qmpMonitorCh.ctx); err != nil {
-		return err
-	}
-
-	// Wait for the VM disconnection notification
-	select {
-	case <-disconnectCh:
-		break
-	case <-time.After(timeout):
-		return fmt.Errorf("Did not receive the VM disconnection notification (timeout %ds)", timeout)
-	}
-
-	return nil
+	return qmp.ExecuteQuit(q.qmpMonitorCh.ctx)
 }
 
 func (q *qemu) togglePausePod(pause bool) error {
