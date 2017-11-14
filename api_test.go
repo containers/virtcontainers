@@ -274,7 +274,7 @@ func TestCreatePodFailing(t *testing.T) {
 	config := PodConfig{}
 
 	p, err := CreatePod(config)
-	if p != nil || err == nil {
+	if p.(*Pod) != nil || err == nil {
 		t.Fatal()
 	}
 }
