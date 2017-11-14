@@ -25,24 +25,30 @@ import (
 func TestMockHypervisorInit(t *testing.T) {
 	var m *mockHypervisor
 
-	wrongConfig := HypervisorConfig{
-		KernelPath:     "",
-		ImagePath:      "",
-		HypervisorPath: "",
+	pod := &Pod{
+		config: &PodConfig{
+			HypervisorConfig: HypervisorConfig{
+				KernelPath:     "",
+				ImagePath:      "",
+				HypervisorPath: "",
+			},
+		},
 	}
 
-	err := m.init(wrongConfig)
+	// wrong config
+	err := m.init(pod)
 	if err == nil {
 		t.Fatal()
 	}
 
-	rightConfig := HypervisorConfig{
+	pod.config.HypervisorConfig = HypervisorConfig{
 		KernelPath:     fmt.Sprintf("%s/%s", testDir, testKernel),
 		ImagePath:      fmt.Sprintf("%s/%s", testDir, testImage),
 		HypervisorPath: fmt.Sprintf("%s/%s", testDir, testHypervisor),
 	}
 
-	err = m.init(rightConfig)
+	// right config
+	err = m.init(pod)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -34,6 +34,7 @@ func newQemuConfig() HypervisorConfig {
 		HypervisorPath: testQemuPath,
 		DefaultVCPUs:   defaultVCPUs,
 		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 }
 
@@ -375,7 +376,15 @@ func TestQemuInit(t *testing.T) {
 	qemuConfig := newQemuConfig()
 	q := &qemu{}
 
-	err := q.init(qemuConfig)
+	pod := &Pod{
+		id:      "testPod",
+		storage: &filesystem{},
+		config: &PodConfig{
+			HypervisorConfig: qemuConfig,
+		},
+	}
+
+	err := q.init(pod)
 	if err != nil {
 		t.Fatal(err)
 	}

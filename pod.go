@@ -578,6 +578,10 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	if err := p.storage.storeHypervisorState(p.id, p.hypervisor.getState()); err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
@@ -590,10 +594,6 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 
 	hypervisor, err := newHypervisor(podConfig.HypervisorType)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := hypervisor.init(podConfig.HypervisorConfig); err != nil {
 		return nil, err
 	}
 
@@ -624,6 +624,10 @@ func doFetchPod(podConfig PodConfig) (*Pod, error) {
 		state:           State{},
 		annotationsLock: &sync.RWMutex{},
 		wg:              &sync.WaitGroup{},
+	}
+
+	if err := p.hypervisor.init(p); err != nil {
+		return nil, err
 	}
 
 	containers, err := newContainers(p, podConfig.Containers)
