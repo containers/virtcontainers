@@ -36,9 +36,11 @@ func (m *mockHypervisor) createPod(podConfig PodConfig) error {
 	return nil
 }
 
-func (m *mockHypervisor) startPod(startCh, stopCh chan struct{}) error {
-	var msg struct{}
-	startCh <- msg
+func (m *mockHypervisor) startPod() error {
+	return nil
+}
+
+func (m *mockHypervisor) waitPod(timeout int) error {
 	return nil
 }
 

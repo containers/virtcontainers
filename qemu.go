@@ -573,40 +573,6 @@ func (q *qemu) init(pod *Pod) error {
 	return nil
 }
 
-func (q *qemu) qmpMonitor(connectedCh chan struct{}) {
-	defer func(qemu *qemu) {
-		if q.qmpMonitorCh.qmp != nil {
-			q.qmpMonitorCh.qmp.Shutdown()
-		}
-
-		q.qmpMonitorCh.wg.Done()
-	}(q)
-
-	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
-	qmp, ver, err := ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, q.qmpMonitorCh.disconnectCh)
-	if err != nil {
-		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
-		return
-	}
-
-	q.qmpMonitorCh.qmp = qmp
-
-	q.Logger().WithFields(logrus.Fields{
-		"qmp-major-version": ver.Major,
-		"qmp-minor-version": ver.Minor,
-		"qmp-micro-version": ver.Micro,
-		"qmp-capabilities":  strings.Join(ver.Capabilities, ","),
-	}).Infof("QMP details")
-
-	err = q.qmpMonitorCh.qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx)
-	if err != nil {
-		q.Logger().WithError(err).Error(qmpCapErrMsg)
-		return
-	}
-
-	close(connectedCh)
-}
-
 func (q *qemu) setCPUResources(podConfig PodConfig) ciaoQemu.SMP {
 	vcpus := q.config.DefaultVCPUs
 	if podConfig.VMConfig.VCPUs > 0 {
@@ -775,16 +741,61 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 }
 
 // startPod will start the Pod's VM.
-func (q *qemu) startPod(startCh, stopCh chan struct{}) error {
+func (q *qemu) startPod() error {
 	strErr, err := ciaoQemu.LaunchQemu(q.qemuConfig, newQMPLogger())
 	if err != nil {
 		return fmt.Errorf("%s", strErr)
 	}
 
-	// Start the QMP monitoring thread
-	q.qmpMonitorCh.disconnectCh = stopCh
-	q.qmpMonitorCh.wg.Add(1)
-	q.qmpMonitor(startCh)
+	return nil
+}
+
+// waitPod will wait for the Pod's VM to be up and running.
+func (q *qemu) waitPod(timeout int) error {
+	defer func(qemu *qemu) {
+		if q.qmpMonitorCh.qmp != nil {
+			q.qmpMonitorCh.qmp.Shutdown()
+		}
+	}(q)
+
+	if timeout < 0 {
+		return fmt.Errorf("Invalid timeout %ds", timeout)
+	}
+
+	disconnectCh := make(chan struct{})
+	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
+
+	var qmp *ciaoQemu.QMP
+	var ver *ciaoQemu.QMPVersion
+	var err error
+
+	timeStart := time.Now()
+	for {
+		qmp, ver, err = ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, disconnectCh)
+		if err == nil {
+			break
+		}
+
+		if int(time.Now().Sub(timeStart).Seconds()) > timeout {
+			return fmt.Errorf("Failed to connect to QEMU instance (timeout %ds): %v", timeout, err)
+		}
+
+		time.Sleep(time.Duration(50) * time.Millisecond)
+	}
+
+	q.qmpMonitorCh.qmp = qmp
+
+	q.Logger().WithFields(logrus.Fields{
+		"qmp-major-version": ver.Major,
+		"qmp-minor-version": ver.Minor,
+		"qmp-micro-version": ver.Micro,
+		"qmp-capabilities":  strings.Join(ver.Capabilities, ","),
+	}).Infof("QMP details")
+
+	if err = q.qmpMonitorCh.qmp.ExecuteQMPCapabilities(q.qmpMonitorCh.ctx); err != nil {
+		q.Logger().WithError(err).Error(qmpCapErrMsg)
+		return err
+	}
 
 	return nil
 }
