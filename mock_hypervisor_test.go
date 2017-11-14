@@ -19,7 +19,6 @@ package virtcontainers
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 func TestMockHypervisorInit(t *testing.T) {
@@ -36,8 +35,7 @@ func TestMockHypervisorInit(t *testing.T) {
 	}
 
 	// wrong config
-	err := m.init(pod)
-	if err == nil {
+	if err := m.init(pod); err == nil {
 		t.Fatal()
 	}
 
@@ -48,8 +46,7 @@ func TestMockHypervisorInit(t *testing.T) {
 	}
 
 	// right config
-	err = m.init(pod)
-	if err != nil {
+	if err := m.init(pod); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -59,8 +56,7 @@ func TestMockHypervisorCreatePod(t *testing.T) {
 
 	config := PodConfig{}
 
-	err := m.createPod(config)
-	if err != nil {
+	if err := m.createPod(config); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -68,24 +64,23 @@ func TestMockHypervisorCreatePod(t *testing.T) {
 func TestMockHypervisorStartPod(t *testing.T) {
 	var m *mockHypervisor
 
-	startCh := make(chan struct{})
-	stopCh := make(chan struct{})
+	if err := m.startPod(); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	go m.startPod(startCh, stopCh)
+func TestMockHypervisorWaitPod(t *testing.T) {
+	var m *mockHypervisor
 
-	select {
-	case <-startCh:
-		break
-	case <-time.After(time.Second):
-		t.Fatal("Timeout waiting for start notification")
+	if err := m.waitPod(0); err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestMockHypervisorStopPod(t *testing.T) {
 	var m *mockHypervisor
 
-	err := m.stopPod()
-	if err != nil {
+	if err := m.stopPod(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -93,8 +88,7 @@ func TestMockHypervisorStopPod(t *testing.T) {
 func TestMockHypervisorAddDevice(t *testing.T) {
 	var m *mockHypervisor
 
-	err := m.addDevice(nil, imgDev)
-	if err != nil {
+	if err := m.addDevice(nil, imgDev); err != nil {
 		t.Fatal(err)
 	}
 }

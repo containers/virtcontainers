@@ -446,7 +446,8 @@ func RunningOnVMM(cpuInfoPath string) (bool, error) {
 type hypervisor interface {
 	init(pod *Pod) error
 	createPod(podConfig PodConfig) error
-	startPod(startCh, stopCh chan struct{}) error
+	startPod() error
+	waitPod(timeout int) error
 	stopPod() error
 	pausePod() error
 	resumePod() error
