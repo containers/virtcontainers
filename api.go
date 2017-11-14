@@ -276,11 +276,8 @@ func RunPod(podConfig PodConfig) (VCPod, error) {
 		return nil, err
 	}
 
-	// Execute poststart hooks inside netns
-	err = p.network.run(networkNS.NetNsPath, func() error {
-		return p.config.Hooks.postStartHooks()
-	})
-	if err != nil {
+	// Execute poststart hooks
+	if err := p.config.Hooks.postStartHooks(); err != nil {
 		return nil, err
 	}
 
