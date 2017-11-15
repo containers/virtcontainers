@@ -76,7 +76,7 @@
 [[projects]]
   name = "github.com/vishvananda/netlink"
   packages = [".","nl"]
-  revision = "b7fbf1f5291ecf8ae5179d3202e914cb98cfe400"
+  revision = "c2a3de3b38bd00f07290c3c5e12b4dbc04ec8666"
 
 [[projects]]
   name = "github.com/vishvananda/netns"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "906f0272550d60293eecd1d1f08027bcced422570e991630f829bf6c753d5d62"
+  inputs-digest = "52c7ce145f7722271faba9120e39cc1517aad2542b23d35ea40f6d724669bd74"
   solver-name = "gps-cdcl"
   solver-version = 1
