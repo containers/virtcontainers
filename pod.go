@@ -802,7 +802,11 @@ func (p *Pod) startShims() error {
 		}
 	}
 
-	p.Logger().WithField("shim-count", shimCount).Info("Started shims")
+	if shimCount > 0 {
+		p.Logger().WithField("shim-count", shimCount).Info("Started shims")
+	} else {
+		p.Logger().Info("No containers, so no shims started")
+	}
 
 	return nil
 }
