@@ -79,16 +79,16 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the agent's proxy",
 	},
 
+	cli.StringFlag{
+		Name:  "proxy-path",
+		Value: "",
+		Usage: "path to proxy binary",
+	},
+
 	cli.GenericFlag{
 		Name:  "shim",
 		Value: new(vc.ShimType),
 		Usage: "the shim type",
-	},
-
-	cli.StringFlag{
-		Name:  "proxy-url",
-		Value: "",
-		Usage: "the agent's proxy socket path",
 	},
 
 	cli.StringFlag{
@@ -196,7 +196,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	sshdKey := context.String("sshd-auth-file")
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
-	proxyURL := context.String("proxy-url")
+	proxyPath := context.String("proxy-path")
 	shimPath := context.String("shim-path")
 	machineType := context.String("machine-type")
 	vmVCPUs := context.Uint("vm-vcpus")
@@ -281,7 +281,7 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = nil
 	}
 
-	proxyConfig := getProxyConfig(*proxyType, proxyURL)
+	proxyConfig := getProxyConfig(*proxyType, proxyPath)
 
 	shimConfig := getShimConfig(*shimType, shimPath)
 
@@ -321,13 +321,13 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	return podConfig, nil
 }
 
-func getProxyConfig(proxyType vc.ProxyType, url string) interface{} {
+func getProxyConfig(proxyType vc.ProxyType, path string) interface{} {
 	var proxyConfig interface{}
 
 	switch proxyType {
 	case vc.CCProxyType:
 		proxyConfig = vc.CCProxyConfig{
-			URL: url,
+			Path: path,
 		}
 
 	default:
