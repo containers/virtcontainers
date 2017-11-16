@@ -32,11 +32,10 @@ import (
 )
 
 type qmpChannel struct {
-	ctx          context.Context
-	path         string
-	disconnectCh chan struct{}
-	wg           sync.WaitGroup
-	qmp          *ciaoQemu.QMP
+	ctx  context.Context
+	path string
+	wg   sync.WaitGroup
+	qmp  *ciaoQemu.QMP
 }
 
 // QemuState keeps Qemu's state
@@ -762,7 +761,6 @@ func (q *qemu) waitPod(timeout int) error {
 		return fmt.Errorf("Invalid timeout %ds", timeout)
 	}
 
-	disconnectCh := make(chan struct{})
 	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
 
 	var qmp *ciaoQemu.QMP
@@ -771,6 +769,7 @@ func (q *qemu) waitPod(timeout int) error {
 
 	timeStart := time.Now()
 	for {
+		disconnectCh := make(chan struct{})
 		qmp, ver, err = ciaoQemu.QMPStart(q.qmpMonitorCh.ctx, q.qmpMonitorCh.path, cfg, disconnectCh)
 		if err == nil {
 			break
@@ -803,11 +802,11 @@ func (q *qemu) waitPod(timeout int) error {
 // stopPod will stop the Pod's VM.
 func (q *qemu) stopPod() error {
 	cfg := ciaoQemu.QMPConfig{Logger: newQMPLogger()}
-	q.qmpControlCh.disconnectCh = make(chan struct{})
+	disconnectCh := make(chan struct{})
 	const timeout = time.Duration(10) * time.Second
 
 	q.Logger().Info("Stopping Pod")
-	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, q.qmpControlCh.disconnectCh)
+	qmp, _, err := ciaoQemu.QMPStart(q.qmpControlCh.ctx, q.qmpControlCh.path, cfg, disconnectCh)
 	if err != nil {
 		q.Logger().WithError(err).Error("Failed to connect to QEMU instance")
 		return err
@@ -825,7 +824,7 @@ func (q *qemu) stopPod() error {
 
 	// Wait for the VM disconnection notification
 	select {
-	case <-q.qmpControlCh.disconnectCh:
+	case <-disconnectCh:
 		break
 	case <-time.After(timeout):
 		return fmt.Errorf("Did not receive the VM disconnection notification (timeout %ds)", timeout)
