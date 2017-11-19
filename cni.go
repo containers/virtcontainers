@@ -132,6 +132,11 @@ func (n *cni) updateEndpointsFromScan(networkNS *NetworkNamespace) error {
 				prop := endpoint.Properties()
 				prop.DNS = ep.Properties().DNS
 				endpoint.SetProperties(prop)
+
+				switch e := endpoint.(type) {
+				case *VirtualEndpoint:
+					e.NetPair = ep.(*VirtualEndpoint).NetPair
+				}
 				break
 			}
 		}
