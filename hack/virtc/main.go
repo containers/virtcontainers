@@ -960,11 +960,7 @@ func startCCShim(process *vc.Process, shimPath, url string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.Run()
 }
 
 func main() {

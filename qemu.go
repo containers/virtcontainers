@@ -986,11 +986,7 @@ func (q *qemu) hotplugAddDevice(devInfo interface{}, devType deviceType) error {
 		return err
 	}
 
-	if err := q.pod.storage.storeHypervisorState(q.pod.id, q.state); err != nil {
-		return err
-	}
-
-	return nil
+	return q.pod.storage.storeHypervisorState(q.pod.id, q.state)
 }
 
 func (q *qemu) hotplugRemoveDevice(devInfo interface{}, devType deviceType) error {
@@ -998,11 +994,7 @@ func (q *qemu) hotplugRemoveDevice(devInfo interface{}, devType deviceType) erro
 		return err
 	}
 
-	if err := q.pod.storage.storeHypervisorState(q.pod.id, q.state); err != nil {
-		return err
-	}
-
-	return nil
+	return q.pod.storage.storeHypervisorState(q.pod.id, q.state)
 }
 
 func (q *qemu) pausePod() error {

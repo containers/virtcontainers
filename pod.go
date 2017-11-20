@@ -936,11 +936,7 @@ func (p *Pod) stopVM() error {
 		return err
 	}
 
-	if err := p.hypervisor.stopPod(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.hypervisor.stopPod()
 }
 
 // stop stops a pod. The containers that are making the pod
@@ -977,11 +973,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	if err := p.stopSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.stopSetStates()
 }
 
 func (p *Pod) pause() error {
@@ -989,11 +981,7 @@ func (p *Pod) pause() error {
 		return err
 	}
 
-	if err := p.pauseSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.pauseSetStates()
 }
 
 func (p *Pod) resume() error {
@@ -1001,11 +989,7 @@ func (p *Pod) resume() error {
 		return err
 	}
 
-	if err := p.resumeSetStates(); err != nil {
-		return err
-	}
-
-	return nil
+	return p.resumeSetStates()
 }
 
 // list lists all pod running on the host.
@@ -1091,11 +1075,7 @@ func (p *Pod) setContainerState(containerID string, state stateString) error {
 
 	// Let container handle its state update
 	cImpl := c.(*Container)
-	if err := cImpl.setContainerState(state); err != nil {
-		return err
-	}
-
-	return nil
+	return cImpl.setContainerState(state)
 }
 
 func (p *Pod) setContainersState(state stateString) error {
