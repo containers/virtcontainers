@@ -365,11 +365,7 @@ func (h *hyper) createPod(pod *Pod) (err error) {
 		return err
 	}
 
-	if err := pod.hypervisor.addDevice(sharedVolume, fsDev); err != nil {
-		return err
-	}
-
-	return nil
+	return pod.hypervisor.addDevice(sharedVolume, fsDev)
 }
 
 func (h *hyper) capabilities() capabilities {

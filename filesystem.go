@@ -570,11 +570,7 @@ func (fs *filesystem) fetchResource(podSpecific bool, podID, containerID string,
 		return err
 	}
 
-	if err := fs.fetchFile(path, resource, data); err != nil {
-		return err
-	}
-
-	return nil
+	return fs.fetchFile(path, resource, data)
 }
 
 func (fs *filesystem) storePodResource(podID string, resource podResource, data interface{}) error {
