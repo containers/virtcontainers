@@ -290,7 +290,14 @@ CONFIG_VFIO_PCI=m
 
 In addition, you need to pass `intel_iommu=on` on the kernel command line.
 
-2. Identify BDF(Bus-Device-Function) of the PCI device to be assigned.
+2. Install VFIO-PCI driver
+
+```
+sudo modprobe vfio-pci
+```
+
+
+3. Identify BDF(Bus-Device-Function) of the PCI device to be assigned.
 
 
 ```
@@ -300,27 +307,27 @@ $ lspci -D | grep -e Ethernet -e Network
 $ BDF=0000:01:00.0
 ```
 
-3. Find vendor and device id.
+4. Find vendor and device id.
 
 ```
 $ lspci -n -s $BDF
 01:00.0 0200: 8086:1528 (rev 01)
 ```
 
-4. Find IOMMU group.
+5. Find IOMMU group.
 
 ```
 $ readlink /sys/bus/pci/devices/$BDF/iommu_group
 ../../../../kernel/iommu_groups/16
 ```
 
-5. Unbind the device from host driver.
+6. Unbind the device from host driver.
 
 ```
 $ echo $BDF | sudo tee /sys/bus/pci/devices/$BDF/driver/unbind
 ```
 
-6. Bind the device to vfio-pci.
+7. Bind the device to vfio-pci.
 
 ```
 $ sudo modprobe vfio-pci
@@ -328,20 +335,20 @@ $ echo 8086 1528 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 $ echo $BDF | sudo tee --append /sys/bus/pci/drivers/vfio-pci/bind
 ```
 
-7. Check /dev/vfio
+8. Check /dev/vfio
 
 ```
 $ ls /dev/vfio
 16 vfio
 ```
 
-8. Start a Clear Containers container passing the VFIO group on the docker command line.
+9. Start a Clear Containers container passing the VFIO group on the docker command line.
 
 ```
 docker run -it --device=/dev/vfio/16 centos/tools bash
 ```
 
-9. Running `lspci` within the container should show the device among the 
+10. Running `lspci` within the container should show the device among the 
 PCI devices. The driver for the device needs to be present within the
 Clear Containers kernel. If the driver is missing,  you can add it to your
 custom container kernel using the [osbuilder](https://github.com/clearcontainers/osbuilder)
