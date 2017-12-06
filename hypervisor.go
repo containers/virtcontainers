@@ -75,6 +75,9 @@ const (
 
 	// VFIODevice is VFIO device type
 	vfioDev
+
+	// vhostuserDev is a Vhost-user device type
+	vhostuserDev
 )
 
 // Set sets an hypervisor type based on the input string.

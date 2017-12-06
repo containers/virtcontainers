@@ -100,16 +100,16 @@ type DeviceInfo struct {
 	ID string
 }
 
+func deviceLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "device")
+}
+
 // VFIODevice is a vfio device meant to be passed to the hypervisor
 // to be used by the Virtual Machine.
 type VFIODevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
 	BDF        string
-}
-
-func deviceLogger() *logrus.Entry {
-	return virtLog.WithField("subsystem", "device")
 }
 
 func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
@@ -159,6 +159,89 @@ func (device *VFIODevice) detach(h hypervisor) error {
 
 func (device *VFIODevice) deviceType() string {
 	return device.DeviceType
+}
+
+// VhostUserDeviceType - represents a vhost-user device type
+// Currently support just VhostUserNet
+type VhostUserDeviceType string
+
+const (
+	//VhostUserSCSI - SCSI based vhost-user type
+	VhostUserSCSI = "vhost-user-scsi-pci"
+	//VhostUserNet - net based vhost-user type
+	VhostUserNet = "virtio-net-pci"
+	//VhostUserBlk represents a block vhostuser device type
+	VhostUserBlk = "vhost-user-blk-pci"
+)
+
+// VhostUserDevice refers to a vhost-user device implemntation.
+type VhostUserDevice struct {
+	DeviceType    string
+	DeviceInfo    DeviceInfo
+	SocketPath    string
+	HardAddr      string //valid only if VhostUserType is VhostUserNet
+	ID            string
+	VhostUserType VhostUserDeviceType
+}
+
+func (device *VhostUserDevice) attach(h hypervisor, c *Container) (err error) {
+
+	// generate a unique ID to be used for hypervisor commandline fields
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+	id := hex.EncodeToString(randBytes)
+
+	device.ID = id
+
+	return h.addDevice(device, vhostuserDev)
+}
+
+func (device *VhostUserDevice) detach(h hypervisor) error {
+	return nil
+}
+
+func (device *VhostUserDevice) deviceType() string {
+	return device.DeviceType
+}
+
+// Long term, this should be made more configurable.  For now matching path
+// provided by CNM VPP and OVS-DPDK plugins, available at github.com/clearcontainers/vpp and
+// github.com/clearcontainers/ovsdpdk.  The plugins create the socket on the host system
+// using this path.
+const hostSocketSearchPath = "/tmp/vhostuser_%s/vhu.sock"
+
+// findVhostUserNetSocketPath checks if an interface is a dummy placeholder
+// for a vhost-user socket, and if it is it returns the path to the socket
+func findVhostUserNetSocketPath(netInfo NetworkInfo) (string, error) {
+	if netInfo.Iface.Name == "lo" {
+		return "", nil
+	}
+
+	// check for socket file existence at known location.
+	for _, addr := range netInfo.Addrs {
+		socketPath := fmt.Sprintf(hostSocketSearchPath, addr.IPNet.IP)
+		if _, err := os.Stat(socketPath); err == nil {
+			return socketPath, nil
+		}
+	}
+
+	return "", nil
+}
+
+// vhostUserSocketPath returns the path of the socket discovered.  This discovery
+// will vary depending on the type of vhost-user socket.
+//  Today only VhostUserNetDevice is supported.
+func vhostUserSocketPath(info interface{}) (string, error) {
+
+	switch v := info.(type) {
+	case NetworkInfo:
+		return findVhostUserNetSocketPath(v)
+	default:
+		return "", nil
+	}
+
 }
 
 // BlockDevice refers to a block storage device implementation.
