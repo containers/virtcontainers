@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -193,6 +194,28 @@ func TestIncorrectEndpointTypeString(t *testing.T) {
 	testEndpointTypeString(t, &endpointType, "")
 }
 
+func TestCreateVhostUserEndpoint(t *testing.T) {
+	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x48}
+	idx := 72
+	socket := "/tmp/vhu_192.168.0.1"
+
+	expected := &VhostUserEndpoint{
+		SocketPath:   socket,
+		HardAddr:     macAddr.String(),
+		IfaceName:    fmt.Sprintf("vhost-%d", idx),
+		EndpointType: VhostUserEndpointType,
+	}
+
+	result, err := createVhostUserEndpoint(idx, socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(result, expected) == false {
+		t.Fatalf("\n\tGot %v\n\tExpecting %v", result, expected)
+	}
+}
+
 func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 	macAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, 0x00, 0x04}
 
@@ -297,6 +320,83 @@ func TestCreateNetworkEndpointsFailure(t *testing.T) {
 		t.Fatalf("Should fail because %d endpoints is invalid",
 			numOfEndpoints)
 	}
+}
+
+func TestIsVhostuserIface(t *testing.T) {
+
+	// First test case: search for existing:
+	addresses := []netlink.Addr{
+		netlink.Addr{
+			&net.IPNet{
+				IP:   net.IPv4(192, 168, 0, 2),
+				Mask: net.IPv4Mask(192, 168, 0, 2),
+			}, "addr1", 0, 0, nil, nil, 0, 0,
+		},
+		netlink.Addr{
+			&net.IPNet{
+				IP:   net.IPv4(192, 168, 0, 1),
+				Mask: net.IPv4Mask(192, 168, 0, 1),
+			}, "addr2", 0, 0, nil, nil, 0, 0,
+		},
+	}
+
+	expectedPath := "/tmp/vhostuser_192.168.0.1"
+	expectedFileName := "vhu.sock"
+	expectedResult := fmt.Sprintf("%s/%s", expectedPath, expectedFileName)
+
+	err := os.Mkdir(expectedPath, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = os.Create(expectedResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	netinfo := NetworkInfo{
+		Addrs: addresses,
+	}
+
+	isVhost, path, _ := isVhostuserIface(netinfo)
+
+	if isVhost != true {
+		t.Fatalf("Got %+v\nExpecting %+v", isVhost, true)
+		return
+	}
+	if path != expectedResult {
+		t.Fatalf("Got %+v\nExpecting %+v", path, expectedResult)
+		return
+	}
+
+	// Second test case: search doesn't include matching vsock:
+	addressesFalse := []netlink.Addr{
+		netlink.Addr{
+			&net.IPNet{
+				IP:   net.IPv4(192, 168, 0, 4),
+				Mask: net.IPv4Mask(192, 168, 0, 4),
+			}, "addr1", 0, 0, nil, nil, 0, 0,
+		},
+	}
+	netinfoFail := NetworkInfo{
+		Addrs: addressesFalse,
+	}
+
+	isVhost, path, _ = isVhostuserIface(netinfoFail)
+	if isVhost != false {
+		t.Fatalf("Got %+v\nExpecting %+v", isVhost, true)
+		return
+	}
+
+	err = os.Remove(expectedResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Remove(expectedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func TestIsPhysicalIface(t *testing.T) {
