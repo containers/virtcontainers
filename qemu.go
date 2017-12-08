@@ -1027,3 +1027,13 @@ func (q *qemu) getPodConsole(podID string) string {
 func (q *qemu) getState() interface{} {
 	return q.state
 }
+
+//Generic function for creating a named-id for passing on the hypervisor commandline
+func makeNameID(namedType string, id string) string {
+	nameID := fmt.Sprintf("%s-%s", namedType, id)
+	if len(nameID) > maxDevIDSize {
+		nameID = string(nameID[:maxDevIDSize])
+	}
+
+	return nameID
+}
