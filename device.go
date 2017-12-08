@@ -177,15 +177,6 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 	}
 }
 
-func makeBlockDevIDForHypervisor(deviceID string) string {
-	devID := fmt.Sprintf("drive-%s", deviceID)
-	if len(devID) > maxDevIDSize {
-		devID = string(devID[:maxDevIDSize])
-	}
-
-	return devID
-}
-
 func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 	// If VM has not been launched yet, return immediately.
 	// This is because we always want to hotplug block devices.
@@ -206,7 +197,7 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 	drive := Drive{
 		File:   device.DeviceInfo.HostPath,
 		Format: "raw",
-		ID:     makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+		ID:     makeNameID("drive", device.DeviceInfo.ID),
 	}
 
 	// Increment the block index for the pod. This is used to determine the name
@@ -246,7 +237,7 @@ func (device BlockDevice) detach(h hypervisor) error {
 		deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Unplugging block device")
 
 		drive := Drive{
-			ID: makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+			ID: makeNameID("drive", device.DeviceInfo.ID),
 		}
 
 		if err := h.hotplugRemoveDevice(drive, blockDev); err != nil {
