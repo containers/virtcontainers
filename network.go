@@ -846,7 +846,7 @@ func untapNetworkPair(netPair NetworkInterfacePair) error {
 	vethLink, err := getLinkByName(netHandle, netPair.VirtIface.Name, &netlink.Veth{})
 	if err != nil {
 		// The veth pair is not totally managed by virtcontainers
-		virtLog.Warn("Could not get veth interface %s: %s", netPair.VirtIface.Name, err)
+		virtLog.Warnf("Could not get veth interface %s: %s", netPair.VirtIface.Name, err)
 	} else {
 		if err := netHandle.LinkSetDown(vethLink); err != nil {
 			return fmt.Errorf("Could not disable veth %s: %s", netPair.VirtIface.Name, err)
