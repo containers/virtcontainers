@@ -121,10 +121,13 @@ func testQemuAppend(t *testing.T, structure interface{}, expected []ciaoQemu.Dev
 		devices = q.appendBlockDevice(devices, s)
 	case VFIODevice:
 		devices = q.appendVFIODevice(devices, s)
+	case VhostUserDevice:
+		devices = q.appendVhostuserDevice(devices, s)
+
 	}
 
 	if reflect.DeepEqual(devices, expected) == false {
-		t.Fatalf("Got %v\nExpecting %v", devices, expected)
+		t.Fatalf("\n\tGot %v\n\tExpecting %v", devices, expected)
 	}
 }
 
@@ -223,6 +226,32 @@ func TestQemuAppendVFIODevice(t *testing.T) {
 	}
 
 	testQemuAppend(t, vfDevice, expectedOut, -1, nestedVM)
+}
+
+func TestQemuAppendVhostuserDevice(t *testing.T) {
+	nestedVM := true
+	socketPath := "nonexistentpath.sock"
+	macAddress := "00:11:22:33:44:55:66"
+	id := "deadbeef"
+
+	expectedOut := []ciaoQemu.Device{
+		ciaoQemu.VhostUserDevice{
+			SocketPath:    socketPath,
+			CharDevID:     fmt.Sprintf("char-%s", id),
+			TypeDevID:     fmt.Sprintf("net-%s", id),
+			Address:       macAddress,
+			VhostUserType: VhostUserNet,
+		},
+	}
+
+	vhostuserDevice := VhostUserDevice{
+		SocketPath:    socketPath,
+		HardAddr:      macAddress,
+		ID:            id,
+		VhostUserType: VhostUserNet,
+	}
+
+	testQemuAppend(t, vhostuserDevice, expectedOut, -1, nestedVM)
 }
 
 func TestQemuAppendFSDevices(t *testing.T) {

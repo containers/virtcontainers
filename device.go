@@ -100,16 +100,16 @@ type DeviceInfo struct {
 	ID string
 }
 
+func deviceLogger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "device")
+}
+
 // VFIODevice is a vfio device meant to be passed to the hypervisor
 // to be used by the Virtual Machine.
 type VFIODevice struct {
 	DeviceType string
 	DeviceInfo DeviceInfo
 	BDF        string
-}
-
-func deviceLogger() *logrus.Entry {
-	return virtLog.WithField("subsystem", "device")
 }
 
 func newVFIODevice(devInfo DeviceInfo) *VFIODevice {
@@ -161,6 +161,48 @@ func (device *VFIODevice) deviceType() string {
 	return device.DeviceType
 }
 
+// VhostUserDeviceType - currently only support two types
+type VhostUserDeviceType string
+
+const (
+	//VhostUserSCSI - SCSI based vhost-user type
+	VhostUserSCSI = "vhost-user-scsi-pci"
+	//VhostUserNet - net based vhost-user type
+	VhostUserNet = "virtio-net-pci"
+)
+
+// VhostUserDevice refers to a vhost-user device implemntation.
+type VhostUserDevice struct {
+	DeviceType    string
+	DeviceInfo    DeviceInfo
+	SocketPath    string
+	HardAddr      string //valid only if VhostUserType is VhostUserNet
+	ID            string
+	VhostUserType VhostUserDeviceType
+}
+
+func (device *VhostUserDevice) attach(h hypervisor, c *Container) (err error) {
+
+	// generate a unique ID to be used for hypervisor commandline fields
+	randBytes, err := generateRandomBytes(8)
+	if err != nil {
+		return err
+	}
+	id := hex.EncodeToString(randBytes)
+
+	device.ID = id
+
+	return h.addDevice(device, vhostuserDev)
+}
+
+func (device *VhostUserDevice) detach(h hypervisor) error {
+	return nil
+}
+
+func (device *VhostUserDevice) deviceType() string {
+	return device.DeviceType
+}
+
 // BlockDevice refers to a block storage device implementation.
 type BlockDevice struct {
 	DeviceType string
@@ -175,15 +217,6 @@ func newBlockDevice(devInfo DeviceInfo) *BlockDevice {
 		DeviceType: DeviceBlock,
 		DeviceInfo: devInfo,
 	}
-}
-
-func makeBlockDevIDForHypervisor(deviceID string) string {
-	devID := fmt.Sprintf("drive-%s", deviceID)
-	if len(devID) > maxDevIDSize {
-		devID = string(devID[:maxDevIDSize])
-	}
-
-	return devID
 }
 
 func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
@@ -206,7 +239,7 @@ func (device *BlockDevice) attach(h hypervisor, c *Container) (err error) {
 	drive := Drive{
 		File:   device.DeviceInfo.HostPath,
 		Format: "raw",
-		ID:     makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+		ID:     makeNameID("drive", device.DeviceInfo.ID),
 	}
 
 	// Increment the block index for the pod. This is used to determine the name
@@ -246,7 +279,7 @@ func (device BlockDevice) detach(h hypervisor) error {
 		deviceLogger().WithField("device", device.DeviceInfo.HostPath).Info("Unplugging block device")
 
 		drive := Drive{
-			ID: makeBlockDevIDForHypervisor(device.DeviceInfo.ID),
+			ID: makeNameID("drive", device.DeviceInfo.ID),
 		}
 
 		if err := h.hotplugRemoveDevice(drive, blockDev); err != nil {
