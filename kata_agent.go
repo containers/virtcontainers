@@ -17,13 +17,42 @@
 package virtcontainers
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"syscall"
 )
 
+// KataAgentConfig is a structure storing information needed
+// to reach the Kata Containers agent.
+type KataAgentConfig struct {
+	GRPCSocket string
+	Volumes    []Volume
+	VMSocket   Socket
+}
+
+func (c *KataAgentConfig) validate(pod *Pod) bool {
+	return true
+}
+
 type kataAgent struct {
+	config KataAgentConfig
 }
 
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
+	switch c := config.(type) {
+	case KataAgentConfig:
+		if c.validate(pod) == false {
+			return fmt.Errorf("Invalid Kata agent configuration: %v", c)
+		}
+		k.config = c
+	default:
+		return fmt.Errorf("Invalid config type")
+	}
+
+	// Override pod agent configuration
+	pod.config.AgentConfig = k.config
+
 	return nil
 }
 
@@ -32,7 +61,32 @@ func (k *kataAgent) capabilities() capabilities {
 }
 
 func (k *kataAgent) createPod(pod *Pod) error {
-	return nil
+	for _, volume := range k.config.Volumes {
+		err := pod.hypervisor.addDevice(volume, fsDev)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO Look at the grpc scheme to understand if we want
+	// a serial or a vsock socket.
+	err := pod.hypervisor.addDevice(k.config.VMSocket, serialPortDev)
+	if err != nil {
+		return err
+	}
+
+	// Adding the shared volume.
+	// This volume contains all bind mounted container bundles.
+	sharedVolume := Volume{
+		MountTag: mountTag,
+		HostPath: filepath.Join(defaultSharedDir, pod.id),
+	}
+
+	if err := os.MkdirAll(sharedVolume.HostPath, dirMode); err != nil {
+		return err
+	}
+
+	return pod.hypervisor.addDevice(sharedVolume, fsDev)
 }
 
 func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
