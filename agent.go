@@ -48,6 +48,9 @@ const (
 
 	// HyperstartAgent is the Hyper hyperstart agent.
 	HyperstartAgent AgentType = "hyperstart"
+
+	// KataContainersAgent is the Kata Containers agent.
+	KataContainersAgent AgentType = "kata"
 )
 
 // Set sets an agent type based on the input string.
@@ -58,6 +61,9 @@ func (agentType *AgentType) Set(value string) error {
 		return nil
 	case "hyperstart":
 		*agentType = HyperstartAgent
+		return nil
+	case "kata":
+		*agentType = KataContainersAgent
 		return nil
 	default:
 		return fmt.Errorf("Unknown agent type %s", value)
@@ -71,6 +77,8 @@ func (agentType *AgentType) String() string {
 		return string(NoopAgentType)
 	case HyperstartAgent:
 		return string(HyperstartAgent)
+	case KataContainersAgent:
+		return string(KataContainersAgent)
 	default:
 		return ""
 	}
@@ -83,6 +91,8 @@ func newAgent(agentType AgentType) agent {
 		return &noopAgent{}
 	case HyperstartAgent:
 		return &hyper{}
+	case KataContainersAgent:
+		return &kataAgent{}
 	default:
 		return &noopAgent{}
 	}
@@ -100,6 +110,13 @@ func newAgentConfig(config PodConfig) interface{} {
 			return err
 		}
 		return hyperConfig
+	case KataContainersAgent:
+		var kataAgentConfig KataAgentConfig
+		err := mapstructure.Decode(config.AgentConfig, &kataAgentConfig)
+		if err != nil {
+			return err
+		}
+		return kataAgentConfig
 	default:
 		return nil
 	}
