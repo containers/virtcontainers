@@ -17,13 +17,21 @@
 package virtcontainers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
 	kataclient "github.com/kata-containers/agent/protocols/client"
+	"github.com/kata-containers/agent/protocols/grpc"
 )
+
+var errorMissingGRPClient = fmt.Errorf("Missing gRPC client")
+var defaultHostSharedDir = "/tmp/kata-containers/shared/pods/"
+var defaultGuestSharedDir = "/tmp/kata-containers/shared/pods/"
+var mountGuest9pTag = "kataShared"
+var type9pFs = "9p"
 
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
@@ -97,8 +105,8 @@ func (k *kataAgent) createPod(pod *Pod) error {
 	// Adding the shared volume.
 	// This volume contains all bind mounted container bundles.
 	sharedVolume := Volume{
-		MountTag: mountTag,
-		HostPath: filepath.Join(defaultSharedDir, pod.id),
+		MountTag: mountGuest9pTag,
+		HostPath: filepath.Join(defaultHostSharedDir, pod.id),
 	}
 
 	if err := os.MkdirAll(sharedVolume.HostPath, dirMode); err != nil {
@@ -113,11 +121,44 @@ func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error 
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
-	return nil
+	if k.client == nil {
+		return errorMissingGRPClient
+	}
+
+	hostname := pod.config.Hostname
+	if len(hostname) > maxHostnameLen {
+		hostname = hostname[:maxHostnameLen]
+	}
+
+	// We mount the shared directory in a predefined location
+	// in the guest.
+	// This is where at least some of the host config files
+	// (resolv.conf, etc...) and potentially all container
+	// rootfs will reside.
+	sharedVolume := &grpc.Storage{
+		Source:     mountGuest9pTag,
+		MountPoint: defaultGuestSharedDir,
+		Fstype:     type9pFs,
+		Options:    []string{"trans=virtio", "nodev"},
+	}
+
+	req := &grpc.CreateSandboxRequest{
+		Hostname:     hostname,
+		Storages:     []*grpc.Storage{sharedVolume},
+		SandboxPidns: true,
+	}
+	_, err := k.client.CreateSandbox(context.Background(), req)
+	return err
 }
 
 func (k *kataAgent) stopPod(pod Pod) error {
-	return nil
+	if k.client == nil {
+		return errorMissingGRPClient
+	}
+
+	req := &grpc.DestroySandboxRequest{}
+	_, err := k.client.DestroySandbox(context.Background(), req)
+	return err
 }
 
 func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
