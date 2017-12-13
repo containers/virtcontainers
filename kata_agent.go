@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	kataclient "github.com/kata-containers/agent/protocols/client"
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -37,6 +39,8 @@ func (c *KataAgentConfig) validate(pod *Pod) bool {
 
 type kataAgent struct {
 	config KataAgentConfig
+
+	client *kataclient.AgentClient
 }
 
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
@@ -52,6 +56,13 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
+
+	client, err := kataclient.NewAgentClient(k.config.GRPCSocket)
+	if err != nil {
+		return err
+	}
+
+	k.client = client
 
 	return nil
 }
