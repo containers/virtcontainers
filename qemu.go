@@ -323,7 +323,7 @@ func (q *qemu) appendSocket(devices []ciaoQemu.Device, socket Socket) []ciaoQemu
 func networkModelToQemuType(model NetInterworkingModel) ciaoQemu.NetDeviceType {
 	switch model {
 	case ModelBridged:
-		return ciaoQemu.TAP
+		return ciaoQemu.MACVTAP //TODO: We should rename MACVTAP to .NET_FD
 	case ModelMacVtap:
 		return ciaoQemu.MACVTAP
 	//case ModelEnlightened:
@@ -354,6 +354,7 @@ func (q *qemu) appendNetwork(devices []ciaoQemu.Device, endpoint Endpoint) []cia
 				VHost:         true,
 				DisableModern: q.nestedRun,
 				FDs:           ep.NetPair.VMFds,
+				VhostFDs:      ep.NetPair.VhostFds,
 			},
 		)
 		networkIndex++
