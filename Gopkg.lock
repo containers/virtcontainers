@@ -33,9 +33,30 @@
   revision = "20b96f641a5ea98f2f8619ff4f3e061cff4833bd"
 
 [[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["gogoproto","proto","protoc-gen-gogo/descriptor"]
+  revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/empty","ptypes/timestamp","ptypes/wrappers"]
+  revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kata-containers/agent"
+  packages = ["protocols/client","protocols/grpc"]
+  revision = "14f82a67836cfaa0d22161986f17d7577c549874"
+
+[[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
   packages = ["pkg/annotations"]
   revision = "3394b3b2d6af0e41d185bb695c6378be5dd4d61d"
+
+[[projects]]
+  name = "github.com/mdlayher/vsock"
+  packages = ["."]
+  revision = "738c88d6e4cfd60e8124a5344fa10d205fd828b9"
 
 [[projects]]
   name = "github.com/mitchellh/mapstructure"
@@ -50,7 +71,7 @@
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "a8125598b32a65ff55c83214d3c262383178e7fa"
+  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -89,13 +110,35 @@
   revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
 
 [[projects]]
+  name = "golang.org/x/net"
+  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
+  revision = "a8b9294777976932365dabb6640cf1468d95c70f"
+
+[[projects]]
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+  revision = "1d2aa6dbdea45adaaebb9905d0666e4537563829"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/text"
+  packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
+  revision = "c4d099d611ac3ded35360abf03581e13d91c828f"
+
+[[projects]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  revision = "a8101f21cf983e773d0c1133ebc5424792003214"
+
+[[projects]]
+  name = "google.golang.org/grpc"
+  packages = [".","balancer","balancer/roundrobin","codes","connectivity","credentials","encoding","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/passthrough","stats","status","tap","transport"]
+  revision = "5a9f7b402fe85096d2e1d0383435ee1876e863d0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3fb911fc813d328a7add909dc0eb35d4d9ea8efc1c8710d2cbcce59efd5ae440"
+  inputs-digest = "24f42380b761b707edbbfc0cc86b7b76b1dcaa15ebd3f91ebf6cded568484ab0"
   solver-name = "gps-cdcl"
   solver-version = 1
