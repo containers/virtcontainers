@@ -47,21 +47,6 @@ type ContainerStatus struct {
 	Annotations map[string]string
 }
 
-// Mount describes a container mount.
-type Mount struct {
-	Source      string
-	Destination string
-
-	// Type specifies the type of filesystem to mount.
-	Type string
-
-	// Options list all the mount options of the filesystem.
-	Options []string
-
-	// HostPath used to store host side bind mount path
-	HostPath string
-}
-
 // ContainerConfig describes one container runtime configuration.
 type ContainerConfig struct {
 	ID string
