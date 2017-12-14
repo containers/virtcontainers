@@ -32,6 +32,9 @@ const (
 
 	// NoopProxyType is the noopProxy.
 	NoopProxyType ProxyType = "noopProxy"
+
+	// KataProxyType is the Kata Containers proxy type.
+	KataProxyType ProxyType = "kataProxy"
 )
 
 func proxyLogger() *logrus.Entry {
@@ -47,6 +50,9 @@ func (pType *ProxyType) Set(value string) error {
 	case "ccProxy":
 		*pType = CCProxyType
 		return nil
+	case "kataProxy":
+		*pType = KataProxyType
+		return nil
 	default:
 		return fmt.Errorf("Unknown proxy type %s", value)
 	}
@@ -59,6 +65,8 @@ func (pType *ProxyType) String() string {
 		return string(NoopProxyType)
 	case CCProxyType:
 		return string(CCProxyType)
+	case KataProxyType:
+		return string(KataProxyType)
 	default:
 		return ""
 	}
@@ -71,6 +79,8 @@ func newProxy(pType ProxyType) (proxy, error) {
 		return &noopProxy{}, nil
 	case CCProxyType:
 		return &ccProxy{}, nil
+	case KataProxyType:
+		return &kataProxy{}, nil
 	default:
 		return &noopProxy{}, nil
 	}
@@ -88,6 +98,13 @@ func newProxyConfig(config PodConfig) interface{} {
 			return err
 		}
 		return ccConfig
+	case KataProxyType:
+		var kataConfig KataProxyConfig
+		err := mapstructure.Decode(config.ProxyConfig, &kataConfig)
+		if err != nil {
+			return err
+		}
+		return kataConfig
 	default:
 		return nil
 	}
