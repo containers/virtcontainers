@@ -35,8 +35,8 @@ import (
 
 var errorMissingGRPClient = errors.New("Missing gRPC client")
 var errorMissingOCISpec = errors.New("Missing OCI specification")
-var defaultHostSharedDir = "/tmp/kata-containers/shared/pods/"
-var defaultGuestSharedDir = "/tmp/kata-containers/shared/pods/"
+var kataHostSharedDir = "/tmp/kata-containers/shared/pods/"
+var kataGuestSharedDir = "/tmp/kata-containers/shared/pods/"
 var mountGuest9pTag = "kataShared"
 var type9pFs = "9p"
 var devPath = "/dev"
@@ -114,7 +114,7 @@ func (k *kataAgent) createPod(pod *Pod) error {
 	// This volume contains all bind mounted container bundles.
 	sharedVolume := Volume{
 		MountTag: mountGuest9pTag,
-		HostPath: filepath.Join(defaultHostSharedDir, pod.id),
+		HostPath: filepath.Join(kataHostSharedDir, pod.id),
 	}
 
 	if err := os.MkdirAll(sharedVolume.HostPath, dirMode); err != nil {
@@ -145,7 +145,7 @@ func (k *kataAgent) startPod(pod Pod) error {
 	// rootfs will reside.
 	sharedVolume := &grpc.Storage{
 		Source:     mountGuest9pTag,
-		MountPoint: defaultGuestSharedDir,
+		MountPoint: kataGuestSharedDir,
 		Fstype:     type9pFs,
 		Options:    []string{"trans=virtio", "nodev"},
 	}
@@ -212,7 +212,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	rootfs := &grpc.Storage{}
 
 	// First we need to give the OCI spec our absolute path in the guest.
-	grpcSpec.Root.Path = filepath.Join(defaultGuestSharedDir, pod.id, c.id, rootfsDir)
+	grpcSpec.Root.Path = filepath.Join(kataGuestSharedDir, pod.id, c.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
@@ -241,16 +241,16 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		// (/tmp/kata-containers/shared/pods/) is already
 		// mounted in the guest. We only need to mount the
 		// rootfs from the host and it will show up in the guest.
-		if err := bindMountContainerRootfs(defaultHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
-			bindUnmountAllRootfs(defaultHostSharedDir, *pod)
+		if err := bindMountContainerRootfs(kataHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
+			bindUnmountAllRootfs(kataHostSharedDir, *pod)
 			return err
 		}
 	}
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(defaultHostSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := bindMountContainerMounts(kataHostSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
-		bindUnmountAllRootfs(defaultHostSharedDir, *pod)
+		bindUnmountAllRootfs(kataHostSharedDir, *pod)
 		return err
 	}
 	containerStorage = appendStorageFromMounts(containerStorage, newMounts)
