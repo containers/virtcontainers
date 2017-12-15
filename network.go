@@ -18,7 +18,6 @@ package virtcontainers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -1082,34 +1081,6 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 	}, nil
 }
 
-func networkInfoListFromNetworkScan(handle *netlink.Handle) ([]NetworkInfo, error) {
-	var netInfoList []NetworkInfo
-
-	linkList, err := handle.LinkList()
-	if err != nil {
-		return []NetworkInfo{}, err
-	}
-
-	for _, link := range linkList {
-		netInfo, err := networkInfoFromLink(handle, link)
-		if err != nil {
-			return []NetworkInfo{}, err
-		}
-
-		// Ignore unconfigured network interfaces. These are
-		// either base tunnel devices that are not namespaced
-		// like gre0, gretap0, sit0, ipip0, tunl0 or incorrectly
-		// setup interfaces.
-		if len(netInfo.Addrs) == 0 {
-			continue
-		}
-
-		netInfoList = append(netInfoList, netInfo)
-	}
-
-	return netInfoList, nil
-}
-
 func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
@@ -1125,16 +1096,29 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 	}
 	defer netlinkHandle.Delete()
 
-	netInfoList, err := networkInfoListFromNetworkScan(netlinkHandle)
+	linkList, err := netlinkHandle.LinkList()
 	if err != nil {
 		return []Endpoint{}, err
 	}
 
 	idx := 0
-	for _, netInfo := range netInfoList {
+	for _, link := range linkList {
 		var endpoint Endpoint
 
-		// Skip any loopback interface.
+		netInfo, err := networkInfoFromLink(netlinkHandle, link)
+		if err != nil {
+			return []Endpoint{}, err
+		}
+
+		// Ignore unconfigured network interfaces. These are
+		// either base tunnel devices that are not namespaced
+		// like gre0, gretap0, sit0, ipip0, tunl0 or incorrectly
+		// setup interfaces.
+		if len(netInfo.Addrs) == 0 {
+			continue
+		}
+
+		// Skip any loopback interfaces:
 		if (netInfo.Iface.Flags & net.FlagLoopback) != 0 {
 			continue
 		}
