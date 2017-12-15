@@ -580,6 +580,7 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 	return nil, fmt.Errorf("Incorrect link type %s, expecting %s", link.Type(), expectedLink.Type())
 }
 
+// The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
 	switch DefaultNetInterworkingModel {
 	case ModelBridged:
@@ -1021,6 +1022,9 @@ func createVirtualNetworkEndpoint(idx int, uniqueID string, ifName string) (*Vir
 	hardAddr := net.HardwareAddr{0x02, 0x00, 0xCA, 0xFE, byte(idx >> 8), byte(idx)}
 
 	endpoint := &VirtualEndpoint{
+		// TODO This is too specific. We may need to create multiple
+		// end point types here and then decide how to connect them
+		// at the time of hypervisor attach and not here
 		NetPair: NetworkInterfacePair{
 			ID:   fmt.Sprintf("%s-%d", uniqueID, idx),
 			Name: fmt.Sprintf("br%d", idx),
@@ -1141,6 +1145,12 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 		}
 
 		if err := doNetNS(networkNSPath, func(_ ns.NetNS) error {
+
+			// TODO: This is the incoming interface
+			// based on the incoming interface we should create
+			// an appropriate EndPoint based on interface type
+			// This should be a switch
+
 			// Check if interface is a physical interface. Do not create
 			// tap interface/bridge if it is.
 			isPhysical, err := isPhysicalIface(netInfo.Iface.Name)
