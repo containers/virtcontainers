@@ -33,23 +33,41 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-var errorMissingGRPClient = errors.New("Missing gRPC client")
-var errorMissingOCISpec = errors.New("Missing OCI specification")
-var kataHostSharedDir = "/tmp/kata-containers/shared/pods/"
-var kataGuestSharedDir = "/tmp/kata-containers/shared/pods/"
-var mountGuest9pTag = "kataShared"
-var type9pFs = "9p"
-var devPath = "/dev"
+var (
+	defaultKataSockPathTemplate = "%s/%s/kata.sock"
+	defaultKataChannel          = "io.katacontainers.channel"
+	defaultKataDeviceID         = "channel0"
+	defaultKataID               = "charch0"
+	errorMissingGRPClient       = errors.New("Missing gRPC client")
+	errorMissingOCISpec         = errors.New("Missing OCI specification")
+	kataHostSharedDir           = "/tmp/kata-containers/shared/pods/"
+	kataGuestSharedDir          = "/tmp/kata-containers/shared/pods/"
+	mountGuest9pTag             = "kataShared"
+	type9pFs                    = "9p"
+	devPath                     = "/dev"
+)
 
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
 	GRPCSocket string
 	Volumes    []Volume
+	SocketPath string
 	VMSocket   Socket
 }
 
 func (c *KataAgentConfig) validate(pod *Pod) bool {
+	if c.SocketPath == "" {
+		c.SocketPath = fmt.Sprintf(defaultKataSockPathTemplate, runStoragePath, pod.id)
+
+		c.VMSocket = Socket{
+			DeviceID: defaultKataDeviceID,
+			ID:       defaultKataID,
+			HostPath: c.SocketPath,
+			Name:     defaultKataChannel,
+		}
+	}
+
 	return true
 }
 
