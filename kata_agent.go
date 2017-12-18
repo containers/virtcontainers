@@ -198,8 +198,80 @@ func (k *kataAgent) createPod(pod *Pod) error {
 	return pod.hypervisor.addDevice(sharedVolume, fsDev)
 }
 
-func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) error {
-	return nil
+func cmdToKataProcess(cmd Cmd) (process *grpc.Process, err error) {
+	var i uint64
+	var extraGids []uint32
+
+	// Number of bits used to store user+group values in
+	// the gRPC "User" type.
+	const grpcUserBits = 32
+
+	i, err = strconv.ParseUint(cmd.User, 10, grpcUserBits)
+	if err != nil {
+		return nil, err
+	}
+
+	uid := uint32(i)
+
+	i, err = strconv.ParseUint(cmd.PrimaryGroup, 10, grpcUserBits)
+	if err != nil {
+		return nil, err
+	}
+
+	gid := uint32(i)
+
+	for _, g := range cmd.SupplementaryGroups {
+		var extraGid uint64
+
+		extraGid, err = strconv.ParseUint(g, 10, grpcUserBits)
+		if err != nil {
+			return nil, err
+		}
+
+		extraGids = append(extraGids, uint32(extraGid))
+	}
+
+	process = &grpc.Process{
+		Terminal: cmd.Interactive,
+		User: grpc.User{
+			UID:            uid,
+			GID:            gid,
+			AdditionalGids: extraGids,
+		},
+		Args: cmd.Args,
+		Env:  cmdEnvsToStringSlice(cmd.Envs),
+		Cwd:  cmd.WorkDir,
+	}
+
+	return process, nil
+}
+
+func cmdEnvsToStringSlice(ev []EnvVar) []string {
+	var env []string
+
+	for _, e := range ev {
+		pair := []string{e.Var, e.Value}
+		env = append(env, strings.Join(pair, "="))
+	}
+
+	return env
+}
+
+func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err error) {
+	var kataProcess *grpc.Process
+
+	kataProcess, err = cmdToKataProcess(cmd)
+	if err != nil {
+		return err
+	}
+
+	req := &grpc.ExecProcessRequest{
+		ContainerId: c.id,
+		Process:     kataProcess,
+	}
+
+	_, err = k.client.ExecProcess(context.Background(), req)
+	return err
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -369,11 +441,23 @@ func (k *kataAgent) startContainer(pod Pod, c Container) error {
 }
 
 func (k *kataAgent) stopContainer(pod Pod, c Container) error {
-	return nil
+	req := &grpc.RemoveContainerRequest{
+		ContainerId: c.id,
+	}
+
+	_, err := k.client.RemoveContainer(context.Background(), req)
+	return err
 }
 
 func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
-	return nil
+	req := &grpc.SignalProcessRequest{
+		ContainerId: c.id,
+		PID:         uint32(c.process.Pid),
+		Signal:      uint32(signal),
+	}
+
+	_, err := k.client.SignalProcess(context.Background(), req)
+	return err
 }
 
 func (k *kataAgent) processListContainer(pod Pod, c Container, options ProcessListOptions) (ProcessList, error) {
