@@ -339,6 +339,16 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	return nil
 }
 
+// vmURL returns VM URL from hyperstart agent implementation.
+func (h *hyper) vmURL() (string, error) {
+	return "", nil
+}
+
+// setProxyURL sets proxy URL for hyperstart agent implementation.
+func (h *hyper) setProxyURL(url string) error {
+	return nil
+}
+
 func (h *hyper) createPod(pod *Pod) (err error) {
 	for _, volume := range h.config.Volumes {
 		err := pod.hypervisor.addDevice(volume, fsDev)
