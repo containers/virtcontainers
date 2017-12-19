@@ -461,6 +461,8 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		Process: process,
 	}
 
+	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
+
 	if c.state.Fstype != "" {
 		driveName, err := getVirtDriveName(c.state.BlockIndex)
 		if err != nil {
