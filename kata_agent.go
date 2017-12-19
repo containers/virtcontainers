@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
@@ -45,6 +47,7 @@ var (
 	mountGuest9pTag             = "kataShared"
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
+	vsockSocketScheme           = "vsock"
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -52,36 +55,71 @@ var (
 type KataAgentConfig struct {
 	GRPCSocket string
 	Volumes    []Volume
-	SocketPath string
-	VMSocket   Socket
 }
 
-func (c *KataAgentConfig) validate(pod *Pod) bool {
-	if c.SocketPath == "" {
-		c.SocketPath = fmt.Sprintf(defaultKataSockPathTemplate, runStoragePath, pod.id)
-
-		c.VMSocket = Socket{
-			DeviceID: defaultKataDeviceID,
-			ID:       defaultKataID,
-			HostPath: c.SocketPath,
-			Name:     defaultKataChannel,
-		}
-	}
-
-	return true
+type kataVSOCK struct {
+	contextID uint32
+	port      uint32
 }
 
 type kataAgent struct {
 	config KataAgentConfig
 
-	client *kataclient.AgentClient
+	client   *kataclient.AgentClient
+	vmSocket interface{}
+}
+
+func parseVSOCKAddr(sock string) (uint32, uint32, error) {
+	sp := strings.Split(sock, ":")
+	if len(sp) != 3 {
+		return 0, 0, fmt.Errorf("Invalid vsock address: %s", sock)
+	}
+	if sp[0] != vsockSocketScheme {
+		return 0, 0, fmt.Errorf("Invalid vsock URL scheme: %s", sp[0])
+	}
+
+	cid, err := strconv.ParseUint(sp[1], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Invalid vsock cid: %s", sp[1])
+	}
+	port, err := strconv.ParseUint(sp[2], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Invalid vsock port: %s", sp[2])
+	}
+
+	return uint32(cid), uint32(port), nil
+}
+
+func (k *kataAgent) validateConfig(pod *Pod, c *KataAgentConfig) error {
+	if c.GRPCSocket == "" {
+		return fmt.Errorf("Empty gRPC socket path")
+	}
+
+	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
+	if err != nil {
+		// We need to generate a host UNIX socket path for the emulated serial port.
+		k.vmSocket = Socket{
+			DeviceID: defaultKataDeviceID,
+			ID:       defaultKataID,
+			HostPath: fmt.Sprintf(defaultKataSockPathTemplate, runStoragePath, pod.id),
+			Name:     defaultKataChannel,
+		}
+	} else {
+		// We want to go through VSOCK. The VM VSOCK endpoint will be our gRPC.
+		k.vmSocket = kataVSOCK{
+			contextID: cid,
+			port:      port,
+		}
+	}
+
+	return nil
 }
 
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if c.validate(pod) == false {
-			return fmt.Errorf("Invalid Kata agent configuration: %v", c)
+		if err := k.validateConfig(pod, &c); err != nil {
+			return err
 		}
 		k.config = c
 	default:
@@ -121,11 +159,16 @@ func (k *kataAgent) createPod(pod *Pod) error {
 		}
 	}
 
-	// TODO Look at the grpc scheme to understand if we want
-	// a serial or a vsock socket.
-	err := pod.hypervisor.addDevice(k.config.VMSocket, serialPortDev)
-	if err != nil {
-		return err
+	switch s := k.vmSocket.(type) {
+	case Socket:
+		err := pod.hypervisor.addDevice(s, serialPortDev)
+		if err != nil {
+			return err
+		}
+	case kataVSOCK:
+		// TODO Add an hypervisor vsock
+	default:
+		return fmt.Errorf("Invalid config type")
 	}
 
 	// Adding the shared volume.
