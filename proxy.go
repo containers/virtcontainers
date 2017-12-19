@@ -27,6 +27,9 @@ import (
 type ProxyType string
 
 const (
+	// NoProxyType is the noProxy.
+	NoProxyType ProxyType = "noProxy"
+
 	// CCProxyType is the ccProxy.
 	CCProxyType ProxyType = "ccProxy"
 
@@ -44,6 +47,9 @@ func (pType *ProxyType) Set(value string) error {
 	case "noopProxy":
 		*pType = NoopProxyType
 		return nil
+	case "noProxy":
+		*pType = NoProxyType
+		return nil
 	case "ccProxy":
 		*pType = CCProxyType
 		return nil
@@ -57,6 +63,8 @@ func (pType *ProxyType) String() string {
 	switch *pType {
 	case NoopProxyType:
 		return string(NoopProxyType)
+	case NoProxyType:
+		return string(NoProxyType)
 	case CCProxyType:
 		return string(CCProxyType)
 	default:
@@ -69,6 +77,8 @@ func newProxy(pType ProxyType) (proxy, error) {
 	switch pType {
 	case NoopProxyType:
 		return &noopProxy{}, nil
+	case NoProxyType:
+		return &noProxy{}, nil
 	case CCProxyType:
 		return &ccProxy{}, nil
 	default:
@@ -80,6 +90,8 @@ func newProxy(pType ProxyType) (proxy, error) {
 func newProxyConfig(config PodConfig) interface{} {
 	switch config.ProxyType {
 	case NoopProxyType:
+		return nil
+	case NoProxyType:
 		return nil
 	case CCProxyType:
 		var ccConfig CCProxyConfig

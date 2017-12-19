@@ -42,6 +42,10 @@ func TestSetNoopProxyType(t *testing.T) {
 	testSetProxyType(t, "noopProxy", NoopProxyType)
 }
 
+func TestSetNoProxyType(t *testing.T) {
+	testSetProxyType(t, "noProxy", NoProxyType)
+}
+
 func TestSetUnknownProxyType(t *testing.T) {
 	var proxyType ProxyType
 
@@ -52,7 +56,9 @@ func TestSetUnknownProxyType(t *testing.T) {
 		t.Fatalf("Should fail because %s type used", unknownType)
 	}
 
-	if proxyType == CCProxyType || proxyType == NoopProxyType {
+	if proxyType == CCProxyType ||
+		proxyType == NoopProxyType ||
+		proxyType == NoProxyType {
 		t.Fatalf("%s proxy type was not expected", proxyType)
 	}
 }
@@ -67,6 +73,11 @@ func testStringFromProxyType(t *testing.T, proxyType ProxyType, expected string)
 func TestStringFromCCProxyType(t *testing.T) {
 	proxyType := CCProxyType
 	testStringFromProxyType(t, proxyType, "ccProxy")
+}
+
+func TestStringFromNoProxyType(t *testing.T) {
+	proxyType := NoProxyType
+	testStringFromProxyType(t, proxyType, "noProxy")
 }
 
 func TestStringFromNoopProxyType(t *testing.T) {
@@ -93,6 +104,12 @@ func testNewProxyFromProxyType(t *testing.T, proxyType ProxyType, expected proxy
 func TestNewProxyFromCCProxyType(t *testing.T) {
 	proxyType := CCProxyType
 	expectedProxy := &ccProxy{}
+	testNewProxyFromProxyType(t, proxyType, expectedProxy)
+}
+
+func TestNewProxyFromNoProxyType(t *testing.T) {
+	proxyType := NoProxyType
+	expectedProxy := &noProxy{}
 	testNewProxyFromProxyType(t, proxyType, expectedProxy)
 }
 
@@ -128,6 +145,14 @@ func TestNewProxyConfigFromCCProxyPodConfig(t *testing.T) {
 	}
 
 	testNewProxyConfigFromPodConfig(t, podConfig, proxyConfig)
+}
+
+func TestNewProxyConfigFromNoProxyPodConfig(t *testing.T) {
+	podConfig := PodConfig{
+		ProxyType: NoProxyType,
+	}
+
+	testNewProxyConfigFromPodConfig(t, podConfig, nil)
 }
 
 func TestNewProxyConfigFromNoopProxyPodConfig(t *testing.T) {
