@@ -321,17 +321,16 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	return podConfig, nil
 }
 
-func getProxyConfig(proxyType vc.ProxyType, path string) interface{} {
-	var proxyConfig interface{}
+func getProxyConfig(proxyType vc.ProxyType, path string) vc.ProxyConfig {
+	var proxyConfig vc.ProxyConfig
 
 	switch proxyType {
+	case vc.KataProxyType:
+		fallthrough
 	case vc.CCProxyType:
-		proxyConfig = vc.CCProxyConfig{
+		proxyConfig = vc.ProxyConfig{
 			Path: path,
 		}
-
-	default:
-		proxyConfig = nil
 	}
 
 	return proxyConfig
