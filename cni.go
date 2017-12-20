@@ -70,7 +70,7 @@ func convertCNIResult(cniResult cniTypes.Result) (NetworkInfo, error) {
 	}
 }
 
-func (n *cni) invokePlugins(pod Pod, networkNS *NetworkNamespace) (*NetworkInfo, error) {
+func (n *cni) invokePluginsAdd(pod Pod, networkNS *NetworkNamespace) (*NetworkInfo, error) {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (n *cni) invokePlugins(pod Pod, networkNS *NetworkNamespace) (*NetworkInfo,
 	return &netInfo, nil
 }
 
-func (n *cni) deleteInterfaces(pod Pod, networkNS NetworkNamespace) error {
+func (n *cni) invokePluginsDelete(pod Pod, networkNS NetworkNamespace) error {
 	netPlugin, err := cniPlugin.NewNetworkPlugin()
 	if err != nil {
 		return err
@@ -148,7 +148,7 @@ func (n *cni) add(pod Pod, config NetworkConfig, netNsPath string, netNsCreated 
 		NetNsCreated: netNsCreated,
 	}
 
-	netInfo, err := n.invokePlugins(pod, &networkNS)
+	netInfo, err := n.invokePluginsAdd(pod, &networkNS)
 	if err != nil {
 		return NetworkNamespace{}, err
 	}
@@ -171,7 +171,7 @@ func (n *cni) remove(pod Pod, networkNS NetworkNamespace) error {
 		return err
 	}
 
-	if err := n.deleteInterfaces(pod, networkNS); err != nil {
+	if err := n.invokePluginsDelete(pod, networkNS); err != nil {
 		return err
 	}
 
