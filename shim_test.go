@@ -44,6 +44,10 @@ func TestSetCCShimType(t *testing.T) {
 	testSetShimType(t, "ccShim", CCShimType)
 }
 
+func TestSetKataShimType(t *testing.T) {
+	testSetShimType(t, "kataShim", KataShimType)
+}
+
 func TestSetNoopShimType(t *testing.T) {
 	testSetShimType(t, "noopShim", NoopShimType)
 }
@@ -75,6 +79,11 @@ func TestStringFromCCShimType(t *testing.T) {
 	testStringFromShimType(t, shimType, "ccShim")
 }
 
+func TestStringFromKataShimType(t *testing.T) {
+	shimType := KataShimType
+	testStringFromShimType(t, shimType, "kataShim")
+}
+
 func TestStringFromNoopShimType(t *testing.T) {
 	shimType := NoopShimType
 	testStringFromShimType(t, shimType, "noopShim")
@@ -99,6 +108,12 @@ func testNewShimFromShimType(t *testing.T, shimType ShimType, expected shim) {
 func TestNewShimFromCCShimType(t *testing.T) {
 	shimType := CCShimType
 	expectedShim := &ccShim{}
+	testNewShimFromShimType(t, shimType, expectedShim)
+}
+
+func TestNewShimFromKataShimType(t *testing.T) {
+	shimType := KataShimType
+	expectedShim := &kataShim{}
 	testNewShimFromShimType(t, shimType, expectedShim)
 }
 
@@ -130,6 +145,17 @@ func TestNewShimConfigFromCCShimPodConfig(t *testing.T) {
 
 	podConfig := PodConfig{
 		ShimType:   CCShimType,
+		ShimConfig: shimConfig,
+	}
+
+	testNewShimConfigFromPodConfig(t, podConfig, shimConfig)
+}
+
+func TestNewShimConfigFromKataShimPodConfig(t *testing.T) {
+	shimConfig := KataShimConfig{}
+
+	podConfig := PodConfig{
+		ShimType:   KataShimType,
 		ShimConfig: shimConfig,
 	}
 

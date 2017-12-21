@@ -35,6 +35,9 @@ const (
 
 	// NoopShimType is the noopShim.
 	NoopShimType ShimType = "noopShim"
+
+	// KataShimType is the Kata Containers shim type.
+	KataShimType ShimType = "kataShim"
 )
 
 var waitForShimTimeout = 5.0
@@ -59,6 +62,9 @@ func (pType *ShimType) Set(value string) error {
 	case "ccShim":
 		*pType = CCShimType
 		return nil
+	case "kataShim":
+		*pType = KataShimType
+		return nil
 	default:
 		return fmt.Errorf("Unknown shim type %s", value)
 	}
@@ -71,6 +77,8 @@ func (pType *ShimType) String() string {
 		return string(NoopShimType)
 	case CCShimType:
 		return string(CCShimType)
+	case KataShimType:
+		return string(KataShimType)
 	default:
 		return ""
 	}
@@ -83,6 +91,8 @@ func newShim(pType ShimType) (shim, error) {
 		return &noopShim{}, nil
 	case CCShimType:
 		return &ccShim{}, nil
+	case KataShimType:
+		return &kataShim{}, nil
 	default:
 		return &noopShim{}, nil
 	}
@@ -100,6 +110,13 @@ func newShimConfig(config PodConfig) interface{} {
 			return err
 		}
 		return ccConfig
+	case KataShimType:
+		var kataConfig KataShimConfig
+		err := mapstructure.Decode(config.ShimConfig, &kataConfig)
+		if err != nil {
+			return err
+		}
+		return kataConfig
 	default:
 		return nil
 	}
