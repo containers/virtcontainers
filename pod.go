@@ -824,9 +824,11 @@ func (p *Pod) startShims() error {
 
 	shimCount := 0
 	for idx := range p.containers {
+		p.containers[idx].process = newInitProcess(proxyInfos[idx].Token, p.containers[idx].id)
+
 		shimParams := ShimParams{
 			Container: p.containers[idx].id,
-			Token:     proxyInfos[idx].Token,
+			Token:     p.containers[idx].process.Token,
 			URL:       url,
 			Console:   p.containers[idx].config.Cmd.Console,
 			Detach:    p.containers[idx].config.Cmd.Detach,
@@ -839,9 +841,7 @@ func (p *Pod) startShims() error {
 
 		shimCount++
 
-		p.containers[idx].process = newProcess(proxyInfos[idx].Token, pid)
-
-		if err := p.containers[idx].storeProcess(); err != nil {
+		if err := p.containers[idx].SetPid(pid); err != nil {
 			return err
 		}
 	}
