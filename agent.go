@@ -46,9 +46,6 @@ const (
 	// NoopAgentType is the No-Op agent.
 	NoopAgentType AgentType = "noop"
 
-	// SSHdAgent is the SSH daemon agent.
-	SSHdAgent AgentType = "sshd"
-
 	// HyperstartAgent is the Hyper hyperstart agent.
 	HyperstartAgent AgentType = "hyperstart"
 )
@@ -58,9 +55,6 @@ func (agentType *AgentType) Set(value string) error {
 	switch value {
 	case "noop":
 		*agentType = NoopAgentType
-		return nil
-	case "sshd":
-		*agentType = SSHdAgent
 		return nil
 	case "hyperstart":
 		*agentType = HyperstartAgent
@@ -75,8 +69,6 @@ func (agentType *AgentType) String() string {
 	switch *agentType {
 	case NoopAgentType:
 		return string(NoopAgentType)
-	case SSHdAgent:
-		return string(SSHdAgent)
 	case HyperstartAgent:
 		return string(HyperstartAgent)
 	default:
@@ -89,8 +81,6 @@ func newAgent(agentType AgentType) agent {
 	switch agentType {
 	case NoopAgentType:
 		return &noopAgent{}
-	case SSHdAgent:
-		return &sshd{}
 	case HyperstartAgent:
 		return &hyper{}
 	default:
@@ -103,13 +93,6 @@ func newAgentConfig(config PodConfig) interface{} {
 	switch config.AgentType {
 	case NoopAgentType:
 		return nil
-	case SSHdAgent:
-		var sshdConfig SshdConfig
-		err := mapstructure.Decode(config.AgentConfig, &sshdConfig)
-		if err != nil {
-			return err
-		}
-		return sshdConfig
 	case HyperstartAgent:
 		var hyperConfig HyperConfig
 		err := mapstructure.Decode(config.AgentConfig, &hyperConfig)

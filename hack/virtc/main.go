@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"strings"
 	"text/tabwriter"
 
@@ -53,12 +52,6 @@ var podConfigFlags = []cli.Flag{
 		Name:  "id",
 		Value: "",
 		Usage: "the pod identifier (default: auto-generated)",
-	},
-
-	cli.GenericFlag{
-		Name:  "spawner",
-		Value: new(vc.SpawnerType),
-		Usage: "the guest spawner",
 	},
 
 	cli.StringFlag{
@@ -95,30 +88,6 @@ var podConfigFlags = []cli.Flag{
 		Name:  "shim-path",
 		Value: "",
 		Usage: "the shim binary path",
-	},
-
-	cli.StringFlag{
-		Name:  "sshd-user",
-		Value: "",
-		Usage: "the sshd user",
-	},
-
-	cli.StringFlag{
-		Name:  "sshd-auth-file",
-		Value: "",
-		Usage: "the sshd private key path",
-	},
-
-	cli.StringFlag{
-		Name:  "sshd-server",
-		Value: "",
-		Usage: "the sshd server",
-	},
-
-	cli.StringFlag{
-		Name:  "sshd-port",
-		Value: "",
-		Usage: "the sshd server port",
 	},
 
 	cli.StringFlag{
@@ -190,10 +159,6 @@ func buildKernelParams(config *vc.HypervisorConfig) error {
 func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	var agConfig interface{}
 
-	sshdUser := context.String("sshd-user")
-	sshdServer := context.String("sshd-server")
-	sshdPort := context.String("sshd-port")
-	sshdKey := context.String("sshd-auth-file")
 	hyperCtlSockName := context.String("hyper-ctl-sock-name")
 	hyperTtySockName := context.String("hyper-tty-sock-name")
 	proxyPath := context.String("proxy-path")
@@ -204,11 +169,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
 	if ok != true {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert agent type")
-	}
-
-	spawnerType, ok := context.Generic("spawner").(*vc.SpawnerType)
-	if ok != true {
-		return vc.PodConfig{}, fmt.Errorf("Could not convert spawner type")
 	}
 
 	networkModel, ok := context.Generic("network").(*vc.NetworkModel)
@@ -236,11 +196,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert to socket list")
 	}
 
-	u, _ := user.Current()
-	if sshdUser == "" {
-		sshdUser = u.Username
-	}
-
 	kernelPath := "/usr/share/clear-containers/vmlinuz.container"
 	if machineType == vc.QemuPCLite {
 		kernelPath = "/usr/share/clear-containers/vmlinux.container"
@@ -261,15 +216,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	}
 
 	switch *agentType {
-	case vc.SSHdAgent:
-		agConfig = vc.SshdConfig{
-			Username:    sshdUser,
-			PrivKeyFile: sshdKey,
-			Server:      sshdServer,
-			Port:        sshdPort,
-			Protocol:    "tcp",
-			Spawner:     *spawnerType,
-		}
 	case vc.HyperstartAgent:
 		agConfig = vc.HyperConfig{
 			SockCtlName: hyperCtlSockName,
