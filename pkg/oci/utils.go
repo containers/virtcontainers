@@ -487,14 +487,15 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	ociLog.Debugf("container rootfs: %s", rootfs)
 
 	cmd := vc.Cmd{
-		Args:         ocispec.Process.Args,
-		Envs:         cmdEnvs(ocispec, []vc.EnvVar{}),
-		WorkDir:      ocispec.Process.Cwd,
-		User:         strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
-		PrimaryGroup: strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
-		Interactive:  ocispec.Process.Terminal,
-		Console:      console,
-		Detach:       detach,
+		Args:            ocispec.Process.Args,
+		Envs:            cmdEnvs(ocispec, []vc.EnvVar{}),
+		WorkDir:         ocispec.Process.Cwd,
+		User:            strconv.FormatUint(uint64(ocispec.Process.User.UID), 10),
+		PrimaryGroup:    strconv.FormatUint(uint64(ocispec.Process.User.GID), 10),
+		Interactive:     ocispec.Process.Terminal,
+		Console:         console,
+		Detach:          detach,
+		NoNewPrivileges: ocispec.Process.NoNewPrivileges,
 	}
 
 	cmd.SupplementaryGroups = []string{}

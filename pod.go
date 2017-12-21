@@ -268,9 +268,10 @@ type Cmd struct {
 	PrimaryGroup        string
 	SupplementaryGroups []string
 
-	Interactive bool
-	Console     string
-	Detach      bool
+	Interactive     bool
+	Console         string
+	Detach          bool
+	NoNewPrivileges bool
 }
 
 // Resources describes VM resources configuration.

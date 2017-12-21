@@ -122,6 +122,7 @@ func (h *hyper) buildHyperContainerProcess(cmd Cmd) (*hyperstart.Process, error)
 		User:             cmd.User,
 		Group:            cmd.PrimaryGroup,
 		AdditionalGroups: cmd.SupplementaryGroups,
+		NoNewPrivileges:  cmd.NoNewPrivileges,
 	}
 
 	return process, nil

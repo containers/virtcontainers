@@ -93,6 +93,7 @@ func TestMinimalPodConfig(t *testing.T) {
 		SupplementaryGroups: []string{"10", "29"},
 		Interactive:         true,
 		Console:             consolePath,
+		NoNewPrivileges:     true,
 	}
 
 	expectedMounts := []vc.Mount{
