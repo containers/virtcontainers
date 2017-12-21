@@ -47,6 +47,7 @@ type ShimParams struct {
 	URL       string
 	Console   string
 	Detach    bool
+	PID       int
 }
 
 // Set sets a shim type based on the input string.

@@ -18,7 +18,7 @@
 set -e
 
 test_packages=$(go list ./... | grep -v vendor)
-test_ldflags="-X github.com/containers/virtcontainers/pkg/mock.DefaultMockCCShimBinPath=$1 \
+test_ldflags="-X github.com/containers/virtcontainers/pkg/mock.DefaultMockShimBinPath=$1 \
 		-X github.com/containers/virtcontainers/pkg/mock.DefaultMockHookBinPath=$2"
 echo "Run go test and generate coverage:"
 for pkg in $test_packages; do

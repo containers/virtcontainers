@@ -16,8 +16,8 @@
 
 package mock
 
-// DefaultMockCCShimBinPath is populated at link time.
-var DefaultMockCCShimBinPath string
+// DefaultMockShimBinPath is populated at link time.
+var DefaultMockShimBinPath string
 
 // DefaultMockHookBinPath is populated at link time.
 var DefaultMockHookBinPath string
