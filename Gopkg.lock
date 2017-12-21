@@ -30,7 +30,7 @@
 [[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "064ffdb2b27a49feea45eea8db1a6738f5dc4e09"
+  revision = "9250e77eda726cbc468985582ce6de932c868bec"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "08587dd11560c8b455a1a84351761327aeb6195999805d76057a4a816d0f6536"
+  inputs-digest = "004e4ccd38201404ca6a06b2379762df4d3b0cfc9311e402e0588b80b2b1a727"
   solver-name = "gps-cdcl"
   solver-version = 1
