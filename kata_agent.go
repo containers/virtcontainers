@@ -53,8 +53,7 @@ var (
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
-	GRPCSocket string
-	Volumes    []Volume
+	Volumes []Volume
 }
 
 type kataVSOCK struct {
@@ -62,11 +61,16 @@ type kataVSOCK struct {
 	port      uint32
 }
 
+func (s *kataVSOCK) String() string {
+	return fmt.Sprintf("%s://%d:%d", vsockSocketScheme, s.contextID, s.port)
+}
+
 type kataAgent struct {
 	config KataAgentConfig
 
-	client   *kataclient.AgentClient
-	vmSocket interface{}
+	client     *kataclient.AgentClient
+	gRPCSocket string
+	vmSocket   interface{}
 }
 
 func parseVSOCKAddr(sock string) (uint32, uint32, error) {
@@ -90,12 +94,12 @@ func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	return uint32(cid), uint32(port), nil
 }
 
-func (k *kataAgent) validateConfig(pod *Pod, c *KataAgentConfig) error {
-	if c.GRPCSocket == "" {
+func (k *kataAgent) validate(pod *Pod) error {
+	if k.gRPCSocket == "" {
 		return fmt.Errorf("Empty gRPC socket path")
 	}
 
-	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
+	cid, port, err := parseVSOCKAddr(k.gRPCSocket)
 	if err != nil {
 		// We need to generate a host UNIX socket path for the emulated serial port.
 		k.vmSocket = Socket{
@@ -118,7 +122,7 @@ func (k *kataAgent) validateConfig(pod *Pod, c *KataAgentConfig) error {
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if err := k.validateConfig(pod, &c); err != nil {
+		if err := k.validate(pod); err != nil {
 			return err
 		}
 		k.config = c
@@ -129,7 +133,7 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
 
-	client, err := kataclient.NewAgentClient(k.config.GRPCSocket)
+	client, err := kataclient.NewAgentClient(k.gRPCSocket)
 	if err != nil {
 		return err
 	}
@@ -140,10 +144,19 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 }
 
 func (k *kataAgent) vmURL() (string, error) {
-	return "", nil
+	switch s := k.vmSocket.(type) {
+	case Socket:
+		return s.HostPath, nil
+	case kataVSOCK:
+		return s.String(), nil
+	default:
+		return "", fmt.Errorf("Invalid socket type")
+	}
 }
 
 func (k *kataAgent) setProxyURL(url string) error {
+	k.gRPCSocket = url
+
 	return nil
 }
 
