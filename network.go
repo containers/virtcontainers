@@ -1137,22 +1137,6 @@ func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, err
 	return endpoint, nil
 }
 
-func createNetworkEndpoints(numOfEndpoints int) (endpoints []Endpoint, err error) {
-	if numOfEndpoints < 1 {
-		return endpoints, fmt.Errorf("Invalid number of network endpoints")
-	}
-
-	for i := 0; i < numOfEndpoints; i++ {
-		endpoint, err := createVirtualNetworkEndpoint(i, "")
-		if err != nil {
-			return nil, err
-		}
-		endpoints = append(endpoints, endpoint)
-	}
-
-	return endpoints, nil
-}
-
 func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo, error) {
 	addrs, err := handle.AddrList(link, netlink.FAMILY_ALL)
 	if err != nil {

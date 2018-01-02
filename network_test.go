@@ -306,29 +306,6 @@ func TestCreateVirtualNetworkEndpointInvalidArgs(t *testing.T) {
 	}
 }
 
-func TestCreateNetworkEndpoints(t *testing.T) {
-	numOfEndpoints := 3
-
-	endpoints, err := createNetworkEndpoints(numOfEndpoints)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(endpoints) != numOfEndpoints {
-		t.Fatal()
-	}
-}
-
-func TestCreateNetworkEndpointsFailure(t *testing.T) {
-	numOfEndpoints := 0
-
-	_, err := createNetworkEndpoints(numOfEndpoints)
-	if err == nil {
-		t.Fatalf("Should fail because %d endpoints is invalid",
-			numOfEndpoints)
-	}
-}
-
 func TestIsPhysicalIface(t *testing.T) {
 	testNetIface := "testIface0"
 	testMTU := 1500
