@@ -117,8 +117,9 @@ type NetworkInterfacePair struct {
 
 // NetworkConfig is the network configuration related to a network.
 type NetworkConfig struct {
-	NetNSPath     string
-	NumInterfaces int
+	NetNSPath         string
+	NumInterfaces     int
+	InterworkingModel NetInterworkingModel
 }
 
 // Endpoint represents a physical or virtual network interface.
@@ -1103,7 +1104,7 @@ func deleteNetNS(netNSPath string, mounted bool) error {
 	return nil
 }
 
-func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, error) {
+func createVirtualNetworkEndpoint(idx int, ifName string, interworkingModel NetInterworkingModel) (*VirtualEndpoint, error) {
 	if idx < 0 {
 		return &VirtualEndpoint{}, fmt.Errorf("invalid network endpoint index: %d", idx)
 	}
@@ -1126,6 +1127,7 @@ func createVirtualNetworkEndpoint(idx int, ifName string) (*VirtualEndpoint, err
 			TAPIface: NetworkInterface{
 				Name: fmt.Sprintf("tap%d", idx),
 			},
+			NetInterworkingModel: interworkingModel,
 		},
 		EndpointType: VirtualEndpointType,
 	}
@@ -1158,7 +1160,7 @@ func networkInfoFromLink(handle *netlink.Handle, link netlink.Link) (NetworkInfo
 	}, nil
 }
 
-func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
+func createEndpointsFromScan(networkNSPath string, config NetworkConfig) ([]Endpoint, error) {
 	var endpoints []Endpoint
 
 	netnsHandle, err := netns.GetFromPath(networkNSPath)
@@ -1228,7 +1230,7 @@ func createEndpointsFromScan(networkNSPath string) ([]Endpoint, error) {
 					cnmLogger().WithField("interface", netInfo.Iface.Name).Info("VhostUser network interface found")
 					endpoint, err = createVhostUserEndpoint(netInfo, socketPath)
 				} else {
-					endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name)
+					endpoint, err = createVirtualNetworkEndpoint(idx, netInfo.Iface.Name, config.InterworkingModel)
 				}
 			}
 
