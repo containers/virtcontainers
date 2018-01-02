@@ -43,11 +43,14 @@ import (
 type NetInterworkingModel int
 
 const (
+	// ModelDefault Ask to use DefaultNetInterworkingModel
+	ModelDefault NetInterworkingModel = iota
+
 	// ModelBridged uses a linux bridge to interconnect
 	// the container interface to the VM. This is the
 	// safe default that works for most cases except
 	// macvlan and ipvlan
-	ModelBridged NetInterworkingModel = iota
+	ModelBridged
 
 	// ModelMacVtap can be used when the Container network
 	// interface can be bridged using macvtap
@@ -58,7 +61,43 @@ const (
 	// when requested by the runtime
 	// This will be used for vethtap, macvtap, ipvtap
 	ModelEnlightened
+
+	// InvalidNetInterworkingModel is the last item to check valid values by IsValid()
+	InvalidNetInterworkingModel
 )
+
+//IsValid checks if a model is valid
+func (n NetInterworkingModel) IsValid() bool {
+	return 0 <= int(n) && int(n) < int(InvalidNetInterworkingModel)
+}
+
+var interworkingModelStringMap = map[NetInterworkingModel]string{
+	ModelDefault:     "default",
+	ModelBridged:     "bridged",
+	ModelMacVtap:     "macvtap",
+	ModelEnlightened: "enlightened",
+}
+
+func (n NetInterworkingModel) String() string {
+	if val, ok := interworkingModelStringMap[n]; ok {
+		return val
+	}
+	return fmt.Sprintf("Unknown type %d", int(n))
+}
+
+//SetModel change the model string value
+func (n *NetInterworkingModel) SetModel(modelName string) error {
+	if modelName == ModelDefault.String() {
+		modelName = DefaultNetInterworkingModel.String()
+	}
+	for model, name := range interworkingModelStringMap {
+		if name == modelName {
+			*n = model
+			return nil
+		}
+	}
+	return fmt.Errorf("Unknown type %s", modelName)
+}
 
 // DefaultNetInterworkingModel is a package level default
 // that determines how the VM should be connected to the
@@ -545,6 +584,10 @@ func newNetwork(networkType NetworkModel) network {
 }
 
 func initNetworkCommon(config NetworkConfig) (string, bool, error) {
+	if !config.InterworkingModel.IsValid() || config.InterworkingModel == ModelDefault {
+		config.InterworkingModel = DefaultNetInterworkingModel
+	}
+
 	if config.NetNSPath == "" {
 		path, err := createNetNS()
 		if err != nil {
@@ -675,6 +718,9 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 
 // The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
+	if netPair.NetInterworkingModel == ModelDefault {
+		netPair.NetInterworkingModel = DefaultNetInterworkingModel
+	}
 	switch netPair.NetInterworkingModel {
 	case ModelBridged:
 		netPair.NetInterworkingModel = ModelBridged
