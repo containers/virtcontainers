@@ -43,39 +43,39 @@ import (
 type NetInterworkingModel int
 
 const (
-	// ModelDefault Ask to use DefaultNetInterworkingModel
-	ModelDefault NetInterworkingModel = iota
+	// NetXConnectDefaultModel Ask to use DefaultNetInterworkingModel
+	NetXConnectDefaultModel NetInterworkingModel = iota
 
-	// ModelBridged uses a linux bridge to interconnect
+	// NetXConnectBridgedModel uses a linux bridge to interconnect
 	// the container interface to the VM. This is the
 	// safe default that works for most cases except
 	// macvlan and ipvlan
-	ModelBridged
+	NetXConnectBridgedModel
 
-	// ModelMacVtap can be used when the Container network
+	// NetXConnectMacVtapModel can be used when the Container network
 	// interface can be bridged using macvtap
-	ModelMacVtap
+	NetXConnectMacVtapModel
 
-	// ModelEnlightened can be used when the Network plugins
+	// NetXConnectEnlightenedModel can be used when the Network plugins
 	// are enlightened to create VM native interfaces
 	// when requested by the runtime
 	// This will be used for vethtap, macvtap, ipvtap
-	ModelEnlightened
+	NetXConnectEnlightenedModel
 
-	// InvalidNetInterworkingModel is the last item to check valid values by IsValid()
-	InvalidNetInterworkingModel
+	// NetXConnectInvalidModel is the last item to check valid values by IsValid()
+	NetXConnectInvalidModel
 )
 
 //IsValid checks if a model is valid
 func (n NetInterworkingModel) IsValid() bool {
-	return 0 <= int(n) && int(n) < int(InvalidNetInterworkingModel)
+	return 0 <= int(n) && int(n) < int(NetXConnectInvalidModel)
 }
 
 var interworkingModelStringMap = map[NetInterworkingModel]string{
-	ModelDefault:     "default",
-	ModelBridged:     "bridged",
-	ModelMacVtap:     "macvtap",
-	ModelEnlightened: "enlightened",
+	NetXConnectDefaultModel:     "default",
+	NetXConnectBridgedModel:     "bridged",
+	NetXConnectMacVtapModel:     "macvtap",
+	NetXConnectEnlightenedModel: "enlightened",
 }
 
 func (n NetInterworkingModel) String() string {
@@ -87,7 +87,7 @@ func (n NetInterworkingModel) String() string {
 
 //SetModel change the model string value
 func (n *NetInterworkingModel) SetModel(modelName string) error {
-	if modelName == ModelDefault.String() {
+	if modelName == NetXConnectDefaultModel.String() {
 		modelName = DefaultNetInterworkingModel.String()
 	}
 	for model, name := range interworkingModelStringMap {
@@ -102,7 +102,7 @@ func (n *NetInterworkingModel) SetModel(modelName string) error {
 // DefaultNetInterworkingModel is a package level default
 // that determines how the VM should be connected to the
 // the container network interface
-var DefaultNetInterworkingModel = ModelMacVtap
+var DefaultNetInterworkingModel = NetXConnectMacVtapModel
 
 // Introduces constants related to networking
 const (
@@ -584,7 +584,7 @@ func newNetwork(networkType NetworkModel) network {
 }
 
 func initNetworkCommon(config NetworkConfig) (string, bool, error) {
-	if !config.InterworkingModel.IsValid() || config.InterworkingModel == ModelDefault {
+	if !config.InterworkingModel.IsValid() || config.InterworkingModel == NetXConnectDefaultModel {
 		config.InterworkingModel = DefaultNetInterworkingModel
 	}
 
@@ -718,23 +718,23 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 
 // The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
-	if netPair.NetInterworkingModel == ModelDefault {
+	if netPair.NetInterworkingModel == NetXConnectDefaultModel {
 		netPair.NetInterworkingModel = DefaultNetInterworkingModel
 	}
 	switch netPair.NetInterworkingModel {
-	case ModelBridged:
-		netPair.NetInterworkingModel = ModelBridged
+	case NetXConnectBridgedModel:
+		netPair.NetInterworkingModel = NetXConnectBridgedModel
 		if connect {
 			return bridgeNetworkPair(netPair)
 		}
 		return unBridgeNetworkPair(*netPair)
-	case ModelMacVtap:
-		netPair.NetInterworkingModel = ModelMacVtap
+	case NetXConnectMacVtapModel:
+		netPair.NetInterworkingModel = NetXConnectMacVtapModel
 		if connect {
 			return tapNetworkPair(netPair)
 		}
 		return untapNetworkPair(*netPair)
-	case ModelEnlightened:
+	case NetXConnectEnlightenedModel:
 		return fmt.Errorf("Unsupported networking model")
 	default:
 		return fmt.Errorf("Invalid internetworking model: '%s'", netPair.NetInterworkingModel)
