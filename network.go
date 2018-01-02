@@ -675,7 +675,7 @@ func getLinkByName(netHandle *netlink.Handle, name string, expectedLink netlink.
 
 // The endpoint type should dictate how the connection needs to be made
 func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
-	switch DefaultNetInterworkingModel {
+	switch netPair.NetInterworkingModel {
 	case ModelBridged:
 		netPair.NetInterworkingModel = ModelBridged
 		if connect {
@@ -691,7 +691,7 @@ func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
 	case ModelEnlightened:
 		return fmt.Errorf("Unsupported networking model")
 	default:
-		return fmt.Errorf("Invalid networking model")
+		return fmt.Errorf("Invalid internetworking model: '%s'", netPair.NetInterworkingModel)
 	}
 }
 
