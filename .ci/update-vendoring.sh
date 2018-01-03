@@ -53,21 +53,30 @@ function apply_depends_on(){
 	popd
 }
 
-blacklist=".ci documentation hack hook pause shim test utils vendor"
-# Copy virtcontainers changes to the vendor directory of the repo
 function update_repo(){
-	repo="$1"
-	if [ ! -d "${GOPATH}/src/${repo}" ]; then
-		go get -d "$repo" || true
+	if [ "${AUTHOR_REPO_GIT_URL}" ] && [ "${COMMIT_REVISION}" ]
+	then
+		repo="$1"
+		if [ ! -d "${GOPATH}/src/${repo}" ]; then
+			go get -d "$repo" || true
+		fi
+
+		pushd "${GOPATH}/src/${repo}"
+
+		# Update Gopkg.toml
+		cat >> Gopkg.toml <<EOF
+
+[[override]]
+  name = "${virtcontainers_repo}"
+  source = "${AUTHOR_REPO_GIT_URL}"
+  revision = "${COMMIT_REVISION}"
+EOF
+
+		# Update the whole vendoring
+		dep ensure && dep ensure -update "${virtcontainers_repo}" && dep prune
+
+		popd
 	fi
-	vc_vendor_dir="${GOPATH}/src/${repo}/vendor/${virtcontainers_repo}"
-	rm -rf "${vc_vendor_dir}"
-	cp -r "${GOPATH}/src/${virtcontainers_repo}" "${vc_vendor_dir}"
-	pushd "${vc_vendor_dir}"
-	for item in $blacklist; do
-		rm -rf "$item"
-	done
-	popd
 }
 
 apply_depends_on
