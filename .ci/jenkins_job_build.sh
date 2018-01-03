@@ -37,6 +37,9 @@ cd "${GOPATH}/src/${vc_repo}"
 if [ "${ghprbPullId}" ] && [ "${ghprbTargetBranch}" ]
 then
 	git fetch origin "pull/${ghprbPullId}/head" && git checkout master && git reset --hard FETCH_HEAD && git rebase "origin/${ghprbTargetBranch}"
+
+	export AUTHOR_REPO_GIT_URL="${ghprbAuthorRepoGitUrl}"
+	export COMMIT_REVISION="${ghprbActualCommit}"
 else
 	git fetch origin && git checkout master && git reset --hard origin/master
 fi
