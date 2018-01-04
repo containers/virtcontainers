@@ -353,41 +353,37 @@ func (spec *CompatOCISpec) PodID() (string, error) {
 func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error) {
 	resources := config.VMConfig
 
-	if ocispec.Linux == nil ||
-		ocispec.Linux.Resources == nil ||
-		ocispec.Linux.Resources.Memory == nil ||
-		ocispec.Linux.Resources.Memory.Limit == nil {
+	if ocispec.Linux == nil || ocispec.Linux.Resources == nil {
 		return resources, nil
 	}
 
-	memBytes := *ocispec.Linux.Resources.Memory.Limit
-
-	if memBytes <= 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+	if ocispec.Linux.Resources.Memory != nil &&
+		ocispec.Linux.Resources.Memory.Limit != nil {
+		memBytes := *ocispec.Linux.Resources.Memory.Limit
+		if memBytes <= 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
+		}
+		// round up memory to 1MB
+		resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 	}
 
-	// round up memory to 1MB
-	resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
+	if ocispec.Linux.Resources.CPU != nil &&
+		ocispec.Linux.Resources.CPU.Quota != nil &&
+		ocispec.Linux.Resources.CPU.Period != nil {
+		quota := *ocispec.Linux.Resources.CPU.Quota
+		period := *ocispec.Linux.Resources.CPU.Period
 
-	if ocispec.Linux.Resources.CPU == nil ||
-		ocispec.Linux.Resources.CPU.Quota == nil ||
-		ocispec.Linux.Resources.CPU.Period == nil {
-		return resources, nil
+		if quota <= 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
+		}
+
+		if period == 0 {
+			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
+		}
+
+		// round up to 1 CPU
+		resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 	}
-
-	quota := *ocispec.Linux.Resources.CPU.Quota
-	period := *ocispec.Linux.Resources.CPU.Period
-
-	if quota <= 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu quota %d", quota)
-	}
-
-	if period == 0 {
-		return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
-	}
-
-	// round up to 1 CPU
-	resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 
 	return resources, nil
 }

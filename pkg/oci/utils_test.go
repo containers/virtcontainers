@@ -267,6 +267,38 @@ func TestVmConfig(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Got %v\n expecting error", resources)
 	}
+
+	// Test case when Memory is nil
+	ocispec.Spec.Linux.Resources.Memory = nil
+	expectedResources.Memory = config.VMConfig.Memory
+	quota = 50000
+	period = 20000
+	ocispec.Linux.Resources.CPU.Quota = &quota
+	ocispec.Linux.Resources.CPU.Period = &period
+	expectedResources.VCPUs = 3
+	resources, err = vmConfig(ocispec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(resources, expectedResources) == false {
+		t.Fatalf("Got %v\n expecting %v", resources, expectedResources)
+	}
+
+	// Test case when CPU is nil
+	ocispec.Spec.Linux.Resources.CPU = nil
+	expectedResources.VCPUs = config.VMConfig.VCPUs
+	limitBytes = 20
+	ocispec.Linux.Resources.Memory = &specs.LinuxMemory{Limit: &limitBytes}
+	expectedResources.Memory = 1
+	resources, err = vmConfig(ocispec, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(resources, expectedResources) == false {
+		t.Fatalf("Got %v\n expecting %v", resources, expectedResources)
+	}
 }
 
 func testStatusToOCIStateSuccessful(t *testing.T, cStatus vc.ContainerStatus, expected specs.State) {
