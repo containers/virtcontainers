@@ -496,11 +496,11 @@ func (c *Container) fetchState(cmd string) (State, error) {
 
 func (c *Container) getSystemMountInfo() {
 	// check if /dev needs to be bind mounted from host /dev
+	c.systemMountsInfo.BindMountDev = false
+
 	for _, m := range c.mounts {
 		if m.Source == "/dev" && m.Destination == "/dev" && m.Type == "bind" {
 			c.systemMountsInfo.BindMountDev = true
-		} else {
-			c.systemMountsInfo.BindMountDev = false
 		}
 	}
 
