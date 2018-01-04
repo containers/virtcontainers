@@ -289,25 +289,22 @@ func (q *qemu) appendBlockDevice(devices []govmmQemu.Device, drive Drive) []govm
 
 func (q *qemu) appendVhostUserDevice(devices []govmmQemu.Device, vhostUserDevice VhostUserDevice) []govmmQemu.Device {
 
-	typeDev := ""
-	switch vhostUserDevice.VhostUserType {
-	case VhostUserNet:
-		typeDev = makeNameID("net", vhostUserDevice.ID)
-	case VhostUserSCSI:
-		typeDev = makeNameID("scsi", vhostUserDevice.ID)
-	case VhostUserBlk:
-		typeDev = "" //vhost-user-blk-pci doesn't include a device ID
+	qemuVhostUserDevice := govmmQemu.VhostUserDevice{}
+
+	switch vhostUserDevice := vhostUserDevice.(type) {
+	case *VhostUserNetDevice:
+		qemuVhostUserDevice.TypeDevID = makeNameID("net", vhostUserDevice.ID)
+		qemuVhostUserDevice.Address = vhostUserDevice.MacAddress
+	case *VhostUserSCSIDevice:
+		qemuVhostUserDevice.TypeDevID = makeNameID("scsi", vhostUserDevice.ID)
+	case *VhostUserBlkDevice:
 	}
 
-	devices = append(devices,
-		govmmQemu.VhostUserDevice{
-			SocketPath:    vhostUserDevice.SocketPath,
-			CharDevID:     makeNameID("char", vhostUserDevice.ID),
-			TypeDevID:     typeDev,
-			Address:       vhostUserDevice.HardAddr,
-			VhostUserType: govmmQemu.VhostUserDeviceType(vhostUserDevice.VhostUserType),
-		},
-	)
+	qemuVhostUserDevice.VhostUserType = govmmQemu.VhostUserDeviceType(vhostUserDevice.Type())
+	qemuVhostUserDevice.SocketPath = vhostUserDevice.Attrs().SocketPath
+	qemuVhostUserDevice.CharDevID = makeNameID("char", vhostUserDevice.Attrs().ID)
+
+	devices = append(devices, qemuVhostUserDevice)
 
 	return devices
 }
@@ -1035,8 +1032,14 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 		drive := devInfo.(Drive)
 		q.qemuConfig.Devices = q.appendBlockDevice(q.qemuConfig.Devices, drive)
 	case vhostuserDev:
-		vhostuserDev := devInfo.(VhostUserDevice)
-		q.qemuConfig.Devices = q.appendVhostUserDevice(q.qemuConfig.Devices, vhostuserDev)
+		switch vhostUserDev := devInfo.(type) {
+		case VhostUserNetDevice:
+			q.qemuConfig.Devices = q.appendVhostUserDevice(q.qemuConfig.Devices, &vhostUserDev)
+		case VhostUserSCSIDevice:
+			q.qemuConfig.Devices = q.appendVhostUserDevice(q.qemuConfig.Devices, &vhostUserDev)
+		case VhostUserBlkDevice:
+			q.qemuConfig.Devices = q.appendVhostUserDevice(q.qemuConfig.Devices, &vhostUserDev)
+		}
 	case vfioDev:
 		vfDevice := devInfo.(VFIODevice)
 		q.qemuConfig.Devices = q.appendVFIODevice(q.qemuConfig.Devices, vfDevice)
