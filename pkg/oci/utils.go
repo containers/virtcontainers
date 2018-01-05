@@ -294,7 +294,9 @@ func containerCapabilities(s CompatOCISpec) (vc.LinuxCapabilities, error) {
 			Ambient:     list,
 			Permitted:   list,
 		}
-
+	case nil:
+		ociLog.Debug("Empty capabilities have been passed")
+		return c, nil
 	default:
 		return c, fmt.Errorf("Unexpected format for capabilities: %v", caps)
 	}
