@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 	"time"
 
@@ -41,6 +42,7 @@ const (
 )
 
 var waitForShimTimeout = 5.0
+var consoleFileMode = os.FileMode(0660)
 
 // ShimParams is the structure providing specific parameters needed
 // for the execution of the shim binary.
@@ -138,6 +140,49 @@ func stopShim(pid int) error {
 	}
 
 	return nil
+}
+
+func startShim(args []string, params ShimParams) (int, error) {
+	cmd := exec.Command(args[0], args[1:]...)
+
+	if !params.Detach {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	var f *os.File
+	var err error
+	if params.Console != "" {
+		f, err = os.OpenFile(params.Console, os.O_RDWR, consoleFileMode)
+		if err != nil {
+			return -1, err
+		}
+
+		cmd.Stdin = f
+		cmd.Stdout = f
+		cmd.Stderr = f
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			// Create Session
+			Setsid: true,
+
+			// Set Controlling terminal to Ctty
+			Setctty: true,
+			Ctty:    int(f.Fd()),
+		}
+
+	}
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+
+	if err := cmd.Start(); err != nil {
+		return -1, err
+	}
+
+	return cmd.Process.Pid, nil
 }
 
 func isShimRunning(pid int) (bool, error) {
