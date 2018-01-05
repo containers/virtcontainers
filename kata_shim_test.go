@@ -32,15 +32,15 @@ import (
 // These tests don't care about the format of the container ID
 const testKataContainer = "testContainer"
 
-var testKataShimPath = "/usr/bin/virtcontainers/bin/test/shim"
+var testKataShimPath = "/usr/bin/virtcontainers/bin/test/kata-shim"
 var testKataShimProxyURL = "foo:///foo/kata-containers/proxy.sock"
 
 func getMockKataShimBinPath() string {
-	if DefaultMockShimBinPath == "" {
-		return testShimPath
+	if DefaultMockKataShimBinPath == "" {
+		return testKataShimPath
 	}
 
-	return DefaultMockShimBinPath
+	return DefaultMockKataShimBinPath
 }
 
 func testKataShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {

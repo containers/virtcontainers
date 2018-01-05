@@ -34,17 +34,17 @@ import (
 // These tests don't care about the format of the container ID
 const testContainer = "testContainer"
 
-var testShimPath = "/usr/bin/virtcontainers/bin/test/shim"
+var testCCShimPath = "/usr/bin/virtcontainers/bin/test/cc-shim"
 var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
 var testWrongConsolePath = "/foo/wrong-console"
 var testConsolePath = "tty-console"
 
 func getMockCCShimBinPath() string {
-	if DefaultMockShimBinPath == "" {
-		return testShimPath
+	if DefaultMockCCShimBinPath == "" {
+		return testCCShimPath
 	}
 
-	return DefaultMockShimBinPath
+	return DefaultMockCCShimBinPath
 }
 
 func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {

@@ -16,8 +16,20 @@
 
 package mock
 
-// DefaultMockShimBinPath is populated at link time.
-var DefaultMockShimBinPath string
+import (
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path/filepath"
+)
+
+// DefaultMockCCShimBinPath is populated at link time.
+var DefaultMockCCShimBinPath string
+
+// DefaultMockKataShimBinPath is populated at link time.
+var DefaultMockKataShimBinPath string
 
 // DefaultMockHookBinPath is populated at link time.
 var DefaultMockHookBinPath string
@@ -27,3 +39,73 @@ const ShimStdoutOutput = "Some output on stdout"
 
 // ShimStderrOutput is the expected output sent by the mock shim on stderr.
 const ShimStderrOutput = "Some output on stderr"
+
+// ShimMockConfig is the configuration structure for all virtcontainers shim mock implementations.
+type ShimMockConfig struct {
+	Name               string
+	URLParamName       string
+	ContainerParamName string
+	TokenParamName     string
+}
+
+// StartShim is a common routine for starting a shim mock.
+func StartShim(config ShimMockConfig) error {
+	logDirPath, err := ioutil.TempDir("", config.Name+"-")
+	if err != nil {
+		return err
+	}
+
+	logFilePath := filepath.Join(logDirPath, "mock_"+config.Name+".log")
+
+	f, err := os.Create(logFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	tokenFlag := flag.String(config.TokenParamName, "", "Container token")
+	urlFlag := flag.String(config.URLParamName, "", "Agent URL")
+	containerFlag := flag.String(config.ContainerParamName, "", "Container ID")
+
+	flag.Parse()
+
+	fmt.Fprintf(f, "INFO: Token = %s\n", *tokenFlag)
+	fmt.Fprintf(f, "INFO: URL = %s\n", *urlFlag)
+	fmt.Fprintf(f, "INFO: Container = %s\n", *containerFlag)
+
+	if *tokenFlag == "" {
+		err := fmt.Errorf("token should not be empty")
+		fmt.Fprintf(f, "%s\n", err)
+		return err
+	}
+
+	if *urlFlag == "" {
+		err := fmt.Errorf("url should not be empty")
+		fmt.Fprintf(f, "%s\n", err)
+		return err
+	}
+
+	if _, err := url.Parse(*urlFlag); err != nil {
+		err2 := fmt.Errorf("could not parse the URL %q: %s", *urlFlag, err)
+		fmt.Fprintf(f, "%s\n", err2)
+		return err2
+	}
+
+	if *containerFlag == "" {
+		err := fmt.Errorf("container should not be empty")
+		fmt.Fprintf(f, "%s\n", err)
+		return err
+	}
+
+	// Print some traces to stdout
+	fmt.Fprintf(os.Stdout, ShimStdoutOutput)
+	os.Stdout.Close()
+
+	// Print some traces to stderr
+	fmt.Fprintf(os.Stderr, ShimStderrOutput)
+	os.Stderr.Close()
+
+	fmt.Fprintf(f, "INFO: Shim exited properly\n")
+
+	return nil
+}
