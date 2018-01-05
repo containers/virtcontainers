@@ -22,13 +22,6 @@ import (
 
 type ccShim struct{}
 
-// CCShimConfig is the structure providing specific configuration
-// for ccShim implementation.
-type CCShimConfig struct {
-	Path  string
-	Debug bool
-}
-
 // start is the ccShim start implementation.
 // It starts the cc-shim binary with URL and token flags provided by
 // the proxy.
@@ -37,7 +30,7 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 		return -1, fmt.Errorf("Pod config cannot be nil")
 	}
 
-	config, ok := newShimConfig(*(pod.config)).(CCShimConfig)
+	config, ok := newShimConfig(*(pod.config)).(ShimConfig)
 	if !ok {
 		return -1, fmt.Errorf("Wrong shim config type, should be CCShimConfig type")
 	}

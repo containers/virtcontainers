@@ -55,6 +55,13 @@ type ShimParams struct {
 	PID       int
 }
 
+// ShimConfig is the structure providing specific configuration
+// for shim implementations.
+type ShimConfig struct {
+	Path  string
+	Debug bool
+}
+
 // Set sets a shim type based on the input string.
 func (pType *ShimType) Set(value string) error {
 	switch value {
@@ -105,20 +112,13 @@ func newShimConfig(config PodConfig) interface{} {
 	switch config.ShimType {
 	case NoopShimType:
 		return nil
-	case CCShimType:
-		var ccConfig CCShimConfig
-		err := mapstructure.Decode(config.ShimConfig, &ccConfig)
+	case CCShimType, KataShimType:
+		var shimConfig ShimConfig
+		err := mapstructure.Decode(config.ShimConfig, &shimConfig)
 		if err != nil {
 			return err
 		}
-		return ccConfig
-	case KataShimType:
-		var kataConfig KataShimConfig
-		err := mapstructure.Decode(config.ShimConfig, &kataConfig)
-		if err != nil {
-			return err
-		}
-		return kataConfig
+		return shimConfig
 	default:
 		return nil
 	}

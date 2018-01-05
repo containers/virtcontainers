@@ -141,7 +141,7 @@ func testNewShimConfigFromPodConfig(t *testing.T, podConfig PodConfig, expected 
 }
 
 func TestNewShimConfigFromCCShimPodConfig(t *testing.T) {
-	shimConfig := CCShimConfig{}
+	shimConfig := ShimConfig{}
 
 	podConfig := PodConfig{
 		ShimType:   CCShimType,
@@ -152,7 +152,7 @@ func TestNewShimConfigFromCCShimPodConfig(t *testing.T) {
 }
 
 func TestNewShimConfigFromKataShimPodConfig(t *testing.T) {
-	shimConfig := KataShimConfig{}
+	shimConfig := ShimConfig{}
 
 	podConfig := PodConfig{
 		ShimType:   KataShimType,

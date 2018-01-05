@@ -81,7 +81,7 @@ func TestKataShimStartShimPathEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType:   KataShimType,
-			ShimConfig: KataShimConfig{},
+			ShimConfig: ShimConfig{},
 		},
 	}
 
@@ -92,7 +92,7 @@ func TestKataShimStartShimTypeInvalid(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType:   "foo",
-			ShimConfig: KataShimConfig{},
+			ShimConfig: ShimConfig{},
 		},
 	}
 
@@ -103,7 +103,7 @@ func TestKataShimStartParamsTokenEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},
@@ -116,7 +116,7 @@ func TestKataShimStartParamsURLEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},
@@ -133,7 +133,7 @@ func TestKataShimStartParamsContainerEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},
@@ -159,7 +159,7 @@ func TestKataShimStartParamsInvalidCommand(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: cmd,
 			},
 		},
@@ -185,7 +185,7 @@ func startKataShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},
@@ -270,7 +270,7 @@ func TestKataShimStartWithConsoleNonExistingFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},
@@ -298,7 +298,7 @@ func TestKataShimStartWithConsoleSuccessful(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType: KataShimType,
-			ShimConfig: KataShimConfig{
+			ShimConfig: ShimConfig{
 				Path: getMockKataShimBinPath(),
 			},
 		},

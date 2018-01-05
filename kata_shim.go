@@ -37,7 +37,7 @@ func (s *kataShim) start(pod Pod, params ShimParams) (int, error) {
 		return -1, fmt.Errorf("Pod config cannot be nil")
 	}
 
-	config, ok := newShimConfig(*(pod.config)).(KataShimConfig)
+	config, ok := newShimConfig(*(pod.config)).(ShimConfig)
 	if !ok {
 		return -1, fmt.Errorf("Wrong shim config type, should be KataShimConfig type")
 	}
