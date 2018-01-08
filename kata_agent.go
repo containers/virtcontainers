@@ -452,7 +452,7 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
 	req := &grpc.SignalProcessRequest{
 		ContainerId: c.id,
-		PID:         uint32(c.process.Pid),
+		ExecId:      c.process.Token,
 		Signal:      uint32(signal),
 	}
 
