@@ -44,10 +44,9 @@
   revision = "9250e77eda726cbc468985582ce6de932c868bec"
 
 [[projects]]
-  branch = "master"
   name = "github.com/kata-containers/agent"
   packages = ["protocols/client","protocols/grpc"]
-  revision = "0fdf11ee45a8c79938e60655b22ab91950b28bb7"
+  revision = "306ee20ff47628fe370012d7e3f9316480e43c2e"
 
 [[projects]]
   name = "github.com/kubernetes-incubator/cri-o"
@@ -109,7 +108,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "d585fd2cc9195196078f516b69daff6744ef5e84"
+  revision = "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8"
 
 [[projects]]
   name = "golang.org/x/net"
@@ -125,7 +124,7 @@
   branch = "master"
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "eb22672bea55af56d225d4e35405f4d2e9f062a0"
+  revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
 
 [[projects]]
   branch = "master"
@@ -141,6 +140,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2a1b6f0d532137a1fd1c412bbedb44519fc503533dc928475179246c08ee1e9c"
+  inputs-digest = "0d9b34864a43e820b4e23f22f92aa15ab2cc6e3345cf215335805f77c348f2df"
   solver-name = "gps-cdcl"
   solver-version = 1
