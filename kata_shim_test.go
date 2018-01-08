@@ -23,32 +23,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
-	"unsafe"
 
 	. "github.com/containers/virtcontainers/pkg/mock"
 )
 
 // These tests don't care about the format of the container ID
-const testContainer = "testContainer"
+const testKataContainer = "testContainer"
 
-var testCCShimPath = "/usr/bin/virtcontainers/bin/test/cc-shim"
-var testProxyURL = "foo:///foo/clear-containers/proxy.sock"
-var testWrongConsolePath = "/foo/wrong-console"
-var testConsolePath = "tty-console"
+var testKataShimPath = "/usr/bin/virtcontainers/bin/test/kata-shim"
+var testKataShimProxyURL = "foo:///foo/kata-containers/proxy.sock"
 
-func getMockCCShimBinPath() string {
-	if DefaultMockCCShimBinPath == "" {
-		return testCCShimPath
+func getMockKataShimBinPath() string {
+	if DefaultMockKataShimBinPath == "" {
+		return testKataShimPath
 	}
 
-	return DefaultMockCCShimBinPath
+	return DefaultMockKataShimBinPath
 }
 
-func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {
-	s := &ccShim{}
+func testKataShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) {
+	s := &kataShim{}
 
 	pid, err := s.start(pod, params)
 	if expectFail {
@@ -69,30 +65,30 @@ func testCCShimStart(t *testing.T, pod Pod, params ShimParams, expectFail bool) 
 	}
 }
 
-func TestCCShimStartNilPodConfigFailure(t *testing.T) {
-	testCCShimStart(t, Pod{}, ShimParams{}, true)
+func TestKataShimStartNilPodConfigFailure(t *testing.T) {
+	testKataShimStart(t, Pod{}, ShimParams{}, true)
 }
 
-func TestCCShimStartNilShimConfigFailure(t *testing.T) {
+func TestKataShimStartNilShimConfigFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{},
 	}
 
-	testCCShimStart(t, pod, ShimParams{}, true)
+	testKataShimStart(t, pod, ShimParams{}, true)
 }
 
-func TestCCShimStartShimPathEmptyFailure(t *testing.T) {
+func TestKataShimStartShimPathEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
-			ShimType:   CCShimType,
+			ShimType:   KataShimType,
 			ShimConfig: ShimConfig{},
 		},
 	}
 
-	testCCShimStart(t, pod, ShimParams{}, true)
+	testKataShimStart(t, pod, ShimParams{}, true)
 }
 
-func TestCCShimStartShimTypeInvalid(t *testing.T) {
+func TestKataShimStartShimTypeInvalid(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
 			ShimType:   "foo",
@@ -100,28 +96,28 @@ func TestCCShimStartShimTypeInvalid(t *testing.T) {
 		},
 	}
 
-	testCCShimStart(t, pod, ShimParams{}, true)
+	testKataShimStart(t, pod, ShimParams{}, true)
 }
 
-func TestCCShimStartParamsTokenEmptyFailure(t *testing.T) {
+func TestKataShimStartParamsTokenEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
 
-	testCCShimStart(t, pod, ShimParams{}, true)
+	testKataShimStart(t, pod, ShimParams{}, true)
 }
 
-func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
+func TestKataShimStartParamsURLEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
@@ -130,15 +126,15 @@ func TestCCShimStartParamsURLEmptyFailure(t *testing.T) {
 		Token: "testToken",
 	}
 
-	testCCShimStart(t, pod, params, true)
+	testKataShimStart(t, pod, params, true)
 }
 
-func TestCCShimStartParamsContainerEmptyFailure(t *testing.T) {
+func TestKataShimStartParamsContainerEmptyFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
@@ -148,10 +144,10 @@ func TestCCShimStartParamsContainerEmptyFailure(t *testing.T) {
 		URL:   "unix://is/awesome",
 	}
 
-	testCCShimStart(t, pod, params, true)
+	testKataShimStart(t, pod, params, true)
 }
 
-func TestCCShimStartParamsInvalidCommand(t *testing.T) {
+func TestKataShimStartParamsInvalidCommand(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +158,7 @@ func TestCCShimStartParamsInvalidCommand(t *testing.T) {
 
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
 				Path: cmd,
 			},
@@ -174,10 +170,10 @@ func TestCCShimStartParamsInvalidCommand(t *testing.T) {
 		URL:   "http://foo",
 	}
 
-	testCCShimStart(t, pod, params, true)
+	testKataShimStart(t, pod, params, true)
 }
 
-func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.File, *os.File, *os.File, Pod, ShimParams, error) {
+func startKataShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.File, *os.File, *os.File, Pod, ShimParams, error) {
 	saveStdout := os.Stdout
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
@@ -188,9 +184,9 @@ func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.Fi
 
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
@@ -198,15 +194,15 @@ func startCCShimStartWithoutConsoleSuccessful(t *testing.T, detach bool) (*os.Fi
 	params := ShimParams{
 		Container: testContainer,
 		Token:     "testToken",
-		URL:       testProxyURL,
+		URL:       testKataShimProxyURL,
 		Detach:    detach,
 	}
 
 	return rStdout, wStdout, saveStdout, pod, params, nil
 }
 
-func TestCCShimStartSuccessful(t *testing.T) {
-	rStdout, wStdout, saveStdout, pod, params, err := startCCShimStartWithoutConsoleSuccessful(t, false)
+func TestKataShimStartSuccessful(t *testing.T) {
+	rStdout, wStdout, saveStdout, pod, params, err := startKataShimStartWithoutConsoleSuccessful(t, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +213,7 @@ func TestCCShimStartSuccessful(t *testing.T) {
 		wStdout.Close()
 	}()
 
-	testCCShimStart(t, pod, params, false)
+	testKataShimStart(t, pod, params, false)
 
 	bufStdout := make([]byte, 1024)
 	if _, err := rStdout.Read(bufStdout); err != nil {
@@ -229,8 +225,8 @@ func TestCCShimStartSuccessful(t *testing.T) {
 	}
 }
 
-func TestCCShimStartDetachSuccessful(t *testing.T) {
-	rStdout, wStdout, saveStdout, pod, params, err := startCCShimStartWithoutConsoleSuccessful(t, true)
+func TestKataShimStartDetachSuccessful(t *testing.T) {
+	rStdout, wStdout, saveStdout, pod, params, err := startKataShimStartWithoutConsoleSuccessful(t, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +237,7 @@ func TestCCShimStartDetachSuccessful(t *testing.T) {
 		rStdout.Close()
 	}()
 
-	testCCShimStart(t, pod, params, false)
+	testKataShimStart(t, pod, params, false)
 
 	readCh := make(chan error)
 	go func() {
@@ -270,74 +266,26 @@ func TestCCShimStartDetachSuccessful(t *testing.T) {
 	}
 }
 
-func TestCCShimStartWithConsoleNonExistingFailure(t *testing.T) {
+func TestKataShimStartWithConsoleNonExistingFailure(t *testing.T) {
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
 
 	params := ShimParams{
 		Token:   "testToken",
-		URL:     testProxyURL,
+		URL:     testKataShimProxyURL,
 		Console: testWrongConsolePath,
 	}
 
-	testCCShimStart(t, pod, params, true)
+	testKataShimStart(t, pod, params, true)
 }
 
-func ioctl(fd uintptr, flag, data uintptr) error {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, flag, data); err != 0 {
-		return err
-	}
-
-	return nil
-}
-
-// unlockpt unlocks the slave pseudoterminal device corresponding to the master pseudoterminal referred to by f.
-func unlockpt(f *os.File) error {
-	var u int32
-
-	return ioctl(f.Fd(), syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&u)))
-}
-
-// ptsname retrieves the name of the first available pts for the given master.
-func ptsname(f *os.File) (string, error) {
-	var n int32
-
-	if err := ioctl(f.Fd(), syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n))); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("/dev/pts/%d", n), nil
-}
-
-func newConsole() (*os.File, string, error) {
-	master, err := os.OpenFile("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
-	if err != nil {
-		return nil, "", err
-	}
-
-	console, err := ptsname(master)
-	if err != nil {
-		return nil, "", err
-	}
-
-	if err := unlockpt(master); err != nil {
-		return nil, "", err
-	}
-
-	if err := os.Chmod(console, 0600); err != nil {
-		return nil, "", err
-	}
-
-	return master, console, nil
-}
-
-func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
+func TestKataShimStartWithConsoleSuccessful(t *testing.T) {
 	cleanUp()
 
 	master, console, err := newConsole()
@@ -349,9 +297,9 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 
 	pod := Pod{
 		config: &PodConfig{
-			ShimType: CCShimType,
+			ShimType: KataShimType,
 			ShimConfig: ShimConfig{
-				Path: getMockCCShimBinPath(),
+				Path: getMockKataShimBinPath(),
 			},
 		},
 	}
@@ -359,10 +307,10 @@ func TestCCShimStartWithConsoleSuccessful(t *testing.T) {
 	params := ShimParams{
 		Container: testContainer,
 		Token:     "testToken",
-		URL:       testProxyURL,
+		URL:       testKataShimProxyURL,
 		Console:   console,
 	}
 
-	testCCShimStart(t, pod, params, false)
+	testKataShimStart(t, pod, params, false)
 	master.Close()
 }

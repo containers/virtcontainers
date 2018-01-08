@@ -286,8 +286,8 @@ func getShimConfig(shimType vc.ShimType, path string) interface{} {
 	var shimConfig interface{}
 
 	switch shimType {
-	case vc.CCShimType:
-		shimConfig = vc.CCShimConfig{
+	case vc.CCShimType, vc.KataShimType:
+		shimConfig = vc.ShimConfig{
 			Path: path,
 		}
 

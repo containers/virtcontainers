@@ -20,27 +20,30 @@ import (
 	"fmt"
 )
 
-type ccShim struct{}
+type kataShim struct{}
+
+// KataShimConfig is the structure providing specific configuration
+// for kataShim implementation.
+type KataShimConfig struct {
+	Path  string
+	Debug bool
+}
 
 // start is the ccShim start implementation.
 // It starts the cc-shim binary with URL and token flags provided by
 // the proxy.
-func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
+func (s *kataShim) start(pod Pod, params ShimParams) (int, error) {
 	if pod.config == nil {
 		return -1, fmt.Errorf("Pod config cannot be nil")
 	}
 
 	config, ok := newShimConfig(*(pod.config)).(ShimConfig)
 	if !ok {
-		return -1, fmt.Errorf("Wrong shim config type, should be CCShimConfig type")
+		return -1, fmt.Errorf("Wrong shim config type, should be KataShimConfig type")
 	}
 
 	if config.Path == "" {
 		return -1, fmt.Errorf("Shim path cannot be empty")
-	}
-
-	if params.Token == "" {
-		return -1, fmt.Errorf("Token cannot be empty")
 	}
 
 	if params.URL == "" {
@@ -51,7 +54,11 @@ func (s *ccShim) start(pod Pod, params ShimParams) (int, error) {
 		return -1, fmt.Errorf("Container cannot be empty")
 	}
 
-	args := []string{config.Path, "-c", params.Container, "-t", params.Token, "-u", params.URL}
+	if params.Token == "" {
+		return -1, fmt.Errorf("Process token cannot be empty")
+	}
+
+	args := []string{config.Path, "-agent", params.URL, "-container", params.Container, "-exec-id", params.Token}
 	if config.Debug {
 		args = append(args, "-d")
 	}
