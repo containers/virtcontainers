@@ -53,6 +53,10 @@ function apply_depends_on(){
 	popd
 }
 
+function install_dep(){
+	go get -u github.com/golang/dep/cmd/dep
+}
+
 function update_repo(){
 	if [ "${AUTHOR_REPO_GIT_URL}" ] && [ "${COMMIT_REVISION}" ]
 	then
@@ -80,5 +84,6 @@ EOF
 }
 
 apply_depends_on
+install_dep
 update_repo "${proxy_repo}"
 update_repo "${runtime_repo}"
