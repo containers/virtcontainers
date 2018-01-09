@@ -88,7 +88,7 @@ type RuntimeConfig struct {
 	ProxyType   vc.ProxyType
 	ProxyConfig vc.ProxyConfig
 
-	ShimType   vc.ShimType
+	ShimTypes  vc.ShimType
 	ShimConfig interface{}
 
 	Console string
@@ -439,7 +439,7 @@ func PodConfig(ocispec CompatOCISpec, runtime RuntimeConfig, bundlePath, cid, co
 		ProxyType:   runtime.ProxyType,
 		ProxyConfig: runtime.ProxyConfig,
 
-		ShimType:   runtime.ShimType,
+		ShimType:   runtime.ShimTypes,
 		ShimConfig: runtime.ShimConfig,
 
 		NetworkModel:  vc.CNMNetworkModel,
