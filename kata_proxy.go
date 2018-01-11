@@ -17,9 +17,7 @@
 package virtcontainers
 
 import (
-	"fmt"
 	"os/exec"
-	"path/filepath"
 )
 
 // This is the Kata Containers implementation of the proxy interface.
@@ -37,8 +35,10 @@ func (p *kataProxy) start(pod Pod) (int, string, error) {
 	}
 
 	// construct the socket path the proxy instance will use
-	socketPath := filepath.Join(runStoragePath, pod.id, "kata_proxy.sock")
-	proxyURL := fmt.Sprintf("unix://%s", socketPath)
+	proxyURL, err := defaultAgentURL(&pod, SocketTypeUNIX)
+	if err != nil {
+		return -1, "", err
+	}
 
 	vmURL, err := pod.agent.vmURL()
 	if err != nil {

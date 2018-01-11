@@ -53,6 +53,9 @@ var (
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
+	GRPCSocketType string
+	GRPCSocket     string
+
 	Volumes []Volume
 }
 
@@ -66,11 +69,11 @@ func (s *kataVSOCK) String() string {
 }
 
 type kataAgent struct {
-	config KataAgentConfig
+	config *KataAgentConfig
+	pod    *Pod
 
-	client     *kataclient.AgentClient
-	gRPCSocket string
-	vmSocket   interface{}
+	client   *kataclient.AgentClient
+	vmSocket interface{}
 }
 
 func parseVSOCKAddr(sock string) (uint32, uint32, error) {
@@ -94,12 +97,22 @@ func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	return uint32(cid), uint32(port), nil
 }
 
-func (k *kataAgent) validate(pod *Pod) error {
-	if k.gRPCSocket == "" {
-		return fmt.Errorf("Empty gRPC socket path")
+func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
+	if c.GRPCSocket == "" {
+		if c.GRPCSocketType == "" {
+			// TODO Auto detect VSOCK host support
+			c.GRPCSocketType = SocketTypeUNIX
+		}
+
+		proxyURL, err := defaultAgentURL(pod, c.GRPCSocketType)
+		if err != nil {
+			return err
+		}
+
+		c.GRPCSocket = proxyURL
 	}
 
-	cid, port, err := parseVSOCKAddr(k.gRPCSocket)
+	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
 	if err != nil {
 		// We need to generate a host UNIX socket path for the emulated serial port.
 		k.vmSocket = Socket{
@@ -122,10 +135,11 @@ func (k *kataAgent) validate(pod *Pod) error {
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if err := k.validate(pod); err != nil {
+		if err := k.generateVMSocket(pod, &c); err != nil {
 			return err
 		}
-		k.config = c
+		k.config = &c
+		k.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
@@ -133,7 +147,7 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
 
-	client, err := kataclient.NewAgentClient(k.gRPCSocket)
+	client, err := kataclient.NewAgentClient(k.config.GRPCSocket)
 	if err != nil {
 		return err
 	}
@@ -155,9 +169,13 @@ func (k *kataAgent) vmURL() (string, error) {
 }
 
 func (k *kataAgent) setProxyURL(url string) error {
-	k.gRPCSocket = url
+	if k.config.GRPCSocket == url {
+		return nil
+	}
 
-	return nil
+	k.config.GRPCSocket = url
+
+	return k.generateVMSocket(k.pod, k.config)
 }
 
 func (k *kataAgent) capabilities() capabilities {
