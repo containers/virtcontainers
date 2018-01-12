@@ -246,6 +246,64 @@ func containerDeviceInfos(spec CompatOCISpec) ([]vc.DeviceInfo, error) {
 	return devices, nil
 }
 
+func containerCapabilities(s CompatOCISpec) (vc.LinuxCapabilities, error) {
+	capabilities := s.Process.Capabilities
+	var c vc.LinuxCapabilities
+
+	// In spec v1.0.0-rc4, capabilities was a list of strings. This was changed
+	// to an object with v1.0.0-rc5.
+	// Check for the interface type to support both the versions.
+	switch caps := capabilities.(type) {
+	case map[string]interface{}:
+		for key, value := range caps {
+			switch val := value.(type) {
+			case []interface{}:
+				var list []string
+
+				for _, str := range val {
+					list = append(list, str.(string))
+				}
+
+				switch key {
+				case "bounding":
+					c.Bounding = list
+				case "effective":
+					c.Effective = list
+				case "inheritable":
+					c.Inheritable = list
+				case "ambient":
+					c.Ambient = list
+				case "permitted":
+					c.Permitted = list
+				}
+
+			default:
+				return c, fmt.Errorf("Unexpected format for capabilities: %v", caps)
+			}
+		}
+	case []interface{}:
+		var list []string
+		for _, str := range caps {
+			list = append(list, str.(string))
+		}
+
+		c = vc.LinuxCapabilities{
+			Bounding:    list,
+			Effective:   list,
+			Inheritable: list,
+			Ambient:     list,
+			Permitted:   list,
+		}
+	case nil:
+		ociLog.Debug("Empty capabilities have been passed")
+		return c, nil
+	default:
+		return c, fmt.Errorf("Unexpected format for capabilities: %v", caps)
+	}
+
+	return c, nil
+}
+
 func networkConfig(ocispec CompatOCISpec) (vc.NetworkConfig, error) {
 	linux := ocispec.Linux
 	if linux == nil {
@@ -491,6 +549,11 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	}
 
 	deviceInfos, err := containerDeviceInfos(ocispec)
+	if err != nil {
+		return vc.ContainerConfig{}, err
+	}
+
+	cmd.Capabilities, err = containerCapabilities(ocispec)
 	if err != nil {
 		return vc.ContainerConfig{}, err
 	}
