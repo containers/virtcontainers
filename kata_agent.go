@@ -17,7 +17,6 @@
 package virtcontainers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,7 +28,6 @@ import (
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 
-	kataclient "github.com/kata-containers/agent/protocols/client"
 	"github.com/kata-containers/agent/protocols/grpc"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -40,7 +38,7 @@ var (
 	defaultKataChannel          = "io.katacontainers.channel"
 	defaultKataDeviceID         = "channel0"
 	defaultKataID               = "charch0"
-	errorMissingGRPClient       = errors.New("Missing gRPC client")
+	errorMissingProxy           = errors.New("Missing proxy pointer")
 	errorMissingOCISpec         = errors.New("Missing OCI specification")
 	kataHostSharedDir           = "/tmp/kata-containers/shared/pods/"
 	kataGuestSharedDir          = "/tmp/kata-containers/shared/pods/"
@@ -71,8 +69,8 @@ func (s *kataVSOCK) String() string {
 type kataAgent struct {
 	config *KataAgentConfig
 	pod    *Pod
+	proxy  proxy
 
-	client   *kataclient.AgentClient
 	vmSocket interface{}
 }
 
@@ -146,13 +144,7 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
-
-	client, err := kataclient.NewAgentClient(k.config.GRPCSocket)
-	if err != nil {
-		return err
-	}
-
-	k.client = client
+	k.proxy = pod.proxy
 
 	return nil
 }
@@ -288,13 +280,13 @@ func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err e
 		Process:     kataProcess,
 	}
 
-	_, err = k.client.ExecProcess(context.Background(), req)
+	_, err = k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	hostname := pod.config.Hostname
@@ -319,17 +311,18 @@ func (k *kataAgent) startPod(pod Pod) error {
 		Storages:     []*grpc.Storage{sharedVolume},
 		SandboxPidns: true,
 	}
-	_, err := k.client.CreateSandbox(context.Background(), req)
+
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) stopPod(pod Pod) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	req := &grpc.DestroySandboxRequest{}
-	_, err := k.client.DestroySandbox(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
@@ -347,8 +340,8 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 }
 
 func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	ociSpecJSON, ok := c.config.Annotations[vcAnnotations.ConfigJSONKey]
@@ -441,20 +434,20 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		OCI:         grpcSpec,
 	}
 
-	_, err = k.client.CreateContainer(context.Background(), req)
+	_, err = k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	req := &grpc.StartContainerRequest{
 		ContainerId: c.id,
 	}
 
-	_, err := k.client.StartContainer(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	if err != nil {
 		return err
 	}
@@ -469,7 +462,7 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		ContainerId: c.id,
 	}
 
-	_, err := k.client.RemoveContainer(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
@@ -480,7 +473,7 @@ func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, a
 		Signal:      uint32(signal),
 	}
 
-	_, err := k.client.SignalProcess(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
