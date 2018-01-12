@@ -615,7 +615,7 @@ func (q *qemu) qmpSocketPath(socketName string) (string, error) {
 			parentDirPath, len(parentDirPath))
 	}
 
-	path := fmt.Sprintf("%s/%s-%s", parentDirPath, q.state.UUID, socketName)
+	path := fmt.Sprintf("%s/%s-%s", parentDirPath, socketName, q.state.UUID)
 
 	if len(path) > qmpSockPathSizeLimit {
 		return path[:qmpSockPathSizeLimit], nil

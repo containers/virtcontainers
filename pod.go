@@ -30,13 +30,13 @@ import (
 // controlSocket is the pod control socket.
 // It is an hypervisor resource, and for example qemu's control
 // socket is the QMP one.
-const controlSocket = "ctrl.sock"
+const controlSocket = "ctl"
 
 // monitorSocket is the pod monitoring socket.
 // It is an hypervisor resource, and is a qmp socket in the qemu case.
 // This is a socket that any monitoring entity will listen to in order
 // to understand if the VM is still alive or not.
-const monitorSocket = "monitor.sock"
+const monitorSocket = "mon"
 
 // vmStartTimeout represents the time in seconds a pod can wait before
 // to consider the VM starting operation failed.
