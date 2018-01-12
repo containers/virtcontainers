@@ -35,7 +35,7 @@ import (
 
 var (
 	defaultKataSockPathTemplate = "%s/%s/kata.sock"
-	defaultKataChannel          = "io.katacontainers.channel"
+	defaultKataChannel          = "agent.channel.0"
 	defaultKataDeviceID         = "channel0"
 	defaultKataID               = "charch0"
 	errorMissingProxy           = errors.New("Missing proxy pointer")
