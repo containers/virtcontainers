@@ -315,7 +315,7 @@ func (k *kataAgent) startPod(pod Pod) error {
 	req := &grpc.CreateSandboxRequest{
 		Hostname:     hostname,
 		Storages:     []*grpc.Storage{sharedVolume},
-		SandboxPidns: true,
+		SandboxPidns: false,
 	}
 
 	_, err := k.proxy.sendCmd(req)
