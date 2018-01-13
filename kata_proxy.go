@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"syscall"
 
 	kataclient "github.com/kata-containers/agent/protocols/client"
 	"github.com/kata-containers/agent/protocols/grpc"
@@ -91,7 +92,8 @@ func (p *kataProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 
 // unregister is kataProxy unregister implementation for proxy interface.
 func (p *kataProxy) unregister(pod Pod) error {
-	return nil
+	// Kill the proxy. This should ideally be dealt with from a stop method.
+	return syscall.Kill(pod.state.ProxyPid, syscall.SIGKILL)
 }
 
 // connect is kataProxy connect implementation for proxy interface.
