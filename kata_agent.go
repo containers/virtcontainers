@@ -282,6 +282,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err e
 
 	req := &grpc.ExecProcessRequest{
 		ContainerId: c.id,
+		ExecId:      c.process.Token,
 		Process:     kataProcess,
 	}
 
@@ -435,6 +436,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
+		ExecId:      c.process.Token,
 		Storages:    containerStorage,
 		OCI:         grpcSpec,
 	}
