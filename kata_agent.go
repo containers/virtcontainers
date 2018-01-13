@@ -27,10 +27,9 @@ import (
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
-
 	"github.com/kata-containers/agent/protocols/grpc"
-
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -74,6 +73,10 @@ type kataAgent struct {
 	vmSocket interface{}
 }
 
+func (k *kataAgent) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "kata_agent")
+}
+
 func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	sp := strings.Split(sock, ":")
 	if len(sp) != 3 {
@@ -108,6 +111,8 @@ func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
 		}
 
 		c.GRPCSocket = proxyURL
+
+		k.Logger().Info("Agent gRPC socket path %s", c.GRPCSocket)
 	}
 
 	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
