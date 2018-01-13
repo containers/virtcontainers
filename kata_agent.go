@@ -374,7 +374,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	rootfs := &grpc.Storage{}
 
 	// First we need to give the OCI spec our absolute path in the guest.
-	grpcSpec.Root.Path = filepath.Join(kataGuestSharedDir, pod.id, c.id, rootfsDir)
+	grpcSpec.Root.Path = filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
