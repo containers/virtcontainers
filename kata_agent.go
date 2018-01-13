@@ -470,7 +470,15 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 	}
 
 	_, err := k.proxy.sendCmd(req)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err := bindUnmountContainerRootfs(kataHostSharedDir, pod.id, c.id); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
