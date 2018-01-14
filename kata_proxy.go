@@ -36,6 +36,10 @@ type kataProxy struct {
 
 // start is kataProxy start implementation for proxy interface.
 func (p *kataProxy) start(pod Pod) (int, string, error) {
+	if pod.agent == nil {
+		return -1, "", fmt.Errorf("No agent")
+	}
+
 	config, err := newProxyConfig(pod.config)
 	if err != nil {
 		return -1, "", err
