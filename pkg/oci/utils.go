@@ -412,7 +412,8 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 		if memBytes <= 0 {
 			return vc.Resources{}, fmt.Errorf("Invalid OCI memory limit %d", memBytes)
 		}
-		// round up memory to 1MB
+		// Use some math magic to round up to the nearest Mb.
+		// This has the side effect that we can never have <1Mb assigned.
 		resources.Memory = uint((memBytes + (1024*1024 - 1)) / (1024 * 1024))
 	}
 
@@ -430,7 +431,12 @@ func vmConfig(ocispec CompatOCISpec, config RuntimeConfig) (vc.Resources, error)
 			return vc.Resources{}, fmt.Errorf("Invalid OCI cpu period %d", period)
 		}
 
-		// round up to 1 CPU
+		// Use some math magic to round up to the nearest whole vCPU
+		// (that is, a partial part of a quota request ends up assigning
+		// a whole vCPU, for instance, a request of 1.5 'cpu quotas'
+		// will give 2 vCPUs).
+		// This also has the side effect that we will always allocate
+		// at least 1 vCPU.
 		resources.VCPUs = uint((uint64(quota) + (period - 1)) / period)
 	}
 
