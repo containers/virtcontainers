@@ -413,7 +413,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	}
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(kataHostSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
 		return err
