@@ -357,6 +357,8 @@ func bindMountContainerMounts(sharedDir, podID string, cID string, mounts []Moun
 		newMount := &Mount{
 			Source:      filename,
 			Destination: m.Destination,
+			Type:        m.Type,
+			Options:     m.Options,
 			ReadOnly:    readonly,
 		}
 		newMounts = append(newMounts, newMount)

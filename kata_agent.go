@@ -337,6 +337,8 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 		s := &grpc.Storage{
 			Source:     m.Source,
 			MountPoint: m.Destination,
+			Fstype:     m.Type,
+			Options:    m.Options,
 		}
 
 		storage = append(storage, s)
