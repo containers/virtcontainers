@@ -347,6 +347,23 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 	return storage
 }
 
+func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []*Mount) error {
+	ociMounts := spec.Mounts
+
+	for index, m := range ociMounts {
+		for _, guestMount := range guestMounts {
+			if guestMount.Destination != m.Destination {
+				continue
+			}
+
+			k.Logger().Debugf("Replacing OCI mount (%s) source %s with %s", m.Destination, m.Source, guestMount.Source)
+			ociMounts[index].Source = guestMount.Source
+		}
+	}
+
+	return nil
+}
+
 func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	if k.proxy == nil {
 		return errorMissingProxy
@@ -355,16 +372,6 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	ociSpecJSON, ok := c.config.Annotations[vcAnnotations.ConfigJSONKey]
 	if !ok {
 		return errorMissingOCISpec
-	}
-
-	var ociSpec specs.Spec
-	if err := json.Unmarshal([]byte(ociSpecJSON), &ociSpec); err != nil {
-		return err
-	}
-
-	grpcSpec, err := grpc.OCItoGRPC(&ociSpec)
-	if err != nil {
-		return err
 	}
 
 	var containerStorage []*grpc.Storage
@@ -376,8 +383,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	// implementations).
 	rootfs := &grpc.Storage{}
 
-	// First we need to give the OCI spec our absolute path in the guest.
-	grpcSpec.Root.Path = filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
+	// This is the guest absolute root path for that container.
+	rootPath := filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
@@ -388,7 +395,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		}
 
 		rootfs.Source = filepath.Join(devPath, driveName)
-		rootfs.MountPoint = grpcSpec.Root.Path // Should we remove the "rootfs" suffix?
+		rootfs.MountPoint = rootPath // Should we remove the "rootfs" suffix?
 		rootfs.Fstype = c.state.Fstype
 
 		// Add rootfs to the list of container storage.
@@ -412,13 +419,31 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		}
 	}
 
+	ociSpec := &specs.Spec{}
+	if err := json.Unmarshal([]byte(ociSpecJSON), ociSpec); err != nil {
+		return err
+	}
+
 	// Handle container mounts
 	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
 		return err
 	}
-	containerStorage = appendStorageFromMounts(containerStorage, newMounts)
+
+	// We replace all OCI mount sources that match our container mount
+	// with the right source path (The guest one).
+	if err := k.replaceOCIMountSource(ociSpec, newMounts); err != nil {
+		return err
+	}
+
+	grpcSpec, err := grpc.OCItoGRPC(ociSpec)
+	if err != nil {
+		return err
+	}
+
+	// We need to give the OCI spec our absolute rootfs path in the guest.
+	grpcSpec.Root.Path = rootPath
 
 	// Append container mounts for block devices passed with --device.
 	for _, device := range c.devices {
