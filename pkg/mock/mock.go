@@ -20,9 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+
+	"google.golang.org/grpc"
 )
 
 // DefaultMockCCShimBinPath is populated at link time.
@@ -108,4 +111,118 @@ func StartShim(config ShimMockConfig) error {
 	fmt.Fprintf(f, "INFO: Shim exited properly\n")
 
 	return nil
+}
+
+// ProxyMock is the proxy mock interface.
+// It allows for implementing different kind
+// of containers proxies front end.
+type ProxyMock interface {
+	Start(URL string) error
+	Stop() error
+}
+
+// ProxyUnixMock is the UNIX proxy mock
+type ProxyUnixMock struct {
+	ClientHandler func(c net.Conn)
+
+	listener net.Listener
+}
+
+// ProxyGRPCMock is the gRPC proxy mock
+type ProxyGRPCMock struct {
+	// GRPCImplementer is the structure implementing
+	// the GRPC interface we want the proxy to serve.
+	GRPCImplementer interface{}
+
+	// GRPCRegister is the registration routine for
+	// the GRPC service.
+	GRPCRegister func(s *grpc.Server, srv interface{})
+
+	listener net.Listener
+}
+
+// Start starts the UNIX proxy mock
+func (p *ProxyUnixMock) Start(URL string) error {
+	if p.ClientHandler == nil {
+		return fmt.Errorf("Missing client handler")
+	}
+
+	url, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	l, err := net.Listen(url.Scheme, url.Path)
+	if err != nil {
+		return err
+	}
+
+	p.listener = l
+
+	go func() {
+		defer func() {
+			l.Close()
+		}()
+
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+
+			go p.ClientHandler(conn)
+		}
+	}()
+
+	return nil
+}
+
+// Stop stops the UNIX proxy mock
+func (p *ProxyUnixMock) Stop() error {
+	if p.listener == nil {
+		return fmt.Errorf("Missing proxy listener")
+	}
+
+	return p.listener.Close()
+}
+
+// Start starts the gRPC proxy mock
+func (p *ProxyGRPCMock) Start(URL string) error {
+	if p.GRPCImplementer == nil {
+		return fmt.Errorf("Missing gRPC handler")
+	}
+
+	if p.GRPCRegister == nil {
+		return fmt.Errorf("Missing gRPC registration routine")
+	}
+
+	url, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	l, err := net.Listen(url.Scheme, url.Path)
+	if err != nil {
+		return err
+	}
+
+	p.listener = l
+
+	grpcServer := grpc.NewServer()
+	p.GRPCRegister(grpcServer, p.GRPCImplementer)
+
+	go func() {
+		grpcServer.Serve(l)
+	}()
+
+	return nil
+}
+
+// Stop stops the gRPC proxy mock
+func (p *ProxyGRPCMock) Stop() error {
+	if p.listener == nil {
+		return fmt.Errorf("Missing proxy listener")
+	}
+
+	return p.listener.Close()
 }

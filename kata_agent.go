@@ -17,7 +17,6 @@
 package virtcontainers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,19 +27,17 @@ import (
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
-
-	kataclient "github.com/kata-containers/agent/protocols/client"
 	"github.com/kata-containers/agent/protocols/grpc"
-
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 var (
 	defaultKataSockPathTemplate = "%s/%s/kata.sock"
-	defaultKataChannel          = "io.katacontainers.channel"
+	defaultKataChannel          = "agent.channel.0"
 	defaultKataDeviceID         = "channel0"
 	defaultKataID               = "charch0"
-	errorMissingGRPClient       = errors.New("Missing gRPC client")
+	errorMissingProxy           = errors.New("Missing proxy pointer")
 	errorMissingOCISpec         = errors.New("Missing OCI specification")
 	kataHostSharedDir           = "/tmp/kata-containers/shared/pods/"
 	kataGuestSharedDir          = "/tmp/kata-containers/shared/pods/"
@@ -53,6 +50,9 @@ var (
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
+	GRPCSocketType string
+	GRPCSocket     string
+
 	Volumes []Volume
 }
 
@@ -66,11 +66,15 @@ func (s *kataVSOCK) String() string {
 }
 
 type kataAgent struct {
-	config KataAgentConfig
+	config *KataAgentConfig
+	pod    *Pod
+	proxy  proxy
 
-	client     *kataclient.AgentClient
-	gRPCSocket string
-	vmSocket   interface{}
+	vmSocket interface{}
+}
+
+func (k *kataAgent) Logger() *logrus.Entry {
+	return virtLog.WithField("subsystem", "kata_agent")
 }
 
 func parseVSOCKAddr(sock string) (uint32, uint32, error) {
@@ -94,12 +98,24 @@ func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	return uint32(cid), uint32(port), nil
 }
 
-func (k *kataAgent) validate(pod *Pod) error {
-	if k.gRPCSocket == "" {
-		return fmt.Errorf("Empty gRPC socket path")
+func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
+	if c.GRPCSocket == "" {
+		if c.GRPCSocketType == "" {
+			// TODO Auto detect VSOCK host support
+			c.GRPCSocketType = SocketTypeUNIX
+		}
+
+		proxyURL, err := defaultAgentURL(pod, c.GRPCSocketType)
+		if err != nil {
+			return err
+		}
+
+		c.GRPCSocket = proxyURL
+
+		k.Logger().Info("Agent gRPC socket path %s", c.GRPCSocket)
 	}
 
-	cid, port, err := parseVSOCKAddr(k.gRPCSocket)
+	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
 	if err != nil {
 		// We need to generate a host UNIX socket path for the emulated serial port.
 		k.vmSocket = Socket{
@@ -122,23 +138,18 @@ func (k *kataAgent) validate(pod *Pod) error {
 func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if err := k.validate(pod); err != nil {
+		if err := k.generateVMSocket(pod, &c); err != nil {
 			return err
 		}
-		k.config = c
+		k.config = &c
+		k.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
 
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
-
-	client, err := kataclient.NewAgentClient(k.gRPCSocket)
-	if err != nil {
-		return err
-	}
-
-	k.client = client
+	k.proxy = pod.proxy
 
 	return nil
 }
@@ -155,9 +166,13 @@ func (k *kataAgent) vmURL() (string, error) {
 }
 
 func (k *kataAgent) setProxyURL(url string) error {
-	k.gRPCSocket = url
+	if k.config.GRPCSocket == url {
+		return nil
+	}
 
-	return nil
+	k.config.GRPCSocket = url
+
+	return k.generateVMSocket(k.pod, k.config)
 }
 
 func (k *kataAgent) capabilities() capabilities {
@@ -267,16 +282,17 @@ func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err e
 
 	req := &grpc.ExecProcessRequest{
 		ContainerId: c.id,
+		ExecId:      c.process.Token,
 		Process:     kataProcess,
 	}
 
-	_, err = k.client.ExecProcess(context.Background(), req)
+	_, err = k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	hostname := pod.config.Hostname
@@ -299,19 +315,20 @@ func (k *kataAgent) startPod(pod Pod) error {
 	req := &grpc.CreateSandboxRequest{
 		Hostname:     hostname,
 		Storages:     []*grpc.Storage{sharedVolume},
-		SandboxPidns: true,
+		SandboxPidns: false,
 	}
-	_, err := k.client.CreateSandbox(context.Background(), req)
+
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) stopPod(pod Pod) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	req := &grpc.DestroySandboxRequest{}
-	_, err := k.client.DestroySandbox(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 
@@ -320,6 +337,8 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 		s := &grpc.Storage{
 			Source:     m.Source,
 			MountPoint: m.Destination,
+			Fstype:     m.Type,
+			Options:    m.Options,
 		}
 
 		storage = append(storage, s)
@@ -328,24 +347,31 @@ func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.S
 	return storage
 }
 
+func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []*Mount) error {
+	ociMounts := spec.Mounts
+
+	for index, m := range ociMounts {
+		for _, guestMount := range guestMounts {
+			if guestMount.Destination != m.Destination {
+				continue
+			}
+
+			k.Logger().Debugf("Replacing OCI mount (%s) source %s with %s", m.Destination, m.Source, guestMount.Source)
+			ociMounts[index].Source = guestMount.Source
+		}
+	}
+
+	return nil
+}
+
 func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	ociSpecJSON, ok := c.config.Annotations[vcAnnotations.ConfigJSONKey]
 	if !ok {
 		return errorMissingOCISpec
-	}
-
-	var ociSpec specs.Spec
-	if err := json.Unmarshal([]byte(ociSpecJSON), &ociSpec); err != nil {
-		return err
-	}
-
-	grpcSpec, err := grpc.OCItoGRPC(&ociSpec)
-	if err != nil {
-		return err
 	}
 
 	var containerStorage []*grpc.Storage
@@ -357,8 +383,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	// implementations).
 	rootfs := &grpc.Storage{}
 
-	// First we need to give the OCI spec our absolute path in the guest.
-	grpcSpec.Root.Path = filepath.Join(kataGuestSharedDir, pod.id, c.id, rootfsDir)
+	// This is the guest absolute root path for that container.
+	rootPath := filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
@@ -369,7 +395,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		}
 
 		rootfs.Source = filepath.Join(devPath, driveName)
-		rootfs.MountPoint = grpcSpec.Root.Path // Should we remove the "rootfs" suffix?
+		rootfs.MountPoint = rootPath // Should we remove the "rootfs" suffix?
 		rootfs.Fstype = c.state.Fstype
 
 		// Add rootfs to the list of container storage.
@@ -393,13 +419,31 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		}
 	}
 
+	ociSpec := &specs.Spec{}
+	if err := json.Unmarshal([]byte(ociSpecJSON), ociSpec); err != nil {
+		return err
+	}
+
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(kataHostSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
 		return err
 	}
-	containerStorage = appendStorageFromMounts(containerStorage, newMounts)
+
+	// We replace all OCI mount sources that match our container mount
+	// with the right source path (The guest one).
+	if err := k.replaceOCIMountSource(ociSpec, newMounts); err != nil {
+		return err
+	}
+
+	grpcSpec, err := grpc.OCItoGRPC(ociSpec)
+	if err != nil {
+		return err
+	}
+
+	// We need to give the OCI spec our absolute rootfs path in the guest.
+	grpcSpec.Root.Path = rootPath
 
 	// Append container mounts for block devices passed with --device.
 	for _, device := range c.devices {
@@ -419,24 +463,25 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
+		ExecId:      c.process.Token,
 		Storages:    containerStorage,
 		OCI:         grpcSpec,
 	}
 
-	_, err = k.client.CreateContainer(context.Background(), req)
+	_, err = k.proxy.sendCmd(req)
 	return err
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {
-	if k.client == nil {
-		return errorMissingGRPClient
+	if k.proxy == nil {
+		return errorMissingProxy
 	}
 
 	req := &grpc.StartContainerRequest{
 		ContainerId: c.id,
 	}
 
-	_, err := k.client.StartContainer(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	if err != nil {
 		return err
 	}
@@ -451,8 +496,16 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		ContainerId: c.id,
 	}
 
-	_, err := k.client.RemoveContainer(context.Background(), req)
-	return err
+	_, err := k.proxy.sendCmd(req)
+	if err != nil {
+		return err
+	}
+
+	if err := bindUnmountContainerRootfs(kataHostSharedDir, pod.id, c.id); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
@@ -462,7 +515,7 @@ func (k *kataAgent) killContainer(pod Pod, c Container, signal syscall.Signal, a
 		Signal:      uint32(signal),
 	}
 
-	_, err := k.client.SignalProcess(context.Background(), req)
+	_, err := k.proxy.sendCmd(req)
 	return err
 }
 

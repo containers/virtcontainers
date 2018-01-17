@@ -544,6 +544,10 @@ func (c *Container) start() error {
 	// inside the VM
 	c.getSystemMountInfo()
 
+	if err := c.pod.agent.createContainer(c.pod, c); err != nil {
+		return err
+	}
+
 	if err := c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		c.Logger().WithError(err).Error("Failed to start container")
 

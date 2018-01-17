@@ -409,7 +409,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	//TODO : Enter mount namespace
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(defaultSharedDir, pod.id, c.id, c.mounts)
+	newMounts, err := bindMountContainerMounts(defaultSharedDir, "", pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(defaultSharedDir, pod)
 		return err
