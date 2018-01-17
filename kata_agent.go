@@ -364,6 +364,38 @@ func (k *kataAgent) replaceOCIMountSource(spec *specs.Spec, guestMounts []*Mount
 	return nil
 }
 
+func constraintGRPCSpec(grpcSpec *grpc.Spec) {
+	// Disable Hooks since they have been handled on the host and there is
+	// no reason to send them to the agent. It would make no sense to try
+	// to apply them on the guest.
+	grpcSpec.Hooks = nil
+
+	// Disable Seccomp since they cannot be handled properly by the agent
+	// until we provide a guest image with libseccomp support. More details
+	// here: https://github.com/kata-containers/agent/issues/104
+	grpcSpec.Linux.Seccomp = nil
+
+	// Disable network namespace since it is already handled on the host by
+	// virtcontainers. The network is a complex part which cannot be simply
+	// passed to the agent.
+	for idx, ns := range grpcSpec.Linux.Namespaces {
+		if ns.Type == specs.NetworkNamespace {
+			grpcSpec.Linux.Namespaces = append(grpcSpec.Linux.Namespaces[:idx], grpcSpec.Linux.Namespaces[idx+1:]...)
+		}
+	}
+
+	// Handle /dev/shm mount
+	for idx, mnt := range grpcSpec.Mounts {
+		if mnt.Destination == "/dev/shm" {
+			grpcSpec.Mounts[idx].Type = "tmpfs"
+			grpcSpec.Mounts[idx].Source = "shm"
+			grpcSpec.Mounts[idx].Options = []string{"noexec", "nosuid", "nodev", "mode=1777", "size=65536k"}
+
+			break
+		}
+	}
+}
+
 func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	if k.proxy == nil {
 		return errorMissingProxy
@@ -444,6 +476,10 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 
 	// We need to give the OCI spec our absolute rootfs path in the guest.
 	grpcSpec.Root.Path = rootPath
+
+	// We need to constraint the spec to make sure we're not passing
+	// irrelevant information to the agent.
+	constraintGRPCSpec(grpcSpec)
 
 	// Append container mounts for block devices passed with --device.
 	for _, device := range c.devices {
