@@ -65,6 +65,7 @@ func (p *kataProxy) start(pod Pod) (int, string, error) {
 	args := []string{config.Path, "-listen-socket", proxyURL, "-mux-socket", vmURL}
 	if config.Debug {
 		args = append(args, "-log", "debug")
+		args = append(args, "-agent-logs-socket", pod.hypervisor.getPodConsole(pod.id))
 	}
 
 	cmd := exec.Command(args[0], args[1:]...)
