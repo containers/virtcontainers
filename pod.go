@@ -245,6 +245,9 @@ type Drive struct {
 
 	// ID is used to identify this drive in the hypervisor options.
 	ID string
+
+	// Index assigned to the drive. In case of virtio-scsi, this is used as SCSI LUN index
+	Index int
 }
 
 // EnvVar is a key/value structure representing a command

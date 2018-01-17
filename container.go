@@ -679,23 +679,24 @@ func (c *Container) hotplugDrive() error {
 		"fs-type":     fsType,
 	}).Info("Block device detected")
 
+	driveIndex, err := c.pod.getAndSetPodBlockIndex()
+	if err != nil {
+		return err
+	}
+
 	// Add drive with id as container id
 	devID := makeNameID("drive", c.id)
 	drive := Drive{
 		File:   devicePath,
 		Format: "raw",
 		ID:     devID,
+		Index:  driveIndex,
 	}
 
 	if err := c.pod.hypervisor.hotplugAddDevice(drive, blockDev); err != nil {
 		return err
 	}
 	c.setStateHotpluggedDrive(true)
-
-	driveIndex, err := c.pod.getAndSetPodBlockIndex()
-	if err != nil {
-		return err
-	}
 
 	if err := c.setStateBlockIndex(driveIndex); err != nil {
 		return err
