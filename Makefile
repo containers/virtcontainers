@@ -92,7 +92,8 @@ endef
 uninstall:
 	$(call UNINSTALL_EXEC,$(VIRTC_BIN))
 	$(call UNINSTALL_TEST_EXEC,$(HOOK_BIN))
-	$(call UNINSTALL_TEST_EXEC,$(SHIM_BIN))
+	$(call UNINSTALL_TEST_EXEC,$(CC_SHIM_BIN))
+	$(call UNINSTALL_TEST_EXEC,$(KATA_SHIM_BIN))
 
 #
 # Clean
@@ -101,7 +102,8 @@ uninstall:
 clean:
 	rm -f $(VIRTC_DIR)/$(VIRTC_BIN)
 	rm -f $(HOOK_DIR)/$(HOOK_BIN)
-	rm -f $(SHIM_DIR)/$(SHIM_BIN)
+	rm -f $(CC_SHIM_DIR)/$(CC_SHIM_BIN)
+	rm -f $(KATA_SHIM_DIR)/$(KATA_SHIM_BIN)
 
 .PHONY: \
 	all \
