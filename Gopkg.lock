@@ -7,6 +7,12 @@
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/containerd/cri-containerd"
+  packages = ["pkg/annotations"]
+  revision = "ca3b73899a159b17e49156f756d1c77e3b60bce4"
+
+[[projects]]
   name = "github.com/containernetworking/cni"
   packages = ["libcni","pkg/invoke","pkg/types","pkg/types/020","pkg/types/current","pkg/version"]
   revision = "384d8c0b5288c25b9f1da901c66ea5155e6c567d"
@@ -140,6 +146,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0d9b34864a43e820b4e23f22f92aa15ab2cc6e3345cf215335805f77c348f2df"
+  inputs-digest = "64f06e6d14dde1b65c8dfd0b81e27c773b12660dfae7dc8a8ff66267f36ff7e4"
   solver-name = "gps-cdcl"
   solver-version = 1
