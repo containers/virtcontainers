@@ -230,7 +230,7 @@ func (c *Container) startShim(token string, initProcess bool) (*Process, error) 
 		processToken = proxyInfo.Token
 	}
 
-	process, err := c.createShimProcess(processToken, url, c.config.Cmd)
+	process, err := c.startShimProcess(processToken, url, c.config.Cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -749,7 +749,7 @@ func (c *Container) processList(options ProcessListOptions) (ProcessList, error)
 	return c.pod.agent.processListContainer(*(c.pod), *c, options)
 }
 
-func (c *Container) createShimProcess(token, url string, cmd Cmd) (*Process, error) {
+func (c *Container) startShimProcess(token, url string, cmd Cmd) (*Process, error) {
 	if c.pod.state.URL != url {
 		return &Process{}, fmt.Errorf("Pod URL %q and URL from proxy %q MUST be identical", c.pod.state.URL, url)
 	}
