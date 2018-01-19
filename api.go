@@ -86,12 +86,6 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start the proxy
-	err = p.startProxy()
-	if err != nil {
-		return nil, err
-	}
-
 	// Start shims
 	if err := p.startShims(); err != nil {
 		return nil, err

@@ -794,9 +794,32 @@ func (p *Pod) startSetState() error {
 func (p *Pod) startVM(netNsPath string) error {
 	p.Logger().Info("Starting VM")
 
-	return p.network.run(netNsPath, func() error {
+	if err := p.network.run(netNsPath, func() error {
 		return p.hypervisor.startPod()
-	})
+	}); err != nil {
+		return err
+	}
+
+	if err := p.hypervisor.waitPod(vmStartTimeout); err != nil {
+		return err
+	}
+
+	p.Logger().Info("VM started")
+
+	// Start the proxy
+	if err := p.startProxy(); err != nil {
+		return err
+	}
+
+	if _, _, err := p.proxy.connect(*p, false); err != nil {
+		return err
+	}
+	defer p.proxy.disconnect()
+
+	// Once startVM is done, we want to guarantee
+	// that the pod is manageable. For that we need
+	// to start the pod inside the VM.
+	return p.agent.startPod(*p)
 }
 
 // startProxy starts a proxy instance for the pod.
@@ -879,24 +902,6 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	l := p.Logger()
-
-	if err := p.hypervisor.waitPod(vmStartTimeout); err != nil {
-		return err
-	}
-
-	l.Info("VM started")
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
-
-	if err := p.agent.startPod(*p); err != nil {
-		return err
-	}
-
-	// Pod is started
 	if err := p.startSetState(); err != nil {
 		return err
 	}
@@ -907,7 +912,7 @@ func (p *Pod) start() error {
 		}
 	}
 
-	l.Info("started")
+	p.Logger().Info("Pod is started")
 
 	return nil
 }
