@@ -597,7 +597,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	p, err := doFetchPod(podConfig)
+	p, err := newPod(podConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +626,7 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 	return p, nil
 }
 
-func doFetchPod(podConfig PodConfig) (*Pod, error) {
+func newPod(podConfig PodConfig) (*Pod, error) {
 	if podConfig.valid() == false {
 		return nil, fmt.Errorf("Invalid pod configuration")
 	}
