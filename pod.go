@@ -847,6 +847,7 @@ func (p *Pod) startShims() error {
 			Token:     p.containers[idx].process.Token,
 			URL:       url,
 			Console:   p.containers[idx].config.Cmd.Console,
+			Terminal:  p.containers[idx].config.Cmd.Interactive,
 			Detach:    p.containers[idx].config.Cmd.Detach,
 		}
 

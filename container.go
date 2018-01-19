@@ -758,6 +758,7 @@ func (c *Container) createShimProcess(token, url string, cmd Cmd, initProcess bo
 		Token:     token,
 		URL:       url,
 		Console:   cmd.Console,
+		Terminal:  cmd.Interactive,
 		Detach:    cmd.Detach,
 	}
 
