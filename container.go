@@ -396,26 +396,6 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	return c, nil
 }
 
-// newContainers uses newContainer to create a Container slice.
-func newContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error) {
-	if pod == nil {
-		return nil, errNeedPod
-	}
-
-	var containers []*Container
-
-	for _, contConfig := range contConfigs {
-		c, err := newContainer(pod, contConfig)
-		if err != nil {
-			return containers, err
-		}
-
-		containers = append(containers, c)
-	}
-
-	return containers, nil
-}
-
 // createContainer creates and start a container inside a Pod.
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if pod == nil {
@@ -776,21 +756,6 @@ func (c *Container) startShimProcess(token, url string, cmd Cmd) (*Process, erro
 	process.Pid = pid
 
 	return &process, nil
-}
-
-func newInitProcess(token, containerID string) Process {
-	if token == "" {
-		// Some proxy implementations will not generate
-		// a process token. In that case virtcontainers
-		// generates one and it re-uses the container ID
-		// for init processes.
-		token = containerID
-	}
-
-	return Process{
-		Token:     token,
-		StartTime: time.Now().UTC(),
-	}
 }
 
 func (c *Container) hotplugDrive() error {

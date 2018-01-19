@@ -86,8 +86,8 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Start shims
-	if err := p.startShims(); err != nil {
+	// Create Containers
+	if err := p.createContainers(); err != nil {
 		return nil, err
 	}
 

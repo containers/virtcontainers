@@ -602,6 +602,10 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
+	// We first try to fetch the pod state from storage.
+	// If it exists, this means this is a re-creation, i.e.
+	// we don't need to talk to the guest's agent, but only
+	// want to create the pod and its containers in memory.
 	state, err := p.storage.fetchPodState(p.id)
 	if err == nil && state.State != "" {
 		p.state = state
@@ -615,11 +619,6 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	// Passthrough devices
 	if err := p.attachDevices(); err != nil {
-		return nil, err
-	}
-
-	if err := p.createSetStates(); err != nil {
-		p.storage.deletePodResources(p.id, nil)
 		return nil, err
 	}
 
@@ -666,13 +665,6 @@ func newPod(podConfig PodConfig) (*Pod, error) {
 		annotationsLock: &sync.RWMutex{},
 		wg:              &sync.WaitGroup{},
 	}
-
-	containers, err := newContainers(p, podConfig.Containers)
-	if err != nil {
-		return nil, err
-	}
-
-	p.containers = containers
 
 	if err := p.storage.createAllResources(*p); err != nil {
 		return nil, err
@@ -729,6 +721,12 @@ func fetchPod(podID string) (pod *Pod, err error) {
 	pod, err = createPod(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pod with config %+v: %v", config, err)
+	}
+
+	// This pod already exists, we don't need to recreate the containers in the guest.
+	// We only need to fetch the containers from storage and create the container structs.
+	if err := pod.newContainers(); err != nil {
+		return nil, err
 	}
 
 	return pod, nil
@@ -845,51 +843,48 @@ func (p *Pod) startProxy() error {
 	return nil
 }
 
-// startShims registers all containers to the proxy and starts one
-// shim per container.
-func (p *Pod) startShims() error {
-	proxyInfos, url, err := p.proxy.register(*p)
-	if err != nil {
-		return err
-	}
+func (p *Pod) addContainer(c *Container) error {
+	p.containers = append(p.containers, c)
 
-	if err := p.proxy.disconnect(); err != nil {
-		return err
-	}
+	return nil
+}
 
-	if len(proxyInfos) != len(p.containers) {
-		return fmt.Errorf("Retrieved %d proxy infos, expecting %d", len(proxyInfos), len(p.containers))
-	}
-
-	shimCount := 0
-	for idx := range p.containers {
-		p.containers[idx].process = newInitProcess(proxyInfos[idx].Token, p.containers[idx].id)
-
-		shimParams := ShimParams{
-			Container: p.containers[idx].id,
-			Token:     p.containers[idx].process.Token,
-			URL:       url,
-			Console:   p.containers[idx].config.Cmd.Console,
-			Terminal:  p.containers[idx].config.Cmd.Interactive,
-			Detach:    p.containers[idx].config.Cmd.Detach,
-		}
-
-		pid, err := p.shim.start(*p, shimParams)
+// newContainers creates new containers structure and
+// adds them to the pod. It does not create the containers
+// in the guest. This should only be used when fetching a
+// pod that already exists.
+func (p *Pod) newContainers() error {
+	for _, contConfig := range p.config.Containers {
+		c, err := newContainer(p, contConfig)
 		if err != nil {
 			return err
 		}
 
-		shimCount++
-
-		if err := p.containers[idx].SetPid(pid); err != nil {
+		if err := p.addContainer(c); err != nil {
 			return err
 		}
 	}
 
-	if shimCount > 0 {
-		p.Logger().WithField("shim-count", shimCount).Info("Started shims")
-	} else {
-		p.Logger().Info("No containers, so no shims started")
+	return nil
+}
+
+// createContainers registers all containers to the proxy, create the
+// containers in the guest and starts one shim per container.
+func (p *Pod) createContainers() error {
+	for _, contConfig := range p.config.Containers {
+		newContainer, err := createContainer(p, contConfig)
+		if err != nil {
+			return err
+		}
+
+		if err := p.addContainer(newContainer); err != nil {
+			return err
+		}
+	}
+
+	if err := p.createSetStates(); err != nil {
+		p.storage.deletePodResources(p.id, nil)
+		return err
 	}
 
 	return nil
