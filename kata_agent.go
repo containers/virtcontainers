@@ -27,6 +27,7 @@ import (
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/kata-containers/agent/protocols/grpc"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -272,22 +273,26 @@ func cmdEnvsToStringSlice(ev []EnvVar) []string {
 	return env
 }
 
-func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err error) {
+func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 	var kataProcess *grpc.Process
 
-	kataProcess, err = cmdToKataProcess(cmd)
+	kataProcess, err := cmdToKataProcess(cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req := &grpc.ExecProcessRequest{
 		ContainerId: c.id,
-		ExecId:      c.process.Token,
+		ExecId:      uuid.Generate().String(),
 		Process:     kataProcess,
 	}
 
 	_, err = k.proxy.sendCmd(req)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return c.startShim(req.ExecId, false)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -499,12 +504,17 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
-		ExecId:      c.process.Token,
+		ExecId:      c.id,
 		Storages:    containerStorage,
 		OCI:         grpcSpec,
 	}
 
 	_, err = k.proxy.sendCmd(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.startShim(req.ExecId, true)
 	return err
 }
 
