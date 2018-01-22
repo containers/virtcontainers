@@ -838,6 +838,14 @@ func (p *Pod) startProxy() error {
 		return err
 	}
 
+	if _, _, err := p.proxy.register(*p); err != nil {
+		return err
+	}
+
+	if err := p.proxy.disconnect(); err != nil {
+		return err
+	}
+
 	p.Logger().WithField("proxy-pid", pid).Info("proxy started")
 
 	return nil
