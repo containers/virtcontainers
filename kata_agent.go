@@ -27,6 +27,7 @@ import (
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
+	"github.com/containers/virtcontainers/pkg/uuid"
 	"github.com/kata-containers/agent/protocols/grpc"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -221,19 +222,37 @@ func cmdToKataProcess(cmd Cmd) (process *grpc.Process, err error) {
 	// the gRPC "User" type.
 	const grpcUserBits = 32
 
-	i, err = strconv.ParseUint(cmd.User, 10, grpcUserBits)
+	// User can contain only the "uid" or it can contain "uid:gid".
+	parsedUser := strings.Split(cmd.User, ":")
+	if len(parsedUser) > 2 {
+		return nil, fmt.Errorf("cmd.User %q format is wrong", cmd.User)
+	}
+
+	i, err = strconv.ParseUint(parsedUser[0], 10, grpcUserBits)
 	if err != nil {
 		return nil, err
 	}
 
 	uid := uint32(i)
 
-	i, err = strconv.ParseUint(cmd.PrimaryGroup, 10, grpcUserBits)
-	if err != nil {
-		return nil, err
+	var gid uint32
+	if len(parsedUser) > 1 {
+		i, err = strconv.ParseUint(parsedUser[1], 10, grpcUserBits)
+		if err != nil {
+			return nil, err
+		}
+
+		gid = uint32(i)
 	}
 
-	gid := uint32(i)
+	if cmd.PrimaryGroup != "" {
+		i, err = strconv.ParseUint(cmd.PrimaryGroup, 10, grpcUserBits)
+		if err != nil {
+			return nil, err
+		}
+
+		gid = uint32(i)
+	}
 
 	for _, g := range cmd.SupplementaryGroups {
 		var extraGid uint64
@@ -272,22 +291,26 @@ func cmdEnvsToStringSlice(ev []EnvVar) []string {
 	return env
 }
 
-func (k *kataAgent) exec(pod *Pod, c Container, process Process, cmd Cmd) (err error) {
+func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 	var kataProcess *grpc.Process
 
-	kataProcess, err = cmdToKataProcess(cmd)
+	kataProcess, err := cmdToKataProcess(cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req := &grpc.ExecProcessRequest{
 		ContainerId: c.id,
-		ExecId:      c.process.Token,
+		ExecId:      uuid.Generate().String(),
 		Process:     kataProcess,
 	}
 
 	_, err = k.proxy.sendCmd(req)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return c.startShim(req.ExecId, cmd, false)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -499,12 +522,17 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
-		ExecId:      c.process.Token,
+		ExecId:      c.id,
 		Storages:    containerStorage,
 		OCI:         grpcSpec,
 	}
 
 	_, err = k.proxy.sendCmd(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.startShim(req.ExecId, c.config.Cmd, true)
 	return err
 }
 
