@@ -222,19 +222,37 @@ func cmdToKataProcess(cmd Cmd) (process *grpc.Process, err error) {
 	// the gRPC "User" type.
 	const grpcUserBits = 32
 
-	i, err = strconv.ParseUint(cmd.User, 10, grpcUserBits)
+	// User can contain only the "uid" or it can contain "uid:gid".
+	parsedUser := strings.Split(cmd.User, ":")
+	if len(parsedUser) > 2 {
+		return nil, fmt.Errorf("cmd.User %q format is wrong", cmd.User)
+	}
+
+	i, err = strconv.ParseUint(parsedUser[0], 10, grpcUserBits)
 	if err != nil {
 		return nil, err
 	}
 
 	uid := uint32(i)
 
-	i, err = strconv.ParseUint(cmd.PrimaryGroup, 10, grpcUserBits)
-	if err != nil {
-		return nil, err
+	var gid uint32
+	if len(parsedUser) > 1 {
+		i, err = strconv.ParseUint(parsedUser[1], 10, grpcUserBits)
+		if err != nil {
+			return nil, err
+		}
+
+		gid = uint32(i)
 	}
 
-	gid := uint32(i)
+	if cmd.PrimaryGroup != "" {
+		i, err = strconv.ParseUint(cmd.PrimaryGroup, 10, grpcUserBits)
+		if err != nil {
+			return nil, err
+		}
+
+		gid = uint32(i)
+	}
 
 	for _, g := range cmd.SupplementaryGroups {
 		var extraGid uint64
