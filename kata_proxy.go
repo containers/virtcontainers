@@ -92,6 +92,16 @@ func (p *kataProxy) register(pod Pod) ([]ProxyInfo, string, error) {
 		proxyInfos = append(proxyInfos, proxyInfo)
 	}
 
+	if p.proxyURL == "" {
+		// construct the socket path the proxy instance will use
+		proxyURL, err := defaultAgentURL(&pod, SocketTypeUNIX)
+		if err != nil {
+			return []ProxyInfo{}, "", err
+		}
+
+		p.proxyURL = proxyURL
+	}
+
 	return proxyInfos, p.proxyURL, nil
 }
 
@@ -109,6 +119,16 @@ func (p *kataProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error
 	}
 
 	p.client = client
+
+	if p.proxyURL == "" {
+		// construct the socket path the proxy instance will use
+		proxyURL, err := defaultAgentURL(&pod, SocketTypeUNIX)
+		if err != nil {
+			return ProxyInfo{}, "", err
+		}
+
+		p.proxyURL = proxyURL
+	}
 
 	return ProxyInfo{}, p.proxyURL, nil
 }
