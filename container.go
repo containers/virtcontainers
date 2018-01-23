@@ -215,7 +215,7 @@ func (c *Container) GetAnnotations() map[string]string {
 	return c.config.Annotations
 }
 
-func (c *Container) startShim(token string, initProcess bool) (*Process, error) {
+func (c *Container) startShim(token string, cmd Cmd, initProcess bool) (*Process, error) {
 	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (c *Container) startShim(token string, initProcess bool) (*Process, error) 
 		processToken = proxyInfo.Token
 	}
 
-	process, err := c.startShimProcess(processToken, url, c.config.Cmd)
+	process, err := c.startShimProcess(processToken, url, cmd)
 	if err != nil {
 		return nil, err
 	}

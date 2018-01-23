@@ -292,7 +292,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	return c.startShim(req.ExecId, false)
+	return c.startShim(req.ExecId, cmd, false)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -514,7 +514,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		return err
 	}
 
-	_, err = c.startShim(req.ExecId, true)
+	_, err = c.startShim(req.ExecId, c.config.Cmd, true)
 	return err
 }
 
