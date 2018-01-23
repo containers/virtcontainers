@@ -48,12 +48,6 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Store it.
-	err = p.storePod()
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the network.
 	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
 	if err != nil {
@@ -88,6 +82,11 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 
 	// Create Containers
 	if err := p.createContainers(); err != nil {
+		return nil, err
+	}
+
+	// The pod is completely created now, we can store it.
+	if err := p.storePod(); err != nil {
 		return nil, err
 	}
 
