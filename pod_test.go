@@ -62,8 +62,7 @@ func testCreatePod(t *testing.T, id string,
 		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}
 
-	err = pod.startProxy()
-	if err != nil {
+	if err := pod.agent.startPod(*pod); err != nil {
 		return nil, err
 	}
 
@@ -570,7 +569,7 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 
 	initialPodState := State{
 		State: StateReady,
-		URL:   noopProxyURL,
+		URL:   "",
 	}
 
 	// After a pod creation, a container has a READY state

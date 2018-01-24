@@ -215,25 +215,27 @@ func (c *Container) GetAnnotations() map[string]string {
 	return c.config.Annotations
 }
 
-func (c *Container) startShim(token string, cmd Cmd, initProcess bool) (*Process, error) {
-	proxyInfo, url, err := c.pod.proxy.connect(*(c.pod), true)
+func (c *Container) startShim(token, url string, cmd Cmd, initProcess bool) (*Process, error) {
+	process := &Process{
+		Token:     token,
+		StartTime: time.Now().UTC(),
+	}
+
+	shimParams := ShimParams{
+		Container: c.id,
+		Token:     token,
+		URL:       url,
+		Console:   cmd.Console,
+		Terminal:  cmd.Interactive,
+		Detach:    cmd.Detach,
+	}
+
+	pid, err := c.pod.shim.start(*(c.pod), shimParams)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.pod.proxy.disconnect(); err != nil {
-		return nil, err
-	}
-
-	processToken := token
-	if processToken == "" {
-		processToken = proxyInfo.Token
-	}
-
-	process, err := c.startShimProcess(processToken, url, cmd)
-	if err != nil {
-		return nil, err
-	}
+	process.Pid = pid
 
 	// If we're exec'ing, we don't want to store the exec process as the
 	// container init process.
@@ -422,11 +424,6 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// found and that we are in the first creation of this container.
 	// We don't want the following code to be executed outside of this
 	// specific case.
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return nil, err
-	}
-	defer c.pod.proxy.disconnect()
-
 	if err := c.pod.agent.createContainer(c.pod, c); err != nil {
 		return nil, err
 	}
@@ -518,11 +515,6 @@ func (c *Container) start() error {
 		}
 	}
 
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return err
-	}
-	defer c.pod.proxy.disconnect()
-
 	agentCaps := c.pod.agent.capabilities()
 	hypervisorCaps := c.pod.hypervisor.capabilities()
 
@@ -579,8 +571,7 @@ func (c *Container) stop() error {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}
 
-	err = state.validTransition(StateRunning, StateStopped)
-	if err != nil {
+	if err := state.validTransition(StateRunning, StateStopped); err != nil {
 		return err
 	}
 
@@ -597,13 +588,7 @@ func (c *Container) stop() error {
 
 	}()
 
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return err
-	}
-	defer c.pod.proxy.disconnect()
-
-	err = c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true)
-	if err != nil {
+	if err := c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true); err != nil {
 		return err
 	}
 
@@ -612,12 +597,11 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.pod.agent.stopContainer(*(c.pod), *c)
-	if err != nil {
+	if err := c.pod.agent.stopContainer(*(c.pod), *c); err != nil {
 		return err
 	}
 
-	if err = c.detachDevices(); err != nil {
+	if err := c.detachDevices(); err != nil {
 		return err
 	}
 
@@ -625,8 +609,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	err = c.setContainerState(StateStopped)
-	if err != nil {
+	if err := c.setContainerState(StateStopped); err != nil {
 		return err
 	}
 
@@ -642,11 +625,6 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 	if state.State != StateRunning {
 		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
-
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return nil, err
-	}
-	defer c.pod.proxy.disconnect()
 
 	process, err := c.pod.agent.exec(c.pod, *c, cmd)
 	if err != nil {
@@ -677,16 +655,13 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	// and updating the container state, according to the signal.
 	if state.State == StateReady {
 		if signal != syscall.SIGTERM && signal != syscall.SIGKILL {
-			c.Logger().WithField("signal", signal).Info("Not sending singal as container already ready")
+			c.Logger().WithField("signal", signal).Info("Not sending signal as container already ready")
 			return nil
 		}
 
 		// Calling into stopShim() will send a SIGKILL to the shim.
-		// This signal will be forwarded to the proxy and it will be
-		// handled by the proxy itself. Indeed, because there is no
-		// process running inside the VM, there is no point in sending
-		// this signal to our agent. Instead, the proxy will take care
-		// of that signal by killing the shim (sending an exit code).
+		// This signal will be forwarded to the proxy or directly the
+		// agent and will be handled accordingly.
 		if err := stopShim(c.process.Pid); err != nil {
 			return err
 		}
@@ -697,11 +672,6 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	if state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
-
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return err
-	}
-	defer c.pod.proxy.disconnect()
 
 	err = c.pod.agent.killContainer(*(c.pod), *c, signal, all)
 	if err != nil {
@@ -721,41 +691,7 @@ func (c *Container) processList(options ProcessListOptions) (ProcessList, error)
 		return nil, fmt.Errorf("Container not running, impossible to list processes")
 	}
 
-	if _, _, err := c.pod.proxy.connect(*(c.pod), false); err != nil {
-		return nil, err
-	}
-	defer c.pod.proxy.disconnect()
-
 	return c.pod.agent.processListContainer(*(c.pod), *c, options)
-}
-
-func (c *Container) startShimProcess(token, url string, cmd Cmd) (*Process, error) {
-	if c.pod.state.URL != url {
-		return &Process{}, fmt.Errorf("Pod URL %q and URL from proxy %q MUST be identical", c.pod.state.URL, url)
-	}
-
-	process := Process{
-		Token:     token,
-		StartTime: time.Now().UTC(),
-	}
-
-	shimParams := ShimParams{
-		Container: c.id,
-		Token:     process.Token,
-		URL:       url,
-		Console:   cmd.Console,
-		Terminal:  cmd.Interactive,
-		Detach:    cmd.Detach,
-	}
-
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
-	if err != nil {
-		return &Process{}, err
-	}
-
-	process.Pid = pid
-
-	return &process, nil
 }
 
 func (c *Container) hotplugDrive() error {

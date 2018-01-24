@@ -525,7 +525,9 @@ func (p *Pod) GetAnnotations() map[string]string {
 	return p.config.Annotations
 }
 
-// URL returns the pod URL for any runtime to connect to the proxy.
+// URL returns the pod URL for any runtime to connect to the agent.
+// If the pod is configured to run with a proxy, this will be the
+// proxy endpoints URL.
 func (p *Pod) URL() string {
 	return p.state.URL
 }
@@ -804,51 +806,16 @@ func (p *Pod) startVM(netNsPath string) error {
 
 	p.Logger().Info("VM started")
 
-	// Start the proxy
-	if err := p.startProxy(); err != nil {
-		return err
-	}
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
-
 	// Once startVM is done, we want to guarantee
 	// that the pod is manageable. For that we need
 	// to start the pod inside the VM.
-	return p.agent.startPod(*p)
-}
-
-// startProxy starts a proxy instance for the pod.
-//
-// Note that there is no corresponding stopProxy() since the proxy
-// stops itself.
-func (p *Pod) startProxy() error {
-	pid, uri, err := p.proxy.start(*p)
-	if err != nil {
+	if err := p.agent.startPod(*p); err != nil {
 		return err
 	}
 
-	// save state
-	p.state.URL = uri
-	p.state.ProxyPid = pid
-
-	if err := p.setPodState(p.state); err != nil {
-		return err
-	}
-
-	if _, _, err := p.proxy.register(*p); err != nil {
-		return err
-	}
-
-	if err := p.proxy.disconnect(); err != nil {
-		return err
-	}
-
-	p.Logger().WithField("proxy-pid", pid).Info("proxy started")
-
-	return nil
+	// Important to save the pod state since the agent
+	// should have updated proxy information.
+	return p.setPodState(p.state)
 }
 
 func (p *Pod) addContainer(c *Container) error {
@@ -994,18 +961,6 @@ func (p *Pod) resumeSetStates() error {
 func (p *Pod) stopVM() error {
 	p.Logger().Info("Stopping VM")
 
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-
-	if err := p.proxy.unregister(*p); err != nil {
-		return err
-	}
-
-	if err := p.proxy.disconnect(); err != nil {
-		return err
-	}
-
 	return p.hypervisor.stopPod()
 }
 
@@ -1033,11 +988,6 @@ func (p *Pod) stop() error {
 			}
 		}
 	}
-
-	if _, _, err := p.proxy.connect(*p, false); err != nil {
-		return err
-	}
-	defer p.proxy.disconnect()
 
 	if err := p.agent.stopPod(*p); err != nil {
 		return err

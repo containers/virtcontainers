@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package virtcontainers
 
 import (
-	"context"
 	"net"
 	"testing"
 
 	"github.com/containers/virtcontainers/pkg/mock"
 	gpb "github.com/gogo/protobuf/types"
 	pb "github.com/kata-containers/agent/protocols/grpc"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -34,7 +34,7 @@ func proxyHandlerDiscard(c net.Conn) {
 	c.Read(buf)
 }
 
-func TestKataProxyRegister(t *testing.T) {
+func TestKataAgentConnect(t *testing.T) {
 	proxy := mock.ProxyUnixMock{
 		ClientHandler: proxyHandlerDiscard,
 	}
@@ -45,52 +45,24 @@ func TestKataProxyRegister(t *testing.T) {
 
 	defer proxy.Stop()
 
-	p := &kataProxy{
-		proxyURL: testKataProxyURL,
-	}
-
-	_, proxyURL, err := p.register(Pod{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if proxyURL != testKataProxyURL {
-		t.Fatalf("Got URL %q, expecting %q", proxyURL, testKataProxyURL)
-	}
-}
-
-func TestKataProxyConnect(t *testing.T) {
-	proxy := mock.ProxyUnixMock{
-		ClientHandler: proxyHandlerDiscard,
-	}
-
-	if err := proxy.Start(testKataProxyURL); err != nil {
-		t.Fatal(err)
-	}
-
-	defer proxy.Stop()
-
-	p := &kataProxy{
-		proxyURL: testKataProxyURL,
-	}
-
-	_, proxyURL, err := p.connect(
-		Pod{
+	k := &kataAgent{
+		pod: &Pod{
 			state: State{
 				URL: testKataProxyURL,
 			},
 		},
-		false)
-	if err != nil {
+	}
+
+	if err := k.connect(); err != nil {
 		t.Fatal(err)
 	}
 
-	if proxyURL != testKataProxyURL {
-		t.Fatalf("Got URL %q, expecting %q", proxyURL, testKataProxyURL)
+	if k.client == nil {
+		t.Fatal("Kata agent client is not properly initialized")
 	}
 }
 
-func TestKataProxyDisconnect(t *testing.T) {
+func TestKataAgentDisconnect(t *testing.T) {
 	proxy := mock.ProxyUnixMock{
 		ClientHandler: proxyHandlerDiscard,
 	}
@@ -101,27 +73,24 @@ func TestKataProxyDisconnect(t *testing.T) {
 
 	defer proxy.Stop()
 
-	p := &kataProxy{
-		proxyURL: testKataProxyURL,
-	}
-
-	_, proxyURL, err := p.connect(
-		Pod{
+	k := &kataAgent{
+		pod: &Pod{
 			state: State{
 				URL: testKataProxyURL,
 			},
 		},
-		false)
-	if err != nil {
+	}
+
+	if err := k.connect(); err != nil {
 		t.Fatal(err)
 	}
 
-	if proxyURL != testKataProxyURL {
-		t.Fatalf("Got URL %q, expecting %q", proxyURL, testKataProxyURL)
+	if err := k.disconnect(); err != nil {
+		t.Fatal(err)
 	}
 
-	if err := p.disconnect(); err != nil {
-		t.Fatal(err)
+	if k.client != nil {
+		t.Fatal("Kata agent client pointer should be nil")
 	}
 }
 
@@ -212,7 +181,17 @@ func gRPCRegister(s *grpc.Server, srv interface{}) {
 	}
 }
 
-func TestKataProxySendCmd(t *testing.T) {
+var reqList = []interface{}{
+	&pb.CreateSandboxRequest{},
+	&pb.DestroySandboxRequest{},
+	&pb.ExecProcessRequest{},
+	&pb.CreateContainerRequest{},
+	&pb.StartContainerRequest{},
+	&pb.RemoveContainerRequest{},
+	&pb.SignalProcessRequest{},
+}
+
+func TestKataAgentSendReq(t *testing.T) {
 	impl := &gRPCProxy{}
 
 	proxy := mock.ProxyGRPCMock{
@@ -226,27 +205,17 @@ func TestKataProxySendCmd(t *testing.T) {
 
 	defer proxy.Stop()
 
-	p := &kataProxy{
-		proxyURL: testKataProxyURL,
-	}
-
-	_, proxyURL, err := p.connect(
-		Pod{
+	k := &kataAgent{
+		pod: &Pod{
 			state: State{
 				URL: testKataProxyURL,
 			},
 		},
-		false)
-	if err != nil {
-		t.Fatal(err)
 	}
 
-	if proxyURL != testKataProxyURL {
-		t.Fatalf("Got URL %q, expecting %q", proxyURL, testKataProxyURL)
-	}
-
-	req := &pb.DestroySandboxRequest{}
-	if _, err := p.sendCmd(req); err != nil {
-		t.Fatal(err)
+	for _, req := range reqList {
+		if _, err := k.sendReq(req); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

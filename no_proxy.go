@@ -39,42 +39,10 @@ func (p *noProxy) start(pod Pod) (int, string, error) {
 
 	p.vmURL = url
 
-	if err := pod.agent.setProxyURL(url); err != nil {
-		return -1, "", err
-	}
-
 	return 0, p.vmURL, nil
 }
 
-// register is noProxy register implementation for proxy interface.
-func (p *noProxy) register(pod Pod) ([]ProxyInfo, string, error) {
-	var proxyInfos []ProxyInfo
-
-	for i := 0; i < len(pod.containers); i++ {
-		proxyInfo := ProxyInfo{}
-
-		proxyInfos = append(proxyInfos, proxyInfo)
-	}
-
-	return proxyInfos, p.vmURL, nil
-}
-
-// unregister is noProxy unregister implementation for proxy interface.
-func (p *noProxy) unregister(pod Pod) error {
+// stop is noProxy stop implementation for proxy interface.
+func (p *noProxy) stop(pod Pod) error {
 	return nil
-}
-
-// connect is noProxy connect implementation for proxy interface.
-func (p *noProxy) connect(pod Pod, createToken bool) (ProxyInfo, string, error) {
-	return ProxyInfo{}, p.vmURL, nil
-}
-
-// disconnect is noProxy disconnect implementation for proxy interface.
-func (p *noProxy) disconnect() error {
-	return nil
-}
-
-// sendCmd is noProxy sendCmd implementation for proxy interface.
-func (p *noProxy) sendCmd(cmd interface{}) (interface{}, error) {
-	return nil, nil
 }

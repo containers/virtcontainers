@@ -62,14 +62,6 @@ func TestNoopAgentVmURL(t *testing.T) {
 	}
 }
 
-func TestNoopAgentProxyURL(t *testing.T) {
-	n := &noopAgent{}
-
-	if err := n.setProxyURL(""); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestNoopAgentExec(t *testing.T) {
 	n := &noopAgent{}
 	cmd := Cmd{}
