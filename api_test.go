@@ -108,12 +108,9 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	podConfig := PodConfig{
@@ -147,12 +144,9 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	netConfig := NetworkConfig{
@@ -193,12 +187,9 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	hooks := Hooks{

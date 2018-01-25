@@ -48,52 +48,41 @@ const (
 type HyperConfig struct {
 	SockCtlName string
 	SockTtyName string
-	Volumes     []Volume
-	Sockets     []Socket
 }
 
-// Logger returns a logrus logger appropriate for logging HyperConfig messages
-func (c *HyperConfig) Logger() *logrus.Entry {
-	return virtLog.WithField("subsystem", "hyperstart")
-}
-
-func (c *HyperConfig) validate(pod Pod) bool {
-	if len(c.Sockets) == 0 {
-		c.Logger().Info("No sockets from configuration")
-
-		podSocketPaths := []string{
-			fmt.Sprintf(defaultSockPathTemplates[0], runStoragePath, pod.id),
-			fmt.Sprintf(defaultSockPathTemplates[1], runStoragePath, pod.id),
-		}
-
-		c.SockCtlName = podSocketPaths[0]
-		c.SockTtyName = podSocketPaths[1]
-
-		for i := 0; i < len(podSocketPaths); i++ {
-			s := Socket{
-				DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, i),
-				ID:       fmt.Sprintf(defaultIDTemplate, i),
-				HostPath: podSocketPaths[i],
-				Name:     fmt.Sprintf(defaultChannelTemplate, i),
-			}
-			c.Sockets = append(c.Sockets, s)
-		}
+func (h *hyper) generateSockets(pod Pod, c HyperConfig) {
+	podSocketPaths := []string{
+		fmt.Sprintf(defaultSockPathTemplates[0], runStoragePath, pod.id),
+		fmt.Sprintf(defaultSockPathTemplates[1], runStoragePath, pod.id),
 	}
 
-	if len(c.Sockets) != 2 {
-		return false
+	if c.SockCtlName != "" {
+		podSocketPaths[0] = c.SockCtlName
 	}
 
-	return true
+	if c.SockTtyName != "" {
+		podSocketPaths[1] = c.SockTtyName
+	}
+
+	for i := 0; i < len(podSocketPaths); i++ {
+		s := Socket{
+			DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, i),
+			ID:       fmt.Sprintf(defaultIDTemplate, i),
+			HostPath: podSocketPaths[i],
+			Name:     fmt.Sprintf(defaultChannelTemplate, i),
+		}
+		h.sockets = append(h.sockets, s)
+	}
 }
 
 // hyper is the Agent interface implementation for hyperstart.
 type hyper struct {
-	config HyperConfig
 	pod    *Pod
 	shim   shim
 	proxy  proxy
 	client *proxyClient.Client
+
+	sockets []Socket
 }
 
 type hyperstartProxyCmd struct {
@@ -247,17 +236,14 @@ func fsMapFromMounts(mounts []*Mount) []*hyperstart.FsmapDescriptor {
 func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	switch c := config.(type) {
 	case HyperConfig:
-		if c.validate(*pod) == false {
-			return fmt.Errorf("Invalid hyperstart configuration: %v", c)
-		}
-		h.config = c
+		// Create agent sockets from paths provided through
+		// configuration, or generate them from scratch.
+		h.generateSockets(*pod, c)
+
 		h.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
-
-	// Override pod agent configuration
-	pod.config.AgentConfig = h.config
 
 	h.proxy, err = newProxy(pod.config.ProxyType)
 	if err != nil {
@@ -273,14 +259,7 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 }
 
 func (h *hyper) createPod(pod *Pod) (err error) {
-	for _, volume := range h.config.Volumes {
-		err := pod.hypervisor.addDevice(volume, fsDev)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, socket := range h.config.Sockets {
+	for _, socket := range h.sockets {
 		err := pod.hypervisor.addDevice(socket, serialPortDev)
 		if err != nil {
 			return err
@@ -686,8 +665,8 @@ func (h *hyper) register() error {
 		NumIOStreams: 0,
 	}
 
-	_, err := h.client.RegisterVM(h.pod.id, h.config.SockCtlName,
-		h.config.SockTtyName, registerVMOptions)
+	_, err := h.client.RegisterVM(h.pod.id, h.sockets[0].HostPath,
+		h.sockets[1].HostPath, registerVMOptions)
 	return err
 }
 

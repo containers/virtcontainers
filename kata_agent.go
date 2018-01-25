@@ -53,10 +53,7 @@ var (
 // KataAgentConfig is a structure storing information needed
 // to reach the Kata Containers agent.
 type KataAgentConfig struct {
-	GRPCSocketType string
-	GRPCSocket     string
-
-	Volumes []Volume
+	GRPCSocket string
 }
 
 type kataVSOCK struct {
@@ -69,7 +66,6 @@ func (s *kataVSOCK) String() string {
 }
 
 type kataAgent struct {
-	config *KataAgentConfig
 	pod    *Pod
 	shim   shim
 	proxy  proxy
@@ -103,12 +99,7 @@ func parseVSOCKAddr(sock string) (uint32, uint32, error) {
 	return uint32(cid), uint32(port), nil
 }
 
-func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
-	if c.GRPCSocketType == "" {
-		// TODO Auto detect VSOCK host support
-		c.GRPCSocketType = SocketTypeUNIX
-	}
-
+func (k *kataAgent) generateVMSocket(pod Pod, c KataAgentConfig) error {
 	cid, port, err := parseVSOCKAddr(c.GRPCSocket)
 	if err != nil {
 		// We need to generate a host UNIX socket path for the emulated serial port.
@@ -132,17 +123,14 @@ func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
 func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 	switch c := config.(type) {
 	case KataAgentConfig:
-		if err := k.generateVMSocket(pod, &c); err != nil {
+		if err := k.generateVMSocket(*pod, c); err != nil {
 			return err
 		}
-		k.config = &c
+
 		k.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
-
-	// Override pod agent configuration
-	pod.config.AgentConfig = k.config
 
 	k.proxy, err = newProxy(pod.config.ProxyType)
 	if err != nil {
@@ -173,13 +161,6 @@ func (k *kataAgent) capabilities() capabilities {
 }
 
 func (k *kataAgent) createPod(pod *Pod) error {
-	for _, volume := range k.config.Volumes {
-		err := pod.hypervisor.addDevice(volume, fsDev)
-		if err != nil {
-			return err
-		}
-	}
-
 	switch s := k.vmSocket.(type) {
 	case Socket:
 		err := pod.hypervisor.addDevice(s, serialPortDev)
