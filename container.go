@@ -205,11 +205,6 @@ func (c *Container) setStateHotpluggedDrive(hotplugged bool) error {
 	return nil
 }
 
-// URL returns the URL related to the pod.
-func (c *Container) URL() string {
-	return c.pod.URL()
-}
-
 // GetAnnotations returns container's annotations
 func (c *Container) GetAnnotations() map[string]string {
 	return c.config.Annotations

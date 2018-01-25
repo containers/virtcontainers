@@ -161,5 +161,5 @@ type proxy interface {
 
 	// stop terminates a proxy instance after all communications with the
 	// agent inside the VM have been properly stopped.
-	stop(pod Pod) error
+	stop(pod Pod, pid int) error
 }

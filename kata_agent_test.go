@@ -46,10 +46,8 @@ func TestKataAgentConnect(t *testing.T) {
 	defer proxy.Stop()
 
 	k := &kataAgent{
-		pod: &Pod{
-			state: State{
-				URL: testKataProxyURL,
-			},
+		state: KataAgentState{
+			URL: testKataProxyURL,
 		},
 	}
 
@@ -74,10 +72,8 @@ func TestKataAgentDisconnect(t *testing.T) {
 	defer proxy.Stop()
 
 	k := &kataAgent{
-		pod: &Pod{
-			state: State{
-				URL: testKataProxyURL,
-			},
+		state: KataAgentState{
+			URL: testKataProxyURL,
 		},
 	}
 
@@ -206,10 +202,8 @@ func TestKataAgentSendReq(t *testing.T) {
 	defer proxy.Stop()
 
 	k := &kataAgent{
-		pod: &Pod{
-			state: State{
-				URL: testKataProxyURL,
-			},
+		state: KataAgentState{
+			URL: testKataProxyURL,
 		},
 	}
 

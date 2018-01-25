@@ -49,6 +49,6 @@ func (p *ccProxy) start(pod Pod, params proxyParams) (int, string, error) {
 	return cmd.Process.Pid, proxyURL, nil
 }
 
-func (p *ccProxy) stop(pod Pod) error {
+func (p *ccProxy) stop(pod Pod, pid int) error {
 	return nil
 }

@@ -30,6 +30,6 @@ func (p *noopProxy) start(pod Pod, params proxyParams) (int, string, error) {
 
 // stop is the proxy stop implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) stop(pod Pod) error {
+func (p *noopProxy) stop(pod Pod, pid int) error {
 	return nil
 }

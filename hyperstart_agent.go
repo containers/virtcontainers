@@ -75,12 +75,20 @@ func (h *hyper) generateSockets(pod Pod, c HyperConfig) {
 	}
 }
 
+// HyperAgentState is the structure describing the data stored from this
+// agent implementation.
+type HyperAgentState struct {
+	ProxyPid int
+	URL      string
+}
+
 // hyper is the Agent interface implementation for hyperstart.
 type hyper struct {
-	pod    *Pod
+	pod    Pod
 	shim   shim
 	proxy  proxy
 	client *proxyClient.Client
+	state  HyperAgentState
 
 	sockets []Socket
 }
@@ -240,7 +248,7 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 		// configuration, or generate them from scratch.
 		h.generateSockets(*pod, c)
 
-		h.pod = pod
+		h.pod = *pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
@@ -253,6 +261,11 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	h.shim, err = newShim(pod.config.ShimType)
 	if err != nil {
 		return err
+	}
+
+	// Fetch agent runtime info.
+	if err := pod.storage.fetchAgentState(pod.id, &h.state); err != nil {
+		h.Logger().Debug("Could not retrieve anything from storage")
 	}
 
 	return nil
@@ -306,7 +319,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		Process:   *hyperProcess,
 	}
 
-	process, err := prepareAndStartShim(pod, h.shim, c.id, token, pod.URL(), cmd)
+	process, err := prepareAndStartShim(pod, h.shim, c.id, token, h.state.URL, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -332,9 +345,12 @@ func (h *hyper) startPod(pod Pod) error {
 		return err
 	}
 
-	// Fill pod state with proxy information.
-	h.pod.state.URL = uri
-	h.pod.state.ProxyPid = pid
+	// Fill agent state with proxy information, and store them.
+	h.state.ProxyPid = pid
+	h.state.URL = uri
+	if err := pod.storage.storeAgentState(pod.id, h.state); err != nil {
+		return err
+	}
 
 	h.Logger().WithField("proxy-pid", pid).Info("proxy started")
 
@@ -384,7 +400,7 @@ func (h *hyper) stopPod(pod Pod) error {
 		return err
 	}
 
-	return h.proxy.stop(pod)
+	return h.proxy.stop(pod, h.state.ProxyPid)
 }
 
 func (h *hyper) startOneContainer(pod Pod, c Container) error {
@@ -467,7 +483,7 @@ func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, h.shim, c.id, token, pod.URL(), c.config.Cmd)
+	return prepareAndStartShim(pod, h.shim, c.id, token, h.state.URL, c.config.Cmd)
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.
@@ -617,7 +633,7 @@ func (h *hyper) connect() error {
 		return nil
 	}
 
-	u, err := url.Parse(h.pod.URL())
+	u, err := url.Parse(h.state.URL)
 	if err != nil {
 		return err
 	}

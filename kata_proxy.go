@@ -64,7 +64,7 @@ func (p *kataProxy) start(pod Pod, params proxyParams) (int, string, error) {
 }
 
 // stop is kataProxy stop implementation for proxy interface.
-func (p *kataProxy) stop(pod Pod) error {
+func (p *kataProxy) stop(pod Pod, pid int) error {
 	// Signal the proxy with SIGTERM.
-	return syscall.Kill(pod.state.ProxyPid, syscall.SIGTERM)
+	return syscall.Kill(pid, syscall.SIGTERM)
 }

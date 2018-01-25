@@ -62,7 +62,6 @@ const (
 // State is a pod state structure.
 type State struct {
 	State stateString `json:"state"`
-	URL   string      `json:"url,omitempty"`
 
 	// Index of the block device passed to hypervisor.
 	BlockIndex int `json:"blockIndex"`
@@ -72,9 +71,6 @@ type State struct {
 
 	// Bool to indicate if the drive for a container was hotplugged.
 	HotpluggedDrive bool `json:"hotpluggedDrive"`
-
-	// Process ID of the pods proxy instance
-	ProxyPid int
 }
 
 // valid checks that the pod state is valid.
@@ -521,13 +517,6 @@ func (p *Pod) GetAnnotations() map[string]string {
 	defer p.annotationsLock.RUnlock()
 
 	return p.config.Annotations
-}
-
-// URL returns the pod URL for any runtime to connect to the agent.
-// If the pod is configured to run with a proxy, this will be the
-// proxy endpoints URL.
-func (p *Pod) URL() string {
-	return p.state.URL
 }
 
 // GetAllContainers returns all containers.

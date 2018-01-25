@@ -668,9 +668,7 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 	expectedStatus := PodStatus{
 		ID: testPodID,
 		State: State{
-			State:    StateReady,
-			URL:      "",
-			ProxyPid: 0,
+			State: StateReady,
 		},
 		Hypervisor:       MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
@@ -681,7 +679,6 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 				ID: containerID,
 				State: State{
 					State: StateReady,
-					URL:   "",
 				},
 				PID:         0,
 				RootFs:      filepath.Join(testDir, testBundle),
@@ -726,7 +723,6 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 		ID: testPodID,
 		State: State{
 			State: StateRunning,
-			URL:   "",
 		},
 		Hypervisor:       MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
@@ -737,7 +733,6 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 				ID: containerID,
 				State: State{
 					State: StateRunning,
-					URL:   "",
 				},
 				PID:         0,
 				RootFs:      filepath.Join(testDir, testBundle),
@@ -1575,7 +1570,6 @@ func TestStatusContainerStateReady(t *testing.T) {
 		ID: contID,
 		State: State{
 			State: StateReady,
-			URL:   "",
 		},
 		PID:         0,
 		RootFs:      filepath.Join(testDir, testBundle),
@@ -1649,7 +1643,6 @@ func TestStatusContainerStateRunning(t *testing.T) {
 		ID: contID,
 		State: State{
 			State: StateRunning,
-			URL:   "",
 		},
 		PID:         0,
 		RootFs:      filepath.Join(testDir, testBundle),

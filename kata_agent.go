@@ -65,11 +65,18 @@ func (s *kataVSOCK) String() string {
 	return fmt.Sprintf("%s://%d:%d", vsockSocketScheme, s.contextID, s.port)
 }
 
+// KataAgentState is the structure describing the data stored from this
+// agent implementation.
+type KataAgentState struct {
+	ProxyPid int
+	URL      string
+}
+
 type kataAgent struct {
-	pod    *Pod
 	shim   shim
 	proxy  proxy
 	client *kataclient.AgentClient
+	state  KataAgentState
 
 	vmSocket interface{}
 }
@@ -126,8 +133,6 @@ func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 		if err := k.generateVMSocket(*pod, c); err != nil {
 			return err
 		}
-
-		k.pod = pod
 	default:
 		return fmt.Errorf("Invalid config type")
 	}
@@ -140,6 +145,11 @@ func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 	k.shim, err = newShim(pod.config.ShimType)
 	if err != nil {
 		return err
+	}
+
+	// Fetch agent runtime info.
+	if err := pod.storage.fetchAgentState(pod.id, &k.state); err != nil {
+		k.Logger().Debug("Could not retrieve anything from storage")
 	}
 
 	return nil
@@ -282,7 +292,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, pod.URL(), cmd)
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, cmd)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -306,9 +316,12 @@ func (k *kataAgent) startPod(pod Pod) error {
 		return err
 	}
 
-	// Fill pod state with proxy information.
-	k.pod.state.URL = uri
-	k.pod.state.ProxyPid = pid
+	// Fill agent state with proxy information, and store them.
+	k.state.ProxyPid = pid
+	k.state.URL = uri
+	if err := pod.storage.storeAgentState(pod.id, k.state); err != nil {
+		return err
+	}
 
 	k.Logger().WithField("proxy-pid", pid).Info("proxy started")
 
@@ -350,7 +363,7 @@ func (k *kataAgent) stopPod(pod Pod) error {
 		return err
 	}
 
-	return k.proxy.stop(pod)
+	return k.proxy.stop(pod, k.state.ProxyPid)
 }
 
 func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.Storage {
@@ -525,7 +538,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, pod.URL(), c.config.Cmd)
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, c.config.Cmd)
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {
@@ -573,7 +586,7 @@ func (k *kataAgent) connect() error {
 		return nil
 	}
 
-	client, err := kataclient.NewAgentClient(k.pod.URL())
+	client, err := kataclient.NewAgentClient(k.state.URL)
 	if err != nil {
 		return err
 	}

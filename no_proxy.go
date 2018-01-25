@@ -43,6 +43,6 @@ func (p *noProxy) start(pod Pod, params proxyParams) (int, string, error) {
 }
 
 // stop is noProxy stop implementation for proxy interface.
-func (p *noProxy) stop(pod Pod) error {
+func (p *noProxy) stop(pod Pod, pid int) error {
 	return nil
 }
