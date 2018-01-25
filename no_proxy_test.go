@@ -29,13 +29,14 @@ func TestNoProxyStart(t *testing.T) {
 
 	p := &noProxy{}
 
-	pid, vmURL, err := p.start(pod)
+	agentURL := "agentURL"
+	pid, vmURL, err := p.start(pod, proxyParams{agentURL: agentURL})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if vmURL != "" {
-		t.Fatalf("Got URL %q, expecting empty URL", vmURL)
+	if vmURL != agentURL {
+		t.Fatalf("Got URL %q, expecting %q", vmURL, agentURL)
 	}
 
 	if pid != 0 {

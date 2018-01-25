@@ -17,6 +17,8 @@
 package virtcontainers
 
 import (
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -197,5 +199,48 @@ func TestNewProxyConfigNoPathFailure(t *testing.T) {
 
 	if _, err := newProxyConfig(podConfig); err == nil {
 		t.Fatal("Should fail because ProxyConfig has no Path")
+	}
+}
+
+const podID = "123456789"
+
+func testDefaultProxyURL(expectedURL string, socketType string, podID string) error {
+	pod := &Pod{
+		id: podID,
+	}
+
+	url, err := defaultProxyURL(*pod, socketType)
+	if err != nil {
+		return err
+	}
+
+	if url != expectedURL {
+		return fmt.Errorf("Mismatched URL: %s vs %s", url, expectedURL)
+	}
+
+	return nil
+}
+
+func TestDefaultProxyURLUnix(t *testing.T) {
+	path := filepath.Join(runStoragePath, podID, "proxy.sock")
+	socketPath := fmt.Sprintf("unix://%s", path)
+
+	if err := testDefaultProxyURL(socketPath, SocketTypeUNIX, podID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultProxyURLVSock(t *testing.T) {
+	if err := testDefaultProxyURL("", SocketTypeVSOCK, podID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultProxyURLUnknown(t *testing.T) {
+	path := filepath.Join(runStoragePath, podID, "proxy.sock")
+	socketPath := fmt.Sprintf("unix://%s", path)
+
+	if err := testDefaultProxyURL(socketPath, "foobar", podID); err == nil {
+		t.Fatal()
 	}
 }

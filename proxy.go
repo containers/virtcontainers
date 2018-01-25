@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,12 @@ import (
 type ProxyConfig struct {
 	Path  string
 	Debug bool
+}
+
+// proxyParams is the structure providing specific parameters needed
+// for the execution of the proxy binary.
+type proxyParams struct {
+	agentURL string
 }
 
 // ProxyType describes a proxy type.
@@ -133,11 +140,24 @@ func newProxyConfig(podConfig *PodConfig) (ProxyConfig, error) {
 	return config, nil
 }
 
+func defaultProxyURL(pod Pod, socketType string) (string, error) {
+	switch socketType {
+	case SocketTypeUNIX:
+		socketPath := filepath.Join(runStoragePath, pod.id, "proxy.sock")
+		return fmt.Sprintf("unix://%s", socketPath), nil
+	case SocketTypeVSOCK:
+		// TODO Build the VSOCK default URL
+		return "", nil
+	default:
+		return "", fmt.Errorf("Unknown socket type: %s", socketType)
+	}
+}
+
 // proxy is the virtcontainers proxy interface.
 type proxy interface {
 	// start launches a proxy instance for the specified pod, returning
 	// the PID of the process and the URL used to connect to it.
-	start(pod Pod) (int, string, error)
+	start(pod Pod, params proxyParams) (int, string, error)
 
 	// stop terminates a proxy instance after all communications with the
 	// agent inside the VM have been properly stopped.

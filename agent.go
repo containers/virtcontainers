@@ -18,7 +18,6 @@ package virtcontainers
 
 import (
 	"fmt"
-	"path/filepath"
 	"syscall"
 
 	"github.com/mitchellh/mapstructure"
@@ -130,19 +129,6 @@ func newAgentConfig(config PodConfig) interface{} {
 	}
 }
 
-func defaultAgentURL(pod *Pod, socketType string) (string, error) {
-	switch socketType {
-	case SocketTypeUNIX:
-		socketPath := filepath.Join(runStoragePath, pod.id, "proxy.sock")
-		return fmt.Sprintf("unix://%s", socketPath), nil
-	case SocketTypeVSOCK:
-		// TODO Build the VSOCK default URL
-		return "", nil
-	default:
-		return "", fmt.Errorf("Unknown socket type: %s", socketType)
-	}
-}
-
 // agent is the virtcontainers agent interface.
 // Agents are running in the guest VM and handling
 // communications between the host and guest.
@@ -153,15 +139,6 @@ type agent interface {
 	// After init() is called, agent implementations should be initialized and ready
 	// to handle all other Agent interface methods.
 	init(pod *Pod, config interface{}) error
-
-	// vmURL returns the agent URL exposed by the hypervisor. This URL has
-	// been previously built from the agent implementation and provided to
-	// the hypervisor through a specific hypervisor interface function. It
-	// represents the entry point to connect to the agent through the VM.
-	// This function is particularly useful in case there is no proxy
-	// needed, meaning the proxy implementation will have to provide this
-	// URL instead of a real proxy URL.
-	vmURL() (string, error)
 
 	// capabilities should return a structure that specifies the capabilities
 	// supported by the agent.

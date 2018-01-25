@@ -17,26 +17,26 @@
 package virtcontainers
 
 import (
-	"fmt"
 	"os/exec"
-	"path/filepath"
 )
 
 type ccProxy struct {
 }
 
 // start is the proxy start implementation for ccProxy.
-func (p *ccProxy) start(pod Pod) (int, string, error) {
+func (p *ccProxy) start(pod Pod, params proxyParams) (int, string, error) {
 	config, err := newProxyConfig(pod.config)
 	if err != nil {
 		return -1, "", err
 	}
 
 	// construct the socket path the proxy instance will use
-	socketPath := filepath.Join(runStoragePath, pod.id, "proxy.sock")
-	uri := fmt.Sprintf("unix://%s", socketPath)
+	proxyURL, err := defaultProxyURL(pod, SocketTypeUNIX)
+	if err != nil {
+		return -1, "", err
+	}
 
-	args := []string{config.Path, "-uri", uri}
+	args := []string{config.Path, "-uri", proxyURL}
 	if config.Debug {
 		args = append(args, "-log", "debug")
 	}
@@ -46,7 +46,7 @@ func (p *ccProxy) start(pod Pod) (int, string, error) {
 		return -1, "", err
 	}
 
-	return cmd.Process.Pid, uri, nil
+	return cmd.Process.Pid, proxyURL, nil
 }
 
 func (p *ccProxy) stop(pod Pod) error {

@@ -24,7 +24,7 @@ var noopProxyURL = "noopProxyURL"
 
 // register is the proxy start implementation for testing purpose.
 // It does nothing.
-func (p *noopProxy) start(pod Pod) (int, string, error) {
+func (p *noopProxy) start(pod Pod, params proxyParams) (int, string, error) {
 	return 0, noopProxyURL, nil
 }
 

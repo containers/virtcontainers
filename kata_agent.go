@@ -145,7 +145,7 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 	return nil
 }
 
-func (k *kataAgent) vmURL() (string, error) {
+func (k *kataAgent) agentURL() (string, error) {
 	switch s := k.vmSocket.(type) {
 	case Socket:
 		return s.HostPath, nil
@@ -297,8 +297,18 @@ func (k *kataAgent) startPod(pod Pod) error {
 		return errorMissingProxy
 	}
 
+	// Get agent socket path to provide it to the proxy.
+	agentURL, err := k.agentURL()
+	if err != nil {
+		return err
+	}
+
+	proxyParams := proxyParams{
+		agentURL: agentURL,
+	}
+
 	// Start the proxy here
-	pid, uri, err := k.pod.proxy.start(pod)
+	pid, uri, err := k.pod.proxy.start(pod, proxyParams)
 	if err != nil {
 		return err
 	}

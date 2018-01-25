@@ -26,13 +26,16 @@ import (
 // This is pretty simple since it provides the same interface to both
 // runtime and shim as if they were talking directly to the agent.
 type kataProxy struct {
-	proxyURL string
 }
 
 // start is kataProxy start implementation for proxy interface.
-func (p *kataProxy) start(pod Pod) (int, string, error) {
+func (p *kataProxy) start(pod Pod, params proxyParams) (int, string, error) {
 	if pod.agent == nil {
 		return -1, "", fmt.Errorf("No agent")
+	}
+
+	if params.agentURL == "" {
+		return -1, "", fmt.Errorf("AgentURL cannot be empty")
 	}
 
 	config, err := newProxyConfig(pod.config)
@@ -41,19 +44,12 @@ func (p *kataProxy) start(pod Pod) (int, string, error) {
 	}
 
 	// construct the socket path the proxy instance will use
-	proxyURL, err := defaultAgentURL(&pod, SocketTypeUNIX)
+	proxyURL, err := defaultProxyURL(pod, SocketTypeUNIX)
 	if err != nil {
 		return -1, "", err
 	}
 
-	vmURL, err := pod.agent.vmURL()
-	if err != nil {
-		return -1, "", err
-	}
-
-	p.proxyURL = proxyURL
-
-	args := []string{config.Path, "-listen-socket", proxyURL, "-mux-socket", vmURL}
+	args := []string{config.Path, "-listen-socket", proxyURL, "-mux-socket", params.agentURL}
 	if config.Debug {
 		args = append(args, "-log", "debug")
 		args = append(args, "-agent-logs-socket", pod.hypervisor.getPodConsole(pod.id))
@@ -64,7 +60,7 @@ func (p *kataProxy) start(pod Pod) (int, string, error) {
 		return -1, "", err
 	}
 
-	return cmd.Process.Pid, p.proxyURL, nil
+	return cmd.Process.Pid, proxyURL, nil
 }
 
 // stop is kataProxy stop implementation for proxy interface.

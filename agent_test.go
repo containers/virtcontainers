@@ -17,8 +17,6 @@
 package virtcontainers
 
 import (
-	"fmt"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -155,47 +153,4 @@ func TestNewAgentConfigFromUnknownAgentType(t *testing.T) {
 	var agentConfig interface{}
 
 	testNewAgentConfig(t, PodConfig{}, agentConfig)
-}
-
-const podID = "123456789"
-
-func testDefaultAgentURL(expectedURL string, socketType string, podID string) error {
-	pod := &Pod{
-		id: podID,
-	}
-
-	url, err := defaultAgentURL(pod, socketType)
-	if err != nil {
-		return err
-	}
-
-	if url != expectedURL {
-		return fmt.Errorf("Mismatched URL: %s vs %s", url, expectedURL)
-	}
-
-	return nil
-}
-
-func TestDefaultAgentURLUnix(t *testing.T) {
-	path := filepath.Join(runStoragePath, podID, "proxy.sock")
-	socketPath := fmt.Sprintf("unix://%s", path)
-
-	if err := testDefaultAgentURL(socketPath, SocketTypeUNIX, podID); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestDefaultAgentURLVSock(t *testing.T) {
-	if err := testDefaultAgentURL("", SocketTypeVSOCK, podID); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestDefaultAgentURLUnknown(t *testing.T) {
-	path := filepath.Join(runStoragePath, podID, "proxy.sock")
-	socketPath := fmt.Sprintf("unix://%s", path)
-
-	if err := testDefaultAgentURL(socketPath, "foobar", podID); err == nil {
-		t.Fatal()
-	}
 }

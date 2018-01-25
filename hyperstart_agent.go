@@ -260,11 +260,6 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	return nil
 }
 
-// vmURL returns VM URL from hyperstart agent implementation.
-func (h *hyper) vmURL() (string, error) {
-	return "", nil
-}
-
 func (h *hyper) createPod(pod *Pod) (err error) {
 	for _, volume := range h.config.Volumes {
 		err := pod.hypervisor.addDevice(volume, fsDev)
@@ -341,7 +336,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
 	// Start the proxy here
-	pid, uri, err := h.pod.proxy.start(pod)
+	pid, uri, err := h.pod.proxy.start(pod, proxyParams{})
 	if err != nil {
 		return err
 	}
