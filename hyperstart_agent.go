@@ -91,6 +91,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 type hyper struct {
 	config HyperConfig
 	pod    *Pod
+	shim   shim
 	proxy  proxy
 	client *proxyClient.Client
 }
@@ -263,6 +264,11 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 		return err
 	}
 
+	h.shim, err = newShim(pod.config.ShimType)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -321,7 +327,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		Process:   *hyperProcess,
 	}
 
-	process, err := prepareAndStartShim(pod, c.id, token, pod.URL(), cmd)
+	process, err := prepareAndStartShim(pod, h.shim, c.id, token, pod.URL(), cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +488,7 @@ func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, c.id, token, pod.URL(), c.config.Cmd)
+	return prepareAndStartShim(pod, h.shim, c.id, token, pod.URL(), c.config.Cmd)
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.

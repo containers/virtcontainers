@@ -71,6 +71,7 @@ func (s *kataVSOCK) String() string {
 type kataAgent struct {
 	config *KataAgentConfig
 	pod    *Pod
+	shim   shim
 	proxy  proxy
 	client *kataclient.AgentClient
 
@@ -144,6 +145,11 @@ func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 	pod.config.AgentConfig = k.config
 
 	k.proxy, err = newProxy(pod.config.ProxyType)
+	if err != nil {
+		return err
+	}
+
+	k.shim, err = newShim(pod.config.ShimType)
 	if err != nil {
 		return err
 	}
@@ -295,7 +301,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, c.id, req.ExecId, pod.URL(), cmd)
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, pod.URL(), cmd)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -538,7 +544,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, c.id, req.ExecId, pod.URL(), c.config.Cmd)
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, pod.URL(), c.config.Cmd)
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {

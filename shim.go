@@ -155,7 +155,7 @@ func stopShim(pid int) error {
 	return nil
 }
 
-func prepareAndStartShim(pod *Pod, cid, token, url string, cmd Cmd) (*Process, error) {
+func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (*Process, error) {
 	process := &Process{
 		Token:     token,
 		StartTime: time.Now().UTC(),
@@ -170,7 +170,7 @@ func prepareAndStartShim(pod *Pod, cid, token, url string, cmd Cmd) (*Process, e
 		Detach:    cmd.Detach,
 	}
 
-	pid, err := pod.shim.start(*pod, shimParams)
+	pid, err := shim.start(*pod, shimParams)
 	if err != nil {
 		return nil, err
 	}

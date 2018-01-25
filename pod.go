@@ -454,7 +454,6 @@ type Pod struct {
 
 	hypervisor hypervisor
 	agent      agent
-	shim       shim
 	storage    resourceStorage
 	network    network
 
@@ -638,18 +637,12 @@ func newPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	shim, err := newShim(podConfig.ShimType)
-	if err != nil {
-		return nil, err
-	}
-
 	network := newNetwork(podConfig.NetworkModel)
 
 	p := &Pod{
 		id:              podConfig.ID,
 		hypervisor:      hypervisor,
 		agent:           agent,
-		shim:            shim,
 		storage:         &filesystem{},
 		network:         network,
 		config:          &podConfig,
