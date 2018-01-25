@@ -215,43 +215,6 @@ func (c *Container) GetAnnotations() map[string]string {
 	return c.config.Annotations
 }
 
-func (c *Container) startShim(token, url string, cmd Cmd, initProcess bool) (*Process, error) {
-	process := &Process{
-		Token:     token,
-		StartTime: time.Now().UTC(),
-	}
-
-	shimParams := ShimParams{
-		Container: c.id,
-		Token:     token,
-		URL:       url,
-		Console:   cmd.Console,
-		Terminal:  cmd.Interactive,
-		Detach:    cmd.Detach,
-	}
-
-	pid, err := c.pod.shim.start(*(c.pod), shimParams)
-	if err != nil {
-		return nil, err
-	}
-
-	process.Pid = pid
-
-	// If we're exec'ing, we don't want to store the exec process as the
-	// container init process.
-	if !initProcess {
-		return process, nil
-	}
-
-	c.process = *process
-
-	if err := c.storeProcess(); err != nil {
-		return nil, err
-	}
-
-	return process, nil
-}
-
 func (c *Container) storeProcess() error {
 	return c.pod.storage.storeContainerProcess(c.podID, c.id, c.process)
 }
@@ -409,8 +372,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
-	err = c.createContainersDirs()
-	if err != nil {
+	if err := c.createContainersDirs(); err != nil {
 		return nil, err
 	}
 
@@ -424,7 +386,14 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// found and that we are in the first creation of this container.
 	// We don't want the following code to be executed outside of this
 	// specific case.
-	if err := c.pod.agent.createContainer(c.pod, c); err != nil {
+	process, err := c.pod.agent.createContainer(c.pod, c)
+	if err != nil {
+		return nil, err
+	}
+	c.process = *process
+
+	// Store the container process returned by the agent.
+	if err := c.storeProcess(); err != nil {
 		return nil, err
 	}
 

@@ -289,7 +289,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	return c.startShim(req.ExecId, pod.URL(), cmd, false)
+	return prepareAndStartShim(pod, c.id, req.ExecId, pod.URL(), cmd)
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
@@ -424,10 +424,10 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 	}
 }
 
-func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
+func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	ociSpecJSON, ok := c.config.Annotations[vcAnnotations.ConfigJSONKey]
 	if !ok {
-		return errorMissingOCISpec
+		return nil, errorMissingOCISpec
 	}
 
 	var containerStorage []*grpc.Storage
@@ -447,7 +447,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		// driveName is the predicted virtio-block guest name (the vd* in /dev/vd*).
 		driveName, err := getVirtDriveName(c.state.BlockIndex)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		rootfs.Source = filepath.Join(devPath, driveName)
@@ -471,31 +471,31 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 		// rootfs from the host and it will show up in the guest.
 		if err := bindMountContainerRootfs(kataHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
 			bindUnmountAllRootfs(kataHostSharedDir, *pod)
-			return err
+			return nil, err
 		}
 	}
 
 	ociSpec := &specs.Spec{}
 	if err := json.Unmarshal([]byte(ociSpecJSON), ociSpec); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Handle container mounts
 	newMounts, err := bindMountContainerMounts(kataHostSharedDir, kataGuestSharedDir, pod.id, c.id, c.mounts)
 	if err != nil {
 		bindUnmountAllRootfs(kataHostSharedDir, *pod)
-		return err
+		return nil, err
 	}
 
 	// We replace all OCI mount sources that match our container mount
 	// with the right source path (The guest one).
 	if err := k.replaceOCIMountSource(ociSpec, newMounts); err != nil {
-		return err
+		return nil, err
 	}
 
 	grpcSpec, err := grpc.OCItoGRPC(ociSpec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// We need to give the OCI spec our absolute rootfs path in the guest.
@@ -529,11 +529,10 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) error {
 	}
 
 	if _, err := k.sendReq(req); err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = c.startShim(req.ExecId, pod.URL(), c.config.Cmd, true)
-	return err
+	return prepareAndStartShim(pod, c.id, req.ExecId, pod.URL(), c.config.Cmd)
 }
 
 func (k *kataAgent) startContainer(pod Pod, c Container) error {

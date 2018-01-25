@@ -89,13 +89,11 @@ func TestNoopAgentCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = n.startPod(*pod)
-	if err != nil {
+	if err := n.startPod(*pod); err != nil {
 		t.Fatal(err)
 	}
 
-	err = n.createContainer(pod, container)
-	if err != nil {
+	if _, err := n.createContainer(pod, container); err != nil {
 		t.Fatal(err)
 	}
 }

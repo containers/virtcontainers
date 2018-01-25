@@ -315,7 +315,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		Process:   *hyperProcess,
 	}
 
-	process, err := c.startShim(token, h.pod.URL(), cmd, false)
+	process, err := prepareAndStartShim(pod, c.id, token, pod.URL(), cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -470,14 +470,13 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 }
 
 // createContainer is the agent Container creation implementation for hyperstart.
-func (h *hyper) createContainer(pod *Pod, c *Container) error {
+func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 	token, err := h.attach()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = c.startShim(token, h.pod.URL(), c.config.Cmd, true)
-	return err
+	return prepareAndStartShim(pod, c.id, token, pod.URL(), c.config.Cmd)
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.

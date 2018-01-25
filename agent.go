@@ -157,7 +157,7 @@ type agent interface {
 	stopPod(pod Pod) error
 
 	// createContainer will tell the agent to create a container related to a Pod.
-	createContainer(pod *Pod, c *Container) error
+	createContainer(pod *Pod, c *Container) (*Process, error)
 
 	// startContainer will tell the agent to start a container related to a Pod.
 	startContainer(pod Pod, c Container) error
