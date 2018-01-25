@@ -71,6 +71,7 @@ func (s *kataVSOCK) String() string {
 type kataAgent struct {
 	config *KataAgentConfig
 	pod    *Pod
+	proxy  proxy
 	client *kataclient.AgentClient
 
 	vmSocket interface{}
@@ -127,7 +128,7 @@ func (k *kataAgent) generateVMSocket(pod *Pod, c *KataAgentConfig) error {
 	return nil
 }
 
-func (k *kataAgent) init(pod *Pod, config interface{}) error {
+func (k *kataAgent) init(pod *Pod, config interface{}) (err error) {
 	switch c := config.(type) {
 	case KataAgentConfig:
 		if err := k.generateVMSocket(pod, &c); err != nil {
@@ -141,6 +142,11 @@ func (k *kataAgent) init(pod *Pod, config interface{}) error {
 
 	// Override pod agent configuration
 	pod.config.AgentConfig = k.config
+
+	k.proxy, err = newProxy(pod.config.ProxyType)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -293,7 +299,7 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 }
 
 func (k *kataAgent) startPod(pod Pod) error {
-	if k.pod.proxy == nil {
+	if k.proxy == nil {
 		return errorMissingProxy
 	}
 
@@ -308,7 +314,7 @@ func (k *kataAgent) startPod(pod Pod) error {
 	}
 
 	// Start the proxy here
-	pid, uri, err := k.pod.proxy.start(pod, proxyParams)
+	pid, uri, err := k.proxy.start(pod, proxyParams)
 	if err != nil {
 		return err
 	}
@@ -347,7 +353,7 @@ func (k *kataAgent) startPod(pod Pod) error {
 }
 
 func (k *kataAgent) stopPod(pod Pod) error {
-	if k.pod.proxy == nil {
+	if k.proxy == nil {
 		return errorMissingProxy
 	}
 
@@ -357,7 +363,7 @@ func (k *kataAgent) stopPod(pod Pod) error {
 		return err
 	}
 
-	return k.pod.proxy.stop(pod)
+	return k.proxy.stop(pod)
 }
 
 func appendStorageFromMounts(storage []*grpc.Storage, mounts []*Mount) []*grpc.Storage {

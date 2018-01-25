@@ -91,6 +91,7 @@ func (c *HyperConfig) validate(pod Pod) bool {
 type hyper struct {
 	config HyperConfig
 	pod    *Pod
+	proxy  proxy
 	client *proxyClient.Client
 }
 
@@ -257,6 +258,11 @@ func (h *hyper) init(pod *Pod, config interface{}) (err error) {
 	// Override pod agent configuration
 	pod.config.AgentConfig = h.config
 
+	h.proxy, err = newProxy(pod.config.ProxyType)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -336,7 +342,7 @@ func (h *hyper) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 // startPod is the agent Pod starting implementation for hyperstart.
 func (h *hyper) startPod(pod Pod) error {
 	// Start the proxy here
-	pid, uri, err := h.pod.proxy.start(pod, proxyParams{})
+	pid, uri, err := h.proxy.start(pod, proxyParams{})
 	if err != nil {
 		return err
 	}
@@ -393,7 +399,7 @@ func (h *hyper) stopPod(pod Pod) error {
 		return err
 	}
 
-	return h.pod.proxy.stop(pod)
+	return h.proxy.stop(pod)
 }
 
 func (h *hyper) startOneContainer(pod Pod, c Container) error {

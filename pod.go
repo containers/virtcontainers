@@ -454,7 +454,6 @@ type Pod struct {
 
 	hypervisor hypervisor
 	agent      agent
-	proxy      proxy
 	shim       shim
 	storage    resourceStorage
 	network    network
@@ -639,11 +638,6 @@ func newPod(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	proxy, err := newProxy(podConfig.ProxyType)
-	if err != nil {
-		return nil, err
-	}
-
 	shim, err := newShim(podConfig.ShimType)
 	if err != nil {
 		return nil, err
@@ -655,7 +649,6 @@ func newPod(podConfig PodConfig) (*Pod, error) {
 		id:              podConfig.ID,
 		hypervisor:      hypervisor,
 		agent:           agent,
-		proxy:           proxy,
 		shim:            shim,
 		storage:         &filesystem{},
 		network:         network,
