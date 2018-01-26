@@ -322,10 +322,19 @@ func TestAttachBlockDevice(t *testing.T) {
 	fs := &filesystem{}
 	hypervisor := &mockHypervisor{}
 
+	hConfig := HypervisorConfig{
+		BlockDeviceDriver: VirtioBlock,
+	}
+
+	config := &PodConfig{
+		HypervisorConfig: hConfig,
+	}
+
 	pod := &Pod{
 		id:         testPodID,
 		storage:    fs,
 		hypervisor: hypervisor,
+		config:     config,
 	}
 
 	contID := "100"
@@ -364,6 +373,20 @@ func TestAttachBlockDevice(t *testing.T) {
 	assert.True(t, ok)
 
 	container.state.State = ""
+	err = device.attach(hypervisor, &container)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+
+	container.state.State = StateReady
+	err = device.attach(hypervisor, &container)
+	assert.Nil(t, err)
+
+	err = device.detach(hypervisor)
+	assert.Nil(t, err)
+
+	container.pod.config.HypervisorConfig.BlockDeviceDriver = VirtioSCSI
 	err = device.attach(hypervisor, &container)
 	assert.Nil(t, err)
 
