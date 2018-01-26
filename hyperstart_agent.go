@@ -459,6 +459,7 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 				Path:         d.DeviceInfo.ContainerPath,
 				AbsolutePath: true,
 				DockerVolume: false,
+				SCSIAddr:     d.SCSIAddr,
 			}
 			fsmap = append(fsmap, fsmapDesc)
 		}
