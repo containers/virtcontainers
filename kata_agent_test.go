@@ -17,7 +17,10 @@
 package virtcontainers
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/containers/virtcontainers/pkg/mock"
@@ -27,11 +30,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-var testKataProxyURL = "unix:///tmp/kata-proxy-test.sock"
+var testKataProxyURLTempl = "unix://%s/kata-proxy-test.sock"
 
 func proxyHandlerDiscard(c net.Conn) {
 	buf := make([]byte, 1024)
 	c.Read(buf)
+}
+
+func testGenerateKataProxySockDir() (string, error) {
+	dir, err := ioutil.TempDir("", "kata-proxy-test")
+	if err != nil {
+		return "", err
+	}
+
+	return dir, nil
 }
 
 func TestKataAgentConnect(t *testing.T) {
@@ -39,10 +51,16 @@ func TestKataAgentConnect(t *testing.T) {
 		ClientHandler: proxyHandlerDiscard,
 	}
 
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
 	if err := proxy.Start(testKataProxyURL); err != nil {
 		t.Fatal(err)
 	}
-
 	defer proxy.Stop()
 
 	k := &kataAgent{
@@ -65,10 +83,16 @@ func TestKataAgentDisconnect(t *testing.T) {
 		ClientHandler: proxyHandlerDiscard,
 	}
 
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
 	if err := proxy.Start(testKataProxyURL); err != nil {
 		t.Fatal(err)
 	}
-
 	defer proxy.Stop()
 
 	k := &kataAgent{
@@ -195,10 +219,16 @@ func TestKataAgentSendReq(t *testing.T) {
 		GRPCRegister:    gRPCRegister,
 	}
 
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
 	if err := proxy.Start(testKataProxyURL); err != nil {
 		t.Fatal(err)
 	}
-
 	defer proxy.Stop()
 
 	k := &kataAgent{

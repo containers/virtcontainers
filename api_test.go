@@ -227,6 +227,27 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 	return podConfig
 }
 
+func newTestPodConfigKataAgent() PodConfig {
+	// Sets the hypervisor configuration.
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	podConfig := PodConfig{
+		ID:               testPodID,
+		HypervisorType:   MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType: KataContainersAgent,
+
+		Annotations: podAnnotations,
+	}
+
+	return podConfig
+}
+
 func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 	cleanUp()
 
@@ -272,6 +293,43 @@ func TestCreatePodHyperstartAgentSuccessful(t *testing.T) {
 	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
 	proxy.Start()
 	defer proxy.Stop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreatePodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
@@ -362,6 +420,53 @@ func TestDeletePodHyperstartAgentSuccessful(t *testing.T) {
 	}
 }
 
+func TestDeletePodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = DeletePod(p.ID())
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = os.Stat(podDir)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeletePodFailing(t *testing.T) {
 	cleanUp()
 
@@ -408,6 +513,42 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	pImpl, ok := p.(*Pod)
+	assert.True(t, ok)
+
+	bindUnmountAllRootfs(defaultSharedDir, *pImpl)
+}
+
+func TestStartPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, _, err := createAndStartPod(config)
 	if p == nil || err != nil {
@@ -542,6 +683,42 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 	}
 }
 
+func TestStopPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StopPod(p.ID())
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStopPodFailing(t *testing.T) {
 	cleanUp()
 
@@ -594,6 +771,48 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
+
+	p, err := RunPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pImpl, ok := p.(*Pod)
+	assert.True(t, ok)
+
+	bindUnmountAllRootfs(defaultSharedDir, *pImpl)
+}
+
+func TestRunPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, err := RunPod(config)
 	if p == nil || err != nil {
