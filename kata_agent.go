@@ -565,6 +565,10 @@ func (k *kataAgent) stopContainer(pod Pod, c Container) error {
 		return err
 	}
 
+	if err := bindUnmountContainerMounts(c.mounts); err != nil {
+		return err
+	}
+
 	if err := bindUnmountContainerRootfs(kataHostSharedDir, pod.id, c.id); err != nil {
 		return err
 	}
