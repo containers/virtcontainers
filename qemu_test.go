@@ -46,9 +46,11 @@ func testQemuBuildKernelParams(t *testing.T, kernelParams []Param, expected stri
 		qemuConfig.Debug = true
 	}
 
-	q := &qemu{}
+	q := &qemu{
+		config: qemuConfig,
+	}
 
-	err := q.buildKernelParams(qemuConfig)
+	err := q.buildKernelParams()
 	if err != nil {
 		t.Fatal(err)
 	}

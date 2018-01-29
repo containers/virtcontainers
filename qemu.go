@@ -210,16 +210,16 @@ func (q *qemu) Logger() *logrus.Entry {
 	return virtLog.WithField("subsystem", "qemu")
 }
 
-func (q *qemu) buildKernelParams(config HypervisorConfig) error {
+func (q *qemu) buildKernelParams() error {
 	params := kernelDefaultParams
 
-	if config.Debug == true {
+	if q.config.Debug == true {
 		params = append(params, kernelDefaultParamsDebug...)
 	} else {
 		params = append(params, kernelDefaultParamsNonDebug...)
 	}
 
-	params = append(params, config.KernelParams...)
+	params = append(params, q.config.KernelParams...)
 
 	q.kernelParams = SerializeParams(params, "=")
 
@@ -545,7 +545,7 @@ func (q *qemu) init(pod *Pod) error {
 		return err
 	}
 
-	if err := q.buildKernelParams(q.config); err != nil {
+	if err := q.buildKernelParams(); err != nil {
 		return err
 	}
 
