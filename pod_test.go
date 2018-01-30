@@ -62,8 +62,7 @@ func testCreatePod(t *testing.T, id string,
 		return nil, fmt.Errorf("Could not create pod: %s", err)
 	}
 
-	err = pod.startProxy()
-	if err != nil {
+	if err := pod.agent.startPod(*pod); err != nil {
 		return nil, err
 	}
 
@@ -475,16 +474,8 @@ func testCheckInitPodAndContainerStates(p *Pod, initialPodState State, c *Contai
 		return fmt.Errorf("Expected pod state %v, got %v", initialPodState.State, p.state.State)
 	}
 
-	if p.state.URL != initialPodState.URL {
-		return fmt.Errorf("Expected pod state URL %v, got %v", initialPodState.URL, p.state.URL)
-	}
-
 	if c.state.State != initialContainerState.State {
 		return fmt.Errorf("Expected container state %v, got %v", initialContainerState.State, c.state.State)
-	}
-
-	if c.state.URL != initialContainerState.URL {
-		return fmt.Errorf("Expected container state URL %v, got %v", initialContainerState.URL, c.state.URL)
 	}
 
 	return nil
@@ -501,10 +492,6 @@ func testForcePodStateChangeAndCheck(t *testing.T, p *Pod, newPodState State) er
 		return fmt.Errorf("Expected state %v, got %v", newPodState.State, p.state.State)
 	}
 
-	if p.state.URL != newPodState.URL {
-		return fmt.Errorf("Expected state URL %v, got %v", newPodState.URL, p.state.URL)
-	}
-
 	return nil
 }
 
@@ -519,10 +506,6 @@ func testForceContainerStateChangeAndCheck(t *testing.T, p *Pod, c *Container, n
 		return fmt.Errorf("Expected state %v, got %v", newContainerState.State, c.state.State)
 	}
 
-	if c.state.URL != newContainerState.URL {
-		return fmt.Errorf("Expected state URL %v, got %v", newContainerState.URL, c.state.URL)
-	}
-
 	return nil
 }
 
@@ -532,10 +515,6 @@ func testCheckPodOnDiskState(p *Pod, podState State) error {
 		return fmt.Errorf("Expected state %v, got %v", podState.State, p.state.State)
 	}
 
-	if p.state.URL != podState.URL {
-		return fmt.Errorf("Expected state URL %v, got %v", podState.URL, p.state.URL)
-	}
-
 	return nil
 }
 
@@ -543,10 +522,6 @@ func testCheckContainerOnDiskState(c *Container, containerState State) error {
 	// check on-disk state is correct
 	if c.state.State != containerState.State {
 		return fmt.Errorf("Expected state %v, got %v", containerState.State, c.state.State)
-	}
-
-	if c.state.URL != containerState.URL {
-		return fmt.Errorf("Expected state URL %v, got %v", containerState.URL, c.state.URL)
 	}
 
 	return nil
@@ -570,13 +545,11 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 
 	initialPodState := State{
 		State: StateReady,
-		URL:   noopProxyURL,
 	}
 
 	// After a pod creation, a container has a READY state
 	initialContainerState := State{
 		State: StateReady,
-		URL:   "",
 	}
 
 	c, err := p.getContainer(contID)
@@ -597,7 +570,6 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 
 	newPodState := State{
 		State: StateRunning,
-		URL:   "http://pod/url",
 	}
 
 	if err := testForcePodStateChangeAndCheck(t, p, newPodState); err != nil {
@@ -606,7 +578,6 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 
 	newContainerState := State{
 		State: StateStopped,
-		URL:   "",
 	}
 
 	if err := testForceContainerStateChangeAndCheck(t, p, c, newContainerState); err != nil {
@@ -1020,8 +991,6 @@ func TestPodGetContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	p.state.URL = noopProxyURL
 
 	contID := "999"
 	contConfig := newTestContainerConfigNoop(contID)

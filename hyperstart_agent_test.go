@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"testing"
@@ -30,8 +31,8 @@ var testRouteGateway = "192.168.0.0"
 var testRouteDeviceName = "test_eth0"
 var testRouteDestIPv6 = "2001:db8::/32"
 
-func TestHyperstartValidateNoSocketsSuccessful(t *testing.T) {
-	config := &HyperConfig{
+func TestHyperstartGenerateSocketsSuccessful(t *testing.T) {
+	config := HyperConfig{
 		SockCtlName: "ctlSock",
 		SockTtyName: "ttySock",
 	}
@@ -40,42 +41,59 @@ func TestHyperstartValidateNoSocketsSuccessful(t *testing.T) {
 		id: testPodID,
 	}
 
-	ok := config.validate(pod)
-	if ok != true {
-		t.Fatal()
+	h := &hyper{}
+
+	h.generateSockets(pod, config)
+
+	expectedSockets := []Socket{
+		{
+			DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, 0),
+			ID:       fmt.Sprintf(defaultIDTemplate, 0),
+			HostPath: config.SockCtlName,
+			Name:     fmt.Sprintf(defaultChannelTemplate, 0),
+		},
+		{
+			DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, 1),
+			ID:       fmt.Sprintf(defaultIDTemplate, 1),
+			HostPath: config.SockTtyName,
+			Name:     fmt.Sprintf(defaultChannelTemplate, 1),
+		},
+	}
+
+	if !reflect.DeepEqual(expectedSockets, h.sockets) {
+		t.Fatalf("Expecting %+v, Got %+v", expectedSockets, h.sockets)
 	}
 }
 
-func testHyperstartValidateNSocket(t *testing.T, socketAmount int, expected bool) {
-	sockets := make([]Socket, socketAmount)
-
-	config := &HyperConfig{
-		SockCtlName: "ctlSock",
-		SockTtyName: "ttySock",
-		Sockets:     sockets,
-	}
+func TestHyperstartGenerateSocketsSuccessfulNoPathProvided(t *testing.T) {
+	config := HyperConfig{}
 
 	pod := Pod{
 		id: testPodID,
 	}
 
-	ok := config.validate(pod)
-	if ok != expected {
-		t.Fatal()
+	h := &hyper{}
+
+	h.generateSockets(pod, config)
+
+	expectedSockets := []Socket{
+		{
+			DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, 0),
+			ID:       fmt.Sprintf(defaultIDTemplate, 0),
+			HostPath: fmt.Sprintf(defaultSockPathTemplates[0], runStoragePath, pod.id),
+			Name:     fmt.Sprintf(defaultChannelTemplate, 0),
+		},
+		{
+			DeviceID: fmt.Sprintf(defaultDeviceIDTemplate, 1),
+			ID:       fmt.Sprintf(defaultIDTemplate, 1),
+			HostPath: fmt.Sprintf(defaultSockPathTemplates[1], runStoragePath, pod.id),
+			Name:     fmt.Sprintf(defaultChannelTemplate, 1),
+		},
 	}
-}
 
-func TestHyperstartValidateOneSocketFailing(t *testing.T) {
-	testHyperstartValidateNSocket(t, 1, false)
-
-	for i := 3; i < 1000; i++ {
-		testHyperstartValidateNSocket(t, i, false)
+	if !reflect.DeepEqual(expectedSockets, h.sockets) {
+		t.Fatalf("Expecting %+v, Got %+v", expectedSockets, h.sockets)
 	}
-}
-
-func TestHyperstartValidateNSocketSuccessful(t *testing.T) {
-	testHyperstartValidateNSocket(t, 0, true)
-	testHyperstartValidateNSocket(t, 2, true)
 }
 
 func testProcessHyperRoute(t *testing.T, route netlink.Route, deviceName string, expected *hyperstart.Route) {

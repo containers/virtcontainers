@@ -29,13 +29,14 @@ func TestNoProxyStart(t *testing.T) {
 
 	p := &noProxy{}
 
-	pid, vmURL, err := p.start(pod)
+	agentURL := "agentURL"
+	pid, vmURL, err := p.start(pod, proxyParams{agentURL: agentURL})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if vmURL != "" {
-		t.Fatalf("Got URL %q, expecting empty URL", vmURL)
+	if vmURL != agentURL {
+		t.Fatalf("Got URL %q, expecting %q", vmURL, agentURL)
 	}
 
 	if pid != 0 {
@@ -43,56 +44,10 @@ func TestNoProxyStart(t *testing.T) {
 	}
 }
 
-func TestNoProxyRegister(t *testing.T) {
-	p := &noProxy{
-		vmURL: testNoProxyVMURL,
-	}
-
-	_, vmURL, err := p.register(Pod{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if vmURL != testNoProxyVMURL {
-		t.Fatalf("Got URL %q, expecting %q", vmURL, testNoProxyVMURL)
-	}
-}
-
-func TestNoProxyUnregister(t *testing.T) {
+func TestNoProxyStop(t *testing.T) {
 	p := &noProxy{}
 
-	if err := p.unregister(Pod{}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestNoProxyConnect(t *testing.T) {
-	p := &noProxy{
-		vmURL: testNoProxyVMURL,
-	}
-
-	_, vmURL, err := p.connect(Pod{}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if vmURL != testNoProxyVMURL {
-		t.Fatalf("Got URL %q, expecting %q", vmURL, testNoProxyVMURL)
-	}
-}
-
-func TestNoProxyDisconnect(t *testing.T) {
-	p := &noProxy{}
-
-	if err := p.disconnect(); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestNoProxySendCmd(t *testing.T) {
-	p := &noProxy{}
-
-	if _, err := p.sendCmd(nil); err != nil {
+	if err := p.stop(Pod{}, 0); err != nil {
 		t.Fatal(err)
 	}
 }

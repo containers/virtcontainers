@@ -18,6 +18,7 @@ package virtcontainers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,6 +26,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containers/virtcontainers/pkg/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -106,12 +108,9 @@ func newTestPodConfigHyperstartAgent() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	podConfig := PodConfig{
@@ -145,12 +144,9 @@ func newTestPodConfigHyperstartAgentCNINetwork() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	netConfig := NetworkConfig{
@@ -191,12 +187,9 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 		HypervisorPath: filepath.Join(testDir, testHypervisor),
 	}
 
-	sockets := []Socket{{}, {}}
-
 	agentConfig := HyperConfig{
 		SockCtlName: testHyperstartCtlSocket,
 		SockTtyName: testHyperstartTtySocket,
-		Sockets:     sockets,
 	}
 
 	hooks := Hooks{
@@ -234,6 +227,27 @@ func newTestPodConfigHyperstartAgentCNMNetwork() PodConfig {
 	return podConfig
 }
 
+func newTestPodConfigKataAgent() PodConfig {
+	// Sets the hypervisor configuration.
+	hypervisorConfig := HypervisorConfig{
+		KernelPath:     filepath.Join(testDir, testKernel),
+		ImagePath:      filepath.Join(testDir, testImage),
+		HypervisorPath: filepath.Join(testDir, testHypervisor),
+	}
+
+	podConfig := PodConfig{
+		ID:               testPodID,
+		HypervisorType:   MockHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType: KataContainersAgent,
+
+		Annotations: podAnnotations,
+	}
+
+	return podConfig
+}
+
 func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 	cleanUp()
 
@@ -251,10 +265,71 @@ func TestCreatePodNoopAgentSuccessful(t *testing.T) {
 	}
 }
 
+var testCCProxySockPathTempl = "%s/cc-proxy-test.sock"
+var testCCProxyURLUnixScheme = "unix://"
+
+func testGenerateCCProxySockDir() (string, error) {
+	dir, err := ioutil.TempDir("", "cc-proxy-test")
+	if err != nil {
+		return "", err
+	}
+
+	return dir, nil
+}
+
 func TestCreatePodHyperstartAgentSuccessful(t *testing.T) {
 	cleanUp()
 
 	config := newTestPodConfigHyperstartAgent()
+
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreatePodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
@@ -311,6 +386,65 @@ func TestDeletePodHyperstartAgentSuccessful(t *testing.T) {
 
 	config := newTestPodConfigHyperstartAgent()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
+	p, err := CreatePod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = DeletePod(p.ID())
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = os.Stat(podDir)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeletePodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
+
 	p, err := CreatePod(config)
 	if p == nil || err != nil {
 		t.Fatal(err)
@@ -365,8 +499,56 @@ func TestStartPodHyperstartAgentSuccessful(t *testing.T) {
 
 	config := newTestPodConfigHyperstartAgent()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	pImpl, ok := p.(*Pod)
+	assert.True(t, ok)
+
+	bindUnmountAllRootfs(defaultSharedDir, *pImpl)
+}
+
+func TestStartPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, _, err := createAndStartPod(config)
 	if p == nil || err != nil {
@@ -475,8 +657,56 @@ func TestStopPodHyperstartAgentSuccessful(t *testing.T) {
 
 	config := newTestPodConfigHyperstartAgent()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
+
+	p, _, err := createAndStartPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = StopPod(p.ID())
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStopPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, _, err := createAndStartPod(config)
 	if p == nil || err != nil {
@@ -527,8 +757,62 @@ func TestRunPodHyperstartAgentSuccessful(t *testing.T) {
 
 	config := newTestPodConfigHyperstartAgent()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
+
+	p, err := RunPod(config)
+	if p == nil || err != nil {
+		t.Fatal(err)
+	}
+
+	podDir := filepath.Join(configStoragePath, p.ID())
+	_, err = os.Stat(podDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pImpl, ok := p.(*Pod)
+	assert.True(t, ok)
+
+	bindUnmountAllRootfs(defaultSharedDir, *pImpl)
+}
+
+func TestRunPodKataAgentSuccessful(t *testing.T) {
+	cleanUp()
+
+	config := newTestPodConfigKataAgent()
+
+	sockDir, err := testGenerateKataProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testKataProxyURL := fmt.Sprintf(testKataProxyURLTempl, sockDir)
+	noopProxyURL = testKataProxyURL
+
+	impl := &gRPCProxy{}
+
+	kataProxyMock := mock.ProxyGRPCMock{
+		GRPCImplementer: impl,
+		GRPCRegister:    gRPCRegister,
+	}
+	if err := kataProxyMock.Start(testKataProxyURL); err != nil {
+		t.Fatal(err)
+	}
+	defer kataProxyMock.Stop()
 
 	p, err := RunPod(config)
 	if p == nil || err != nil {
@@ -603,9 +887,7 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 	expectedStatus := PodStatus{
 		ID: testPodID,
 		State: State{
-			State:    StateReady,
-			URL:      "noopProxyURL",
-			ProxyPid: 0,
+			State: StateReady,
 		},
 		Hypervisor:       MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
@@ -616,9 +898,8 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 				ID: containerID,
 				State: State{
 					State: StateReady,
-					URL:   "",
 				},
-				PID:         1000,
+				PID:         0,
 				RootFs:      filepath.Join(testDir, testBundle),
 				Annotations: containerAnnotations,
 			},
@@ -661,7 +942,6 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 		ID: testPodID,
 		State: State{
 			State: StateRunning,
-			URL:   "noopProxyURL",
 		},
 		Hypervisor:       MockHypervisor,
 		HypervisorConfig: hypervisorConfig,
@@ -672,9 +952,8 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 				ID: containerID,
 				State: State{
 					State: StateRunning,
-					URL:   "",
 				},
-				PID:         1000,
+				PID:         0,
 				RootFs:      filepath.Join(testDir, testBundle),
 				Annotations: containerAnnotations,
 			},
@@ -1041,6 +1320,18 @@ func TestStartStopContainerHyperstartAgentSuccessful(t *testing.T) {
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
 
@@ -1087,6 +1378,18 @@ func TestStartStopPodHyperstartAgentSuccessfulWithCNINetwork(t *testing.T) {
 
 	config := newTestPodConfigHyperstartAgentCNINetwork()
 
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
+
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
 
@@ -1112,6 +1415,18 @@ func TestStartStopPodHyperstartAgentSuccessfulWithCNMNetwork(t *testing.T) {
 	}
 
 	config := newTestPodConfigHyperstartAgentCNMNetwork()
+
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
 
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
@@ -1254,6 +1569,18 @@ func TestEnterContainerHyperstartAgentSuccessful(t *testing.T) {
 
 	contID := "100"
 	config := newTestPodConfigHyperstartAgent()
+
+	sockDir, err := testGenerateCCProxySockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sockDir)
+
+	testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+	noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+	proxy := mock.NewCCProxyMock(t, testCCProxySockPath)
+	proxy.Start()
+	defer proxy.Stop()
 
 	hyperConfig := config.AgentConfig.(HyperConfig)
 	config.AgentConfig = hyperConfig
@@ -1462,9 +1789,8 @@ func TestStatusContainerStateReady(t *testing.T) {
 		ID: contID,
 		State: State{
 			State: StateReady,
-			URL:   "",
 		},
-		PID:         1000,
+		PID:         0,
 		RootFs:      filepath.Join(testDir, testBundle),
 		Annotations: containerAnnotations,
 	}
@@ -1536,9 +1862,8 @@ func TestStatusContainerStateRunning(t *testing.T) {
 		ID: contID,
 		State: State{
 			State: StateRunning,
-			URL:   "",
 		},
-		PID:         1000,
+		PID:         0,
 		RootFs:      filepath.Join(testDir, testBundle),
 		Annotations: containerAnnotations,
 	}
@@ -1791,6 +2116,20 @@ func createStartStopDeleteContainers(b *testing.B, podConfig PodConfig, contConf
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkCNI(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, CNINetworkModel)
+
+		sockDir, err := testGenerateCCProxySockDir()
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer os.RemoveAll(sockDir)
+
+		var t testing.T
+		testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+		noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+		proxy := mock.NewCCProxyMock(&t, testCCProxySockPath)
+		proxy.Start()
+		defer proxy.Stop()
+
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1805,6 +2144,20 @@ func BenchmarkCreateStartStopDeletePodQemuHypervisorNoopAgentNetworkCNI(b *testi
 func BenchmarkCreateStartStopDeletePodQemuHypervisorHyperstartAgentNetworkNoop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
+
+		sockDir, err := testGenerateCCProxySockDir()
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer os.RemoveAll(sockDir)
+
+		var t testing.T
+		testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+		noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+		proxy := mock.NewCCProxyMock(&t, testCCProxySockPath)
+		proxy.Start()
+		defer proxy.Stop()
+
 		createStartStopDeletePod(b, podConfig)
 	}
 }
@@ -1827,6 +2180,20 @@ func BenchmarkStartStop1ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *tes
 	for i := 0; i < b.N; i++ {
 		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(1)
+
+		sockDir, err := testGenerateCCProxySockDir()
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer os.RemoveAll(sockDir)
+
+		var t testing.T
+		testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+		noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+		proxy := mock.NewCCProxyMock(&t, testCCProxySockPath)
+		proxy.Start()
+		defer proxy.Stop()
+
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
 }
@@ -1835,6 +2202,20 @@ func BenchmarkStartStop10ContainerQemuHypervisorHyperstartAgentNetworkNoop(b *te
 	for i := 0; i < b.N; i++ {
 		podConfig := createNewPodConfig(QemuHypervisor, HyperstartAgent, HyperConfig{}, NoopNetworkModel)
 		contConfigs := createNewContainerConfigs(10)
+
+		sockDir, err := testGenerateCCProxySockDir()
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer os.RemoveAll(sockDir)
+
+		var t testing.T
+		testCCProxySockPath := fmt.Sprintf(testCCProxySockPathTempl, sockDir)
+		noopProxyURL = testCCProxyURLUnixScheme + testCCProxySockPath
+		proxy := mock.NewCCProxyMock(&t, testCCProxySockPath)
+		proxy.Start()
+		defer proxy.Stop()
+
 		createStartStopDeleteContainers(b, podConfig, contConfigs)
 	}
 }

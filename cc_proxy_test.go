@@ -87,7 +87,7 @@ func TestCCProxyStart(t *testing.T) {
 	}
 
 	for _, d := range data {
-		pid, uri, err := proxy.start(d.pod)
+		pid, uri, err := proxy.start(d.pod, proxyParams{})
 		if d.expectError {
 			assert.Error(err)
 			continue

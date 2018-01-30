@@ -102,18 +102,6 @@ var podConfigFlags = []cli.Flag{
 		Usage: "the hyperstart tty socket name",
 	},
 
-	cli.GenericFlag{
-		Name:  "volume",
-		Value: new(vc.Volumes),
-		Usage: "the volume to be shared with VM",
-	},
-
-	cli.GenericFlag{
-		Name:  "socket",
-		Value: new(vc.Sockets),
-		Usage: "the socket list to be shared with VM",
-	},
-
 	cli.UintFlag{
 		Name:  "cpus",
 		Value: 0,
@@ -186,16 +174,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		return vc.PodConfig{}, fmt.Errorf("Could not convert shim type")
 	}
 
-	volumes, ok := context.Generic("volume").(*vc.Volumes)
-	if ok != true {
-		return vc.PodConfig{}, fmt.Errorf("Could not convert to volume list")
-	}
-
-	sockets, ok := context.Generic("socket").(*vc.Sockets)
-	if ok != true {
-		return vc.PodConfig{}, fmt.Errorf("Could not convert to socket list")
-	}
-
 	kernelPath := "/usr/share/clear-containers/vmlinuz.container"
 	if machineType == vc.QemuPCLite {
 		kernelPath = "/usr/share/clear-containers/vmlinux.container"
@@ -220,8 +198,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 		agConfig = vc.HyperConfig{
 			SockCtlName: hyperCtlSockName,
 			SockTtyName: hyperTtySockName,
-			Volumes:     *volumes,
-			Sockets:     *sockets,
 		}
 	default:
 		agConfig = nil
