@@ -332,7 +332,8 @@ func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	return c, nil
 }
 
-// createContainer creates and start a container inside a Pod.
+// createContainer creates and start a container inside a Pod. It has to be
+// called only when a new container, not known by the pod, has to be created.
 func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if pod == nil {
 		return nil, errNeedPod
@@ -347,17 +348,7 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
-	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-	if err == nil && state.State != "" {
-		c.state.State = state.State
-		return c, nil
-	}
-
-	// If we reached that point, this means that no state file has been
-	// found and that we are in the first creation of this container.
-	// We don't want the following code to be executed outside of this
-	// specific case.
-	process, err := c.pod.agent.createContainer(c.pod, c)
+	process, err := pod.agent.createContainer(c.pod, c)
 	if err != nil {
 		return nil, err
 	}

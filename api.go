@@ -341,6 +341,11 @@ func CreateContainer(podID string, containerConfig ContainerConfig) (VCPod, VCCo
 		return nil, nil, err
 	}
 
+	// Add the container to the containers list in the pod.
+	if err := p.addContainer(c); err != nil {
+		return nil, nil, err
+	}
+
 	// Store it.
 	err = c.storeContainer()
 	if err != nil {
