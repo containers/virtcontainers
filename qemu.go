@@ -107,7 +107,7 @@ var supportedQemuMachines = []govmmQemu.Machine{
 }
 
 const (
-	defaultSockets uint32 = 1
+	defaultCores   uint32 = 1
 	defaultThreads uint32 = 1
 )
 
@@ -581,10 +581,11 @@ func (q *qemu) setCPUResources(podConfig PodConfig) govmmQemu.SMP {
 		vcpus = uint32(podConfig.VMConfig.VCPUs)
 	}
 
+	// Network IO shows better performance with 1 CPU 1 Socket
 	smp := govmmQemu.SMP{
 		CPUs:    vcpus,
-		Cores:   vcpus,
-		Sockets: defaultSockets,
+		Sockets: vcpus,
+		Cores:   defaultCores,
 		Threads: defaultThreads,
 	}
 
