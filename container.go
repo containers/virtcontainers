@@ -234,30 +234,6 @@ func (c *Container) fetchDevices() ([]Device, error) {
 	return c.pod.storage.fetchContainerDevices(c.podID, c.id)
 }
 
-// fetchContainer fetches a container config from a pod ID and returns a Container.
-func fetchContainer(pod *Pod, containerID string) (*Container, error) {
-	if pod == nil {
-		return nil, errNeedPod
-	}
-
-	if containerID == "" {
-		return nil, errNeedContainerID
-	}
-
-	fs := filesystem{}
-	config, err := fs.fetchContainerConfig(pod.id, containerID)
-	if err != nil {
-		return nil, err
-	}
-
-	container, err := createContainer(pod, config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create container with config %v in pod %v: %v", config, pod.id, err)
-	}
-
-	return container, nil
-}
-
 // storeContainer stores a container config.
 func (c *Container) storeContainer() error {
 	fs := filesystem{}

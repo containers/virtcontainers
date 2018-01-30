@@ -381,7 +381,7 @@ func DeleteContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +430,7 @@ func StartContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +468,7 @@ func StopContainer(podID, containerID string) (VCContainer, error) {
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +506,7 @@ func EnterContainer(podID, containerID string, cmd Cmd) (VCPod, VCContainer, *Pr
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -628,7 +628,7 @@ func KillContainer(podID, containerID string, signal syscall.Signal, all bool) e
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return err
 	}
@@ -677,7 +677,7 @@ func ProcessListContainer(podID, containerID string, options ProcessListOptions)
 	}
 
 	// Fetch the container.
-	c, err := fetchContainer(p, containerID)
+	c, err := p.findContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
