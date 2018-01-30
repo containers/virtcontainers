@@ -374,6 +374,13 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
 	if err == nil && state.State != "" {
 		c.state.State = state.State
+		// if we return at this point, the container that is returned
+		// must match with the container in the pod (pod.containers)
+		for i := range pod.containers {
+			if c.id == pod.containers[i].id {
+				pod.containers[i] = c
+			}
+		}
 		return c, nil
 	}
 
