@@ -82,26 +82,36 @@ install:
 #
 
 define UNINSTALL_EXEC
-	rm -f $(VC_BIN_DIR)/$1 || exit 1;
+	rm -f $(call FILE_SAFE_TO_REMOVE,$(VC_BIN_DIR)/$1) || exit 1;
 endef
 
 define UNINSTALL_TEST_EXEC
-	rm -f $(TEST_BIN_DIR)/$1 || exit 1;
+	rm -f $(call FILE_SAFE_TO_REMOVE,$(TEST_BIN_DIR)/$1) || exit 1;
 endef
 
 uninstall:
 	$(call UNINSTALL_EXEC,$(VIRTC_BIN))
 	$(call UNINSTALL_TEST_EXEC,$(HOOK_BIN))
-	$(call UNINSTALL_TEST_EXEC,$(SHIM_BIN))
+	$(call UNINSTALL_TEST_EXEC,$(CC_SHIM_BIN))
+	$(call UNINSTALL_TEST_EXEC,$(KATA_SHIM_BIN))
 
 #
 # Clean
 #
 
+# Input: filename to check.
+# Output: filename, assuming the file exists and is safe to delete.
+define FILE_SAFE_TO_REMOVE =
+$(shell test -e "$(1)" && test "$(1)" != "/" && echo "$(1)")
+endef
+
+CLEAN_FILES += $(VIRTC_DIR)/$(VIRTC_BIN)
+CLEAN_FILES += $(HOOK_DIR)/$(HOOK_BIN)
+CLEAN_FILES += $(SHIM_DIR)/$(CC_SHIM_BIN)
+CLEAN_FILES += $(SHIM_DIR)/$(KATA_SHIM_BIN)
+
 clean:
-	rm -f $(VIRTC_DIR)/$(VIRTC_BIN)
-	rm -f $(HOOK_DIR)/$(HOOK_BIN)
-	rm -f $(SHIM_DIR)/$(SHIM_BIN)
+	rm -f $(foreach f,$(CLEAN_FILES),$(call FILE_SAFE_TO_REMOVE,$(f)))
 
 .PHONY: \
 	all \
