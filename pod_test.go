@@ -1322,3 +1322,38 @@ func TestPodCreateAssets(t *testing.T) {
 	err = createAssets(p)
 	assert.NotNil(err)
 }
+
+func testFindContainerFailure(t *testing.T, pod *Pod, cid string) {
+	c, err := pod.findContainer(cid)
+	assert.Nil(t, c, "Container pointer should be nil")
+	assert.NotNil(t, err, "Should have returned an error")
+}
+
+func TestFindContainerPodNilFailure(t *testing.T) {
+	testFindContainerFailure(t, nil, testContainerID)
+}
+
+func TestFindContainerContainerIDEmptyFailure(t *testing.T) {
+	pod := &Pod{}
+	testFindContainerFailure(t, pod, "")
+}
+
+func TestFindContainerNoContainerMatchFailure(t *testing.T) {
+	pod := &Pod{}
+	testFindContainerFailure(t, pod, testContainerID)
+}
+
+func TestFindContainerSuccess(t *testing.T) {
+	pod := &Pod{
+		containers: []*Container{
+			{
+				id: testContainerID,
+			},
+		},
+	}
+	c, err := pod.findContainer(testContainerID)
+	assert.NotNil(t, c, "Container pointer should not be nil")
+	assert.Nil(t, err, "Should not have returned an error: %v", err)
+
+	assert.True(t, c == pod.containers[0], "Container pointers should point to the same address")
+}
