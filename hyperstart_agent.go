@@ -223,11 +223,11 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	return ifaces, routes, nil
 }
 
-func fsMapFromMounts(mounts []*Mount) []*hyperstart.FsmapDescriptor {
-	var fsmap []*hyperstart.FsmapDescriptor
+func fsMapFromMounts(mounts []*Mount) []hyperstart.FsmapDescriptor {
+	var fsmap []hyperstart.FsmapDescriptor
 
 	for _, m := range mounts {
-		fsmapDesc := &hyperstart.FsmapDescriptor{
+		fsmapDesc := hyperstart.FsmapDescriptor{
 			Source:       m.Source,
 			Path:         m.Destination,
 			ReadOnly:     m.ReadOnly,
@@ -413,7 +413,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		ID:      c.id,
 		Image:   c.id,
 		Rootfs:  rootfsDir,
-		Process: process,
+		Process: *process,
 	}
 
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
@@ -450,7 +450,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 		d, ok := device.(*BlockDevice)
 
 		if ok {
-			fsmapDesc := &hyperstart.FsmapDescriptor{
+			fsmapDesc := hyperstart.FsmapDescriptor{
 				Source:       d.VirtPath,
 				Path:         d.DeviceInfo.ContainerPath,
 				AbsolutePath: true,
