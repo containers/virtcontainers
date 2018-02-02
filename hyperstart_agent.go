@@ -223,7 +223,7 @@ func (h *hyper) buildNetworkInterfacesAndRoutes(pod Pod) ([]hyperstart.NetworkIf
 	return ifaces, routes, nil
 }
 
-func fsMapFromMounts(mounts []*Mount) []*hyperstart.FsmapDescriptor {
+func fsMapFromMounts(mounts []Mount) []*hyperstart.FsmapDescriptor {
 	var fsmap []*hyperstart.FsmapDescriptor
 
 	for _, m := range mounts {
@@ -403,7 +403,7 @@ func (h *hyper) stopPod(pod Pod) error {
 	return h.proxy.stop(pod, h.state.ProxyPid)
 }
 
-func (h *hyper) startOneContainer(pod Pod, c Container) error {
+func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 	process, err := h.buildHyperContainerProcess(c.config.Cmd)
 	if err != nil {
 		return err
@@ -437,7 +437,7 @@ func (h *hyper) startOneContainer(pod Pod, c Container) error {
 	//TODO : Enter mount namespace
 
 	// Handle container mounts
-	newMounts, err := bindMountContainerMounts(defaultSharedDir, "", pod.id, c.id, c.mounts)
+	newMounts, err := c.mountSharedDirMounts(defaultSharedDir, "")
 	if err != nil {
 		bindUnmountAllRootfs(defaultSharedDir, pod)
 		return err
@@ -487,7 +487,7 @@ func (h *hyper) createContainer(pod *Pod, c *Container) (*Process, error) {
 }
 
 // startContainer is the agent Container starting implementation for hyperstart.
-func (h *hyper) startContainer(pod Pod, c Container) error {
+func (h *hyper) startContainer(pod Pod, c *Container) error {
 	return h.startOneContainer(pod, c)
 }
 
@@ -510,7 +510,7 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 		return err
 	}
 
-	if err := bindUnmountContainerMounts(c.mounts); err != nil {
+	if err := c.unmountHostMounts(); err != nil {
 		return err
 	}
 

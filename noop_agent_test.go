@@ -105,7 +105,7 @@ func TestNoopAgentStartContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = n.startContainer(*pod, *container)
+	err = n.startContainer(*pod, container)
 	if err != nil {
 		t.Fatal(err)
 	}

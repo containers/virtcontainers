@@ -17,6 +17,7 @@
 package virtcontainers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -279,6 +280,77 @@ func (c *Container) createContainersDirs() error {
 	return nil
 }
 
+// mountSharedDirMounts handles bind-mounts by bindmounting to the host shared
+// directory which is mounted through 9pfs in the VM.
+// It also updates the container mount list with the HostPath info, and store
+// container mounts to the storage. This way, we will have the HostPath info
+// available when we will need to unmount those mounts.
+func (c *Container) mountSharedDirMounts(hostSharedDir, guestSharedDir string) ([]Mount, error) {
+	var sharedDirMounts []Mount
+	for idx, m := range c.mounts {
+		if isSystemMount(m.Destination) || m.Type != "bind" {
+			continue
+		}
+
+		randBytes, err := generateRandomBytes(8)
+		if err != nil {
+			return nil, err
+		}
+
+		// These mounts are created in the shared dir
+		filename := fmt.Sprintf("%s-%s-%s", c.id, hex.EncodeToString(randBytes), filepath.Base(m.Destination))
+		mountDest := filepath.Join(hostSharedDir, c.pod.id, filename)
+
+		if err := bindMount(m.Source, mountDest, false); err != nil {
+			return nil, err
+		}
+
+		// Save HostPath mount value into the mount list of the container.
+		c.mounts[idx].HostPath = mountDest
+
+		// Check if mount is readonly, let the agent handle the readonly mount
+		// within the VM.
+		readonly := false
+		for _, flag := range m.Options {
+			if flag == "ro" {
+				readonly = true
+			}
+		}
+
+		sharedDirMount := Mount{
+			Source:      filepath.Join(guestSharedDir, filename),
+			Destination: m.Destination,
+			Type:        m.Type,
+			Options:     m.Options,
+			ReadOnly:    readonly,
+		}
+
+		sharedDirMounts = append(sharedDirMounts, sharedDirMount)
+	}
+
+	if err := c.storeMounts(); err != nil {
+		return nil, err
+	}
+
+	return sharedDirMounts, nil
+}
+
+func (c *Container) unmountHostMounts() error {
+	for _, m := range c.mounts {
+		if m.HostPath != "" {
+			if err := syscall.Unmount(m.HostPath, 0); err != nil {
+				c.Logger().WithFields(logrus.Fields{
+					"host-path": m.HostPath,
+					"error":     err,
+				}).Warn("Could not umount")
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // newContainer creates a Container structure from a pod and a container configuration.
 func newContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	if contConfig.valid() == false {
@@ -365,10 +437,6 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 	// Deduce additional system mount info that should be handled by the agent
 	// inside the VM
 	c.getSystemMountInfo()
-
-	if err := c.storeMounts(); err != nil {
-		return nil, err
-	}
 
 	if err := c.storeDevices(); err != nil {
 		return nil, err
@@ -472,17 +540,12 @@ func (c *Container) start() error {
 		}
 	}
 
-	if err := c.pod.agent.startContainer(*(c.pod), *c); err != nil {
+	if err := c.pod.agent.startContainer(*(c.pod), c); err != nil {
 		c.Logger().WithError(err).Error("Failed to start container")
 
 		if err := c.stop(); err != nil {
 			c.Logger().WithError(err).Warn("Failed to stop container")
 		}
-		return err
-	}
-
-	// Important because we need to store the modified container mount list.
-	if err := c.storeMounts(); err != nil {
 		return err
 	}
 
