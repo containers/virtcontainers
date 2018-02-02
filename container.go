@@ -348,6 +348,32 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
+	agentCaps := c.pod.agent.capabilities()
+	hypervisorCaps := c.pod.hypervisor.capabilities()
+
+	if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
+		if err := c.hotplugDrive(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Attach devices
+	if err := c.attachDevices(); err != nil {
+		return nil, err
+	}
+
+	// Deduce additional system mount info that should be handled by the agent
+	// inside the VM
+	c.getSystemMountInfo()
+
+	if err := c.storeMounts(); err != nil {
+		return nil, err
+	}
+
+	if err := c.storeDevices(); err != nil {
+		return nil, err
+	}
+
 	process, err := pod.agent.createContainer(c.pod, c)
 	if err != nil {
 		return nil, err
@@ -446,24 +472,6 @@ func (c *Container) start() error {
 		}
 	}
 
-	agentCaps := c.pod.agent.capabilities()
-	hypervisorCaps := c.pod.hypervisor.capabilities()
-
-	if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-		if err := c.hotplugDrive(); err != nil {
-			return err
-		}
-	}
-
-	// Attach devices
-	if err := c.attachDevices(); err != nil {
-		return err
-	}
-
-	// Deduce additional system mount info that should be handled by the agent
-	// inside the VM
-	c.getSystemMountInfo()
-
 	if err := c.pod.agent.startContainer(*(c.pod), *c); err != nil {
 		c.Logger().WithError(err).Error("Failed to start container")
 
@@ -472,8 +480,11 @@ func (c *Container) start() error {
 		}
 		return err
 	}
-	c.storeMounts()
-	c.storeDevices()
+
+	// Important because we need to store the modified container mount list.
+	if err := c.storeMounts(); err != nil {
+		return err
+	}
 
 	err = c.setContainerState(StateRunning)
 	if err != nil {
