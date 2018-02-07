@@ -722,46 +722,13 @@ func (p *Pod) findContainer(containerID string) (*Container, error) {
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {
-	state, err := p.storage.fetchPodState(p.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateReady && state.State != StatePaused && state.State != StateStopped {
+	if p.state.State != StateReady &&
+		p.state.State != StatePaused &&
+		p.state.State != StateStopped {
 		return fmt.Errorf("Pod not ready, paused or stopped, impossible to delete")
 	}
 
-	err = p.storage.deletePodResources(p.id, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p *Pod) startCheckStates() error {
-	state, err := p.storage.fetchPodState(p.id)
-	if err != nil {
-		return err
-	}
-
-	err = state.validTransition(StateReady, StateRunning)
-	if err != nil {
-		err = state.validTransition(StateStopped, StateRunning)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = p.checkContainersState(StateReady)
-	if err != nil {
-		err = p.checkContainersState(StateStopped)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.storage.deletePodResources(p.id, nil)
 }
 
 // startVM starts the VM.
@@ -831,7 +798,7 @@ func (p *Pod) createContainers() error {
 // start starts a pod. The containers that are making the pod
 // will be started.
 func (p *Pod) start() error {
-	if err := p.startCheckStates(); err != nil {
+	if err := p.state.validTransition(p.state.State, StateRunning); err != nil {
 		return err
 	}
 
@@ -878,17 +845,12 @@ func (p *Pod) stopVM() error {
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
-	state, err := p.storage.fetchPodState(p.id)
-	if err != nil {
-		return err
-	}
-
-	if err := state.validTransition(state.State, StateStopped); err != nil {
+	if err := p.state.validTransition(p.state.State, StateStopped); err != nil {
 		return err
 	}
 
 	// This handles the special case of stopping a pod in ready state.
-	if state.State == StateReady {
+	if p.state.State == StateReady {
 		return p.setPodState(StateStopped)
 	}
 
@@ -1029,42 +991,6 @@ func (p *Pod) deleteContainerState(containerID string) error {
 func (p *Pod) deleteContainersState() error {
 	for _, container := range p.config.Containers {
 		err := p.deleteContainerState(container.ID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *Pod) checkContainerState(containerID string, expectedState stateString) error {
-	if containerID == "" {
-		return errNeedContainerID
-	}
-
-	if expectedState == "" {
-		return fmt.Errorf("expectedState cannot be empty")
-	}
-
-	state, err := p.storage.fetchContainerState(p.id, containerID)
-	if err != nil {
-		return err
-	}
-
-	if state.State != expectedState {
-		return fmt.Errorf("Container %s not %s", containerID, expectedState)
-	}
-
-	return nil
-}
-
-func (p *Pod) checkContainersState(state stateString) error {
-	if state == "" {
-		return errNeedState
-	}
-
-	for _, container := range p.config.Containers {
-		err := p.checkContainerState(container.ID, state)
 		if err != nil {
 			return err
 		}
