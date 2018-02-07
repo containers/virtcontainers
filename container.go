@@ -549,12 +549,7 @@ func (c *Container) start() error {
 		return err
 	}
 
-	err = c.setContainerState(StateRunning)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.setContainerState(StateRunning)
 }
 
 func (c *Container) stop() error {
@@ -619,11 +614,7 @@ func (c *Container) stop() error {
 		return err
 	}
 
-	if err := c.setContainerState(StateStopped); err != nil {
-		return err
-	}
-
-	return nil
+	return c.setContainerState(StateStopped)
 }
 
 func (c *Container) enter(cmd Cmd) (*Process, error) {
