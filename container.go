@@ -464,13 +464,12 @@ func (c *Container) stop() error {
 	// the container process has terminated, it might be possible that
 	// someone try to stop the container, and we don't want to issue an
 	// error in that case. This should be a no-op.
+	//
+	// This has to be handled before the transition validation since this
+	// is an exception.
 	if c.state.State == StateStopped {
 		c.Logger().Info("Container already stopped")
 		return nil
-	}
-
-	if c.state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to stop")
 	}
 
 	if err := c.state.validTransition(c.state.State, StateStopped); err != nil {
