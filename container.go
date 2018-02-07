@@ -367,12 +367,8 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 }
 
 func (c *Container) delete() error {
-	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-	if err != nil {
-		return err
-	}
-
-	if state.State != StateReady && state.State != StateStopped {
+	if c.state.State != StateReady &&
+		c.state.State != StateStopped {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
@@ -380,39 +376,24 @@ func (c *Container) delete() error {
 		return err
 	}
 
-	err = c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
-	if err != nil {
-		return err
+	return c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
+}
+
+// checkPodRunning validates the container state.
+//
+// cmd specifies the operation (or verb) that the retrieval is destined
+// for and is only used to make the returned error as descriptive as
+// possible.
+func (c *Container) checkPodRunning(cmd string) error {
+	if cmd == "" {
+		return fmt.Errorf("Cmd cannot be empty")
+	}
+
+	if c.pod.state.State != StateRunning {
+		return fmt.Errorf("Pod not running, impossible to %s the container", cmd)
 	}
 
 	return nil
-}
-
-// fetchState retrieves the container state.
-//
-// cmd specifies the operation (or verb) that the retieval is destined
-// for and is only used to make the returned error as descriptive as
-// possible.
-func (c *Container) fetchState(cmd string) (State, error) {
-	if cmd == "" {
-		return State{}, fmt.Errorf("Cmd cannot be empty")
-	}
-
-	state, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return State{}, err
-	}
-
-	if state.State != StateRunning {
-		return State{}, fmt.Errorf("Pod not running, impossible to %s the container", cmd)
-	}
-
-	containerState, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-	if err != nil {
-		return State{}, err
-	}
-
-	return containerState, nil
 }
 
 func (c *Container) getSystemMountInfo() {
@@ -429,21 +410,17 @@ func (c *Container) getSystemMountInfo() {
 }
 
 func (c *Container) start() error {
-	state, err := c.fetchState("start")
-	if err != nil {
+	if err := c.checkPodRunning("start"); err != nil {
 		return err
 	}
 
-	if state.State != StateReady && state.State != StateStopped {
+	if c.state.State != StateReady &&
+		c.state.State != StateStopped {
 		return fmt.Errorf("Container not ready or stopped, impossible to start")
 	}
 
-	err = state.validTransition(StateReady, StateRunning)
-	if err != nil {
-		err = state.validTransition(StateStopped, StateRunning)
-		if err != nil {
-			return err
-		}
+	if err := c.state.validTransition(c.state.State, StateRunning); err != nil {
+		return err
 	}
 
 	agentCaps := c.pod.agent.capabilities()
@@ -479,8 +456,7 @@ func (c *Container) start() error {
 }
 
 func (c *Container) stop() error {
-	state, err := c.fetchState("stop")
-	if err != nil {
+	if err := c.checkPodRunning("stop"); err != nil {
 		return err
 	}
 
@@ -488,16 +464,16 @@ func (c *Container) stop() error {
 	// the container process has terminated, it might be possible that
 	// someone try to stop the container, and we don't want to issue an
 	// error in that case. This should be a no-op.
-	if state.State == StateStopped {
+	if c.state.State == StateStopped {
 		c.Logger().Info("Container already stopped")
 		return nil
 	}
 
-	if state.State != StateRunning {
+	if c.state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to stop")
 	}
 
-	if err := state.validTransition(StateRunning, StateStopped); err != nil {
+	if err := c.state.validTransition(c.state.State, StateStopped); err != nil {
 		return err
 	}
 
@@ -539,12 +515,11 @@ func (c *Container) stop() error {
 }
 
 func (c *Container) enter(cmd Cmd) (*Process, error) {
-	state, err := c.fetchState("enter")
-	if err != nil {
+	if err := c.checkPodRunning("enter"); err != nil {
 		return nil, err
 	}
 
-	if state.State != StateRunning {
+	if c.state.State != StateRunning {
 		return nil, fmt.Errorf("Container not running, impossible to enter")
 	}
 
@@ -557,25 +532,15 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 }
 
 func (c *Container) kill(signal syscall.Signal, all bool) error {
-	podState, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if podState.State != StateReady && podState.State != StateRunning {
+	if c.pod.state.State != StateReady && c.pod.state.State != StateRunning {
 		return fmt.Errorf("Pod not ready or running, impossible to signal the container")
-	}
-
-	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-	if err != nil {
-		return err
 	}
 
 	// In case our container is "ready", there is no point in trying to
 	// send any signal because nothing has been started. However, this is
 	// a valid case that we handle by doing nothing or by killing the shim
 	// and updating the container state, according to the signal.
-	if state.State == StateReady {
+	if c.state.State == StateReady {
 		if signal != syscall.SIGTERM && signal != syscall.SIGKILL {
 			c.Logger().WithField("signal", signal).Info("Not sending signal as container already ready")
 			return nil
@@ -591,25 +556,19 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 		return c.setContainerState(StateStopped)
 	}
 
-	if state.State != StateRunning {
+	if c.state.State != StateRunning {
 		return fmt.Errorf("Container not running, impossible to signal the container")
 	}
 
-	err = c.pod.agent.killContainer(*(c.pod), *c, signal, all)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.pod.agent.killContainer(*(c.pod), *c, signal, all)
 }
 
 func (c *Container) processList(options ProcessListOptions) (ProcessList, error) {
-	state, err := c.fetchState("ps")
-	if err != nil {
+	if err := c.checkPodRunning("ps"); err != nil {
 		return nil, err
 	}
 
-	if state.State != StateRunning {
+	if c.state.State != StateRunning {
 		return nil, fmt.Errorf("Container not running, impossible to list processes")
 	}
 

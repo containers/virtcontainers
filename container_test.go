@@ -255,3 +255,29 @@ func TestContainerAddDriveDir(t *testing.T) {
 	}
 
 }
+
+func TestCheckPodRunningEmptyCmdFailure(t *testing.T) {
+	c := &Container{}
+	err := c.checkPodRunning("")
+	assert.NotNil(t, err, "Should fail because provided command is empty")
+}
+
+func TestCheckPodRunningNotRunningFailure(t *testing.T) {
+	c := &Container{
+		pod: &Pod{},
+	}
+	err := c.checkPodRunning("test_cmd")
+	assert.NotNil(t, err, "Should fail because pod state is empty")
+}
+
+func TestCheckPodRunningSuccessful(t *testing.T) {
+	c := &Container{
+		pod: &Pod{
+			state: State{
+				State: StateRunning,
+			},
+		},
+	}
+	err := c.checkPodRunning("test_cmd")
+	assert.Nil(t, err, "%v", err)
+}
