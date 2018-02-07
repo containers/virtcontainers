@@ -568,7 +568,8 @@ func statusContainer(pod *Pod, containerID string) (ContainerStatus, error) {
 			// We have to check for the process state to make sure
 			// we update the status in case the process is supposed
 			// to be running but has been killed or terminated.
-			if (container.state.State == StateRunning ||
+			if (container.state.State == StateReady ||
+				container.state.State == StateRunning ||
 				container.state.State == StatePaused) &&
 				container.process.Pid > 0 {
 

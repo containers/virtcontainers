@@ -493,6 +493,11 @@ func (h *hyper) startContainer(pod Pod, c *Container) error {
 
 // stopContainer is the agent Container stopping implementation for hyperstart.
 func (h *hyper) stopContainer(pod Pod, c Container) error {
+	// Nothing to be done in case the container has not been started.
+	if c.state.State == StateReady {
+		return nil
+	}
+
 	return h.stopOneContainer(pod.id, c)
 }
 
@@ -525,6 +530,12 @@ func (h *hyper) stopOneContainer(podID string, c Container) error {
 
 // killContainer is the agent process signal implementation for hyperstart.
 func (h *hyper) killContainer(pod Pod, c Container, signal syscall.Signal, all bool) error {
+	// Send the signal to the shim directly in case the container has not
+	// been started yet.
+	if c.state.State == StateReady {
+		return signalShim(c.process.Pid, signal)
+	}
+
 	return h.killOneContainer(c.id, signal, all)
 }
 
