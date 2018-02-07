@@ -558,11 +558,6 @@ func (c *Container) start() error {
 }
 
 func (c *Container) stop() error {
-	state, err := c.fetchState("stop")
-	if err != nil {
-		return err
-	}
-
 	// In case the container status has been updated implicitly because
 	// the container process has terminated, it might be possible that
 	// someone try to stop the container, and we don't want to issue an
@@ -575,7 +570,11 @@ func (c *Container) stop() error {
 		return nil
 	}
 
-	if err := state.validTransition(StateRunning, StateStopped); err != nil {
+	if c.pod.state.State != StateReady && c.pod.state.State != StateRunning {
+		return fmt.Errorf("Pod not ready or running, impossible to stop the container")
+	}
+
+	if err := c.state.validTransition(c.state.State, StateStopped); err != nil {
 		return err
 	}
 
@@ -592,13 +591,20 @@ func (c *Container) stop() error {
 
 	}()
 
-	if err := c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true); err != nil {
+	ctrRunning, err := isShimRunning(c.process.Pid)
+	if err != nil {
 		return err
 	}
 
-	// Wait for the end of container
-	if err := waitForShim(c.process.Pid); err != nil {
-		return err
+	if ctrRunning {
+		if err := c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true); err != nil {
+			return err
+		}
+
+		// Wait for the end of container
+		if err := waitForShim(c.process.Pid); err != nil {
+			return err
+		}
 	}
 
 	if err := c.pod.agent.stopContainer(*(c.pod), *c); err != nil {
@@ -639,50 +645,15 @@ func (c *Container) enter(cmd Cmd) (*Process, error) {
 }
 
 func (c *Container) kill(signal syscall.Signal, all bool) error {
-	podState, err := c.pod.storage.fetchPodState(c.pod.id)
-	if err != nil {
-		return err
-	}
-
-	if podState.State != StateReady && podState.State != StateRunning {
+	if c.pod.state.State != StateReady && c.pod.state.State != StateRunning {
 		return fmt.Errorf("Pod not ready or running, impossible to signal the container")
 	}
 
-	state, err := c.pod.storage.fetchContainerState(c.podID, c.id)
-	if err != nil {
-		return err
+	if c.state.State != StateReady && c.state.State != StateRunning {
+		return fmt.Errorf("Container not ready or running, impossible to signal the container")
 	}
 
-	// In case our container is "ready", there is no point in trying to
-	// send any signal because nothing has been started. However, this is
-	// a valid case that we handle by doing nothing or by killing the shim
-	// and updating the container state, according to the signal.
-	if state.State == StateReady {
-		if signal != syscall.SIGTERM && signal != syscall.SIGKILL {
-			c.Logger().WithField("signal", signal).Info("Not sending signal as container already ready")
-			return nil
-		}
-
-		// Calling into stopShim() will send a SIGKILL to the shim.
-		// This signal will be forwarded to the proxy or directly the
-		// agent and will be handled accordingly.
-		if err := stopShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		return c.setContainerState(StateStopped)
-	}
-
-	if state.State != StateRunning {
-		return fmt.Errorf("Container not running, impossible to signal the container")
-	}
-
-	err = c.pod.agent.killContainer(*(c.pod), *c, signal, all)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.pod.agent.killContainer(*(c.pod), *c, signal, all)
 }
 
 func (c *Container) processList(options ProcessListOptions) (ProcessList, error) {
