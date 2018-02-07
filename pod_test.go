@@ -483,7 +483,7 @@ func testCheckInitPodAndContainerStates(p *Pod, initialPodState State, c *Contai
 
 func testForcePodStateChangeAndCheck(t *testing.T, p *Pod, newPodState State) error {
 	// force pod state change
-	if err := p.setPodState(newPodState); err != nil {
+	if err := p.setPodState(newPodState.State); err != nil {
 		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
 	}
 
@@ -497,7 +497,7 @@ func testForcePodStateChangeAndCheck(t *testing.T, p *Pod, newPodState State) er
 
 func testForceContainerStateChangeAndCheck(t *testing.T, p *Pod, c *Container, newContainerState State) error {
 	// force container state change
-	if err := p.setContainerState(c.id, newContainerState.State); err != nil {
+	if err := c.setContainerState(newContainerState.State); err != nil {
 		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
 	}
 
@@ -552,7 +552,7 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		State: StateReady,
 	}
 
-	c, err := p.getContainer(contID)
+	c, err := p.findContainer(contID)
 	if err != nil {
 		t.Fatalf("Failed to retrieve container %v: %v", contID, err)
 	}
@@ -594,7 +594,7 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 		t.Error(err)
 	}
 
-	c2, err := p2.getContainer(contID)
+	c2, err := p2.findContainer(contID)
 	if err != nil {
 		t.Fatalf("Failed to find container %v: %v", contID, err)
 	}
@@ -604,7 +604,7 @@ func TestPodSetPodAndContainerState(t *testing.T) {
 	}
 
 	// revert pod state to allow it to be deleted
-	err = p.setPodState(initialPodState)
+	err = p.setPodState(initialPodState.State)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v (pod %+v)", err, p)
 	}
@@ -622,41 +622,25 @@ func TestPodSetPodStateFailingStorePodResource(t *testing.T) {
 		storage: fs,
 	}
 
-	pod.state.State = StateReady
-	err := pod.setPodState(pod.state)
-	if err == nil {
-		t.Fatal()
-	}
-}
-
-func TestPodSetContainerStateFailingStoreContainerResource(t *testing.T) {
-	fs := &filesystem{}
-	pod := &Pod{
-		storage: fs,
-	}
-
-	err := pod.setContainerState("100", StateReady)
+	err := pod.setPodState(StateReady)
 	if err == nil {
 		t.Fatal()
 	}
 }
 
 func TestPodSetContainersStateFailingEmptyPodID(t *testing.T) {
-	containers := []ContainerConfig{
+	pod := &Pod{
+		storage: &filesystem{},
+	}
+
+	containers := []*Container{
 		{
-			ID: "100",
+			id:  "100",
+			pod: pod,
 		},
 	}
 
-	podConfig := &PodConfig{
-		Containers: containers,
-	}
-
-	fs := &filesystem{}
-	pod := &Pod{
-		config:  podConfig,
-		storage: fs,
-	}
+	pod.containers = containers
 
 	err := pod.setContainersState(StateReady)
 	if err == nil {
@@ -976,12 +960,12 @@ func TestSetAnnotations(t *testing.T) {
 func TestPodGetContainer(t *testing.T) {
 
 	emptyPod := Pod{}
-	_, err := emptyPod.getContainer("")
+	_, err := emptyPod.findContainer("")
 	if err == nil {
 		t.Fatal("Expected error for containerless pod")
 	}
 
-	_, err = emptyPod.getContainer("foo")
+	_, err = emptyPod.findContainer("foo")
 	if err == nil {
 		t.Fatal("Expected error for containerless pod and invalid containerID")
 	}
@@ -1005,7 +989,7 @@ func TestPodGetContainer(t *testing.T) {
 
 	got := false
 	for _, c := range p.GetAllContainers() {
-		c2, err := p.getContainer(c.ID())
+		c2, err := p.findContainer(c.ID())
 		if err != nil {
 			t.Fatalf("Failed to find container %v: %v", c.ID(), err)
 		}

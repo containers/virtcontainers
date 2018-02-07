@@ -540,22 +540,6 @@ func (p *Pod) GetContainer(containerID string) VCContainer {
 	return nil
 }
 
-func (p *Pod) createSetStates() error {
-	p.state.State = StateReady
-
-	err := p.setPodState(p.state)
-	if err != nil {
-		return err
-	}
-
-	err = p.setContainersState(p.state.State)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func createAssets(podConfig *PodConfig) error {
 	kernel, err := newAsset(podConfig, kernelAsset)
 	if err != nil {
@@ -608,6 +592,11 @@ func createPod(podConfig PodConfig) (*Pod, error) {
 
 	// Passthrough devices
 	if err := p.attachDevices(); err != nil {
+		return nil, err
+	}
+
+	// Set pod state
+	if err := p.setPodState(StateReady); err != nil {
 		return nil, err
 	}
 
@@ -775,17 +764,6 @@ func (p *Pod) startCheckStates() error {
 	return nil
 }
 
-func (p *Pod) startSetState() error {
-	p.state.State = StateRunning
-
-	err := p.setPodState(p.state)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // startVM starts the VM.
 func (p *Pod) startVM(netNsPath string) error {
 	p.Logger().Info("Starting VM")
@@ -805,13 +783,7 @@ func (p *Pod) startVM(netNsPath string) error {
 	// Once startVM is done, we want to guarantee
 	// that the pod is manageable. For that we need
 	// to start the pod inside the VM.
-	if err := p.agent.startPod(*p); err != nil {
-		return err
-	}
-
-	// Important to save the pod state since the agent
-	// should have updated proxy information.
-	return p.setPodState(p.state)
+	return p.agent.startPod(*p)
 }
 
 func (p *Pod) addContainer(c *Container) error {
@@ -853,11 +825,6 @@ func (p *Pod) createContainers() error {
 		}
 	}
 
-	if err := p.createSetStates(); err != nil {
-		p.storage.deletePodResources(p.id, nil)
-		return err
-	}
-
 	return nil
 }
 
@@ -868,7 +835,7 @@ func (p *Pod) start() error {
 		return err
 	}
 
-	if err := p.startSetState(); err != nil {
+	if err := p.setPodState(StateRunning); err != nil {
 		return err
 	}
 
@@ -879,22 +846,6 @@ func (p *Pod) start() error {
 	}
 
 	p.Logger().Info("Pod is started")
-
-	return nil
-}
-
-func (p *Pod) stopSetStates() error {
-	p.state.State = StateStopped
-
-	err := p.setContainersState(p.state.State)
-	if err != nil {
-		return err
-	}
-
-	err = p.setPodState(p.state)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -913,42 +864,6 @@ func (p *Pod) stopShims() error {
 	}
 
 	p.Logger().WithField("shim-count", shimCount).Info("Stopped shims")
-
-	return nil
-}
-
-func (p *Pod) pauseSetStates() error {
-	// XXX: When a pod is paused, all its containers are forcibly
-	// paused too.
-	p.state.State = StatePaused
-
-	err := p.setContainersState(p.state.State)
-	if err != nil {
-		return err
-	}
-
-	err = p.setPodState(p.state)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p *Pod) resumeSetStates() error {
-	// XXX: Resuming a paused pod puts all containers back into the
-	// running state.
-	p.state.State = StateRunning
-
-	err := p.setContainersState(p.state.State)
-	if err != nil {
-		return err
-	}
-
-	err = p.setPodState(p.state)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -974,7 +889,7 @@ func (p *Pod) stop() error {
 
 	// This handles the special case of stopping a pod in ready state.
 	if state.State == StateReady {
-		return p.stopSetStates()
+		return p.setPodState(StateStopped)
 	}
 
 	for _, c := range p.containers {
@@ -989,7 +904,7 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	return p.stopSetStates()
+	return p.setPodState(StateStopped)
 }
 
 func (p *Pod) pause() error {
@@ -1020,17 +935,36 @@ func (p *Pod) enter(args []string) error {
 
 // setPodState sets both the in-memory and on-disk state of the
 // pod.
-func (p *Pod) setPodState(state State) error {
+func (p *Pod) setPodState(state stateString) error {
+	if state == "" {
+		return errNeedState
+	}
+
 	// update in-memory state
-	p.state = state
+	p.state.State = state
 
 	// update on-disk state
-	err := p.storage.storePodResource(p.id, stateFileType, state)
-	if err != nil {
+	return p.storage.storePodResource(p.id, stateFileType, p.state)
+}
+
+func (p *Pod) pauseSetStates() error {
+	// XXX: When a pod is paused, all its containers are forcibly
+	// paused too.
+	if err := p.setContainersState(StatePaused); err != nil {
 		return err
 	}
 
-	return nil
+	return p.setPodState(StatePaused)
+}
+
+func (p *Pod) resumeSetStates() error {
+	// XXX: Resuming a paused pod puts all containers back into the
+	// running state.
+	if err := p.setContainersState(StateRunning); err != nil {
+		return err
+	}
+
+	return p.setPodState(StateRunning)
 }
 
 // getAndSetPodBlockIndex retrieves pod block index and increments it for
@@ -1065,43 +999,13 @@ func (p *Pod) decrementPodBlockIndex() error {
 	return nil
 }
 
-func (p *Pod) getContainer(containerID string) (*Container, error) {
-	if containerID == "" {
-		return &Container{}, errNeedContainerID
-	}
-
-	for _, c := range p.containers {
-		if c.id == containerID {
-			return c, nil
-		}
-	}
-
-	return nil, fmt.Errorf("pod %v has no container with ID %v", p.ID(), containerID)
-}
-
-func (p *Pod) setContainerState(containerID string, state stateString) error {
-	if containerID == "" {
-		return errNeedContainerID
-	}
-
-	c := p.GetContainer(containerID)
-	if c == nil {
-		return fmt.Errorf("Pod %s has no container %s", p.id, containerID)
-	}
-
-	// Let container handle its state update
-	cImpl := c.(*Container)
-	return cImpl.setContainerState(state)
-}
-
 func (p *Pod) setContainersState(state stateString) error {
 	if state == "" {
 		return errNeedState
 	}
 
-	for _, container := range p.config.Containers {
-		err := p.setContainerState(container.ID, state)
-		if err != nil {
+	for _, c := range p.containers {
+		if err := c.setContainerState(state); err != nil {
 			return err
 		}
 	}
