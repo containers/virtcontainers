@@ -354,9 +354,9 @@ func (q *qemu) appendSocket(devices []govmmQemu.Device, socket Socket) []govmmQe
 
 func networkModelToQemuType(model NetInterworkingModel) govmmQemu.NetDeviceType {
 	switch model {
-	case ModelBridged:
+	case NetXConnectBridgedModel:
 		return govmmQemu.MACVTAP //TODO: We should rename MACVTAP to .NET_FD
-	case ModelMacVtap:
+	case NetXConnectMacVtapModel:
 		return govmmQemu.MACVTAP
 	//case ModelEnlightened:
 	// Here the Network plugin will create a VM native interface

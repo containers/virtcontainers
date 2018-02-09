@@ -238,11 +238,12 @@ func TestCreateVirtualNetworkEndpoint(t *testing.T) {
 			TAPIface: NetworkInterface{
 				Name: "tap4",
 			},
+			NetInterworkingModel: DefaultNetInterworkingModel,
 		},
 		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createVirtualNetworkEndpoint(4, "")
+	result, err := createVirtualNetworkEndpoint(4, "", DefaultNetInterworkingModel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,11 +270,12 @@ func TestCreateVirtualNetworkEndpointChooseIfaceName(t *testing.T) {
 			TAPIface: NetworkInterface{
 				Name: "tap4",
 			},
+			NetInterworkingModel: DefaultNetInterworkingModel,
 		},
 		EndpointType: VirtualEndpointType,
 	}
 
-	result, err := createVirtualNetworkEndpoint(4, "eth1")
+	result, err := createVirtualNetworkEndpoint(4, "eth1", DefaultNetInterworkingModel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,33 +301,10 @@ func TestCreateVirtualNetworkEndpointInvalidArgs(t *testing.T) {
 	}
 
 	for _, d := range failingValues {
-		result, err := createVirtualNetworkEndpoint(d.idx, d.ifName)
+		result, err := createVirtualNetworkEndpoint(d.idx, d.ifName, DefaultNetInterworkingModel)
 		if err == nil {
 			t.Fatalf("expected invalid endpoint for %v, got %v", d, result)
 		}
-	}
-}
-
-func TestCreateNetworkEndpoints(t *testing.T) {
-	numOfEndpoints := 3
-
-	endpoints, err := createNetworkEndpoints(numOfEndpoints)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(endpoints) != numOfEndpoints {
-		t.Fatal()
-	}
-}
-
-func TestCreateNetworkEndpointsFailure(t *testing.T) {
-	numOfEndpoints := 0
-
-	_, err := createNetworkEndpoints(numOfEndpoints)
-	if err == nil {
-		t.Fatalf("Should fail because %d endpoints is invalid",
-			numOfEndpoints)
 	}
 }
 
@@ -383,5 +362,49 @@ func TestIsPhysicalIface(t *testing.T) {
 
 	if isPhysical == true {
 		t.Fatalf("Got %+v\nExpecting %+v", isPhysical, false)
+	}
+}
+
+func TestNetInterworkingModelIsValid(t *testing.T) {
+	tests := []struct {
+		name string
+		n    NetInterworkingModel
+		want bool
+	}{
+		{"Invalid Model", NetXConnectInvalidModel, false},
+		{"Default Model", NetXConnectDefaultModel, true},
+		{"Bridged Model", NetXConnectBridgedModel, true},
+		{"Macvtap Model", NetXConnectMacVtapModel, true},
+		{"Enlightened Model", NetXConnectEnlightenedModel, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.n.IsValid(); got != tt.want {
+				t.Errorf("NetInterworkingModel.IsValid() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNetInterworkingModelSetModel(t *testing.T) {
+	var n NetInterworkingModel
+	tests := []struct {
+		name      string
+		modelName string
+		wantErr   bool
+	}{
+		{"Invalid Model", "Invalid", true},
+		{"default Model", "default", false},
+		{"bridged Model", "bridged", false},
+		{"macvtap Model", "macvtap", false},
+		{"enlightened Model", "enlightened", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := n.SetModel(tt.modelName); (err != nil) != tt.wantErr {
+				t.Errorf("NetInterworkingModel.SetModel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
