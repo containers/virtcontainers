@@ -71,30 +71,21 @@ func (n NetInterworkingModel) IsValid() bool {
 	return 0 <= int(n) && int(n) < int(NetXConnectInvalidModel)
 }
 
-var interworkingModelStringMap = map[NetInterworkingModel]string{
-	NetXConnectDefaultModel:     "default",
-	NetXConnectBridgedModel:     "bridged",
-	NetXConnectMacVtapModel:     "macvtap",
-	NetXConnectEnlightenedModel: "enlightened",
-}
-
-func (n NetInterworkingModel) String() string {
-	if val, ok := interworkingModelStringMap[n]; ok {
-		return val
-	}
-	return fmt.Sprintf("Unknown type %d", int(n))
-}
-
 //SetModel change the model string value
 func (n *NetInterworkingModel) SetModel(modelName string) error {
-	if modelName == NetXConnectDefaultModel.String() {
-		modelName = DefaultNetInterworkingModel.String()
-	}
-	for model, name := range interworkingModelStringMap {
-		if name == modelName {
-			*n = model
-			return nil
-		}
+	switch modelName {
+	case "default":
+		*n = DefaultNetInterworkingModel
+		return nil
+	case "bridged":
+		*n = NetXConnectBridgedModel
+		return nil
+	case "macvtap":
+		*n = NetXConnectMacVtapModel
+		return nil
+	case "enlightened":
+		*n = NetXConnectEnlightenedModel
+		return nil
 	}
 	return fmt.Errorf("Unknown type %s", modelName)
 }
@@ -737,7 +728,7 @@ func xconnectVMNetwork(netPair *NetworkInterfacePair, connect bool) error {
 	case NetXConnectEnlightenedModel:
 		return fmt.Errorf("Unsupported networking model")
 	default:
-		return fmt.Errorf("Invalid internetworking model: '%s'", netPair.NetInterworkingModel)
+		return fmt.Errorf("Invalid internetworking model")
 	}
 }
 
