@@ -48,6 +48,7 @@ var (
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
 	vsockSocketScheme           = "vsock"
+	kataBlkDevType              = "blk"
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -569,7 +570,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, errorMissingOCISpec
 	}
 
-	var containerStorage []*grpc.Storage
+	var ctrStorages []*grpc.Storage
+	var ctrDevices []*grpc.Device
 
 	// The rootfs storage volume represents the container rootfs
 	// mount point inside the guest.
@@ -597,7 +599,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		// We only need to do this for block based rootfs, as we
 		// want the agent to mount it into the right location
 		// (/tmp/kata-containers/shared/pods/podID/ctrID/
-		containerStorage = append(containerStorage, rootfs)
+		ctrStorages = append(ctrStorages, rootfs)
 
 	} else {
 		// This is not a block based device rootfs.
@@ -652,18 +654,20 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 			continue
 		}
 
-		deviceStorage := &grpc.Storage{
-			Source:     d.VirtPath,
-			MountPoint: d.DeviceInfo.ContainerPath,
+		kataDevice := &grpc.Device{
+			Type:          kataBlkDevType,
+			VmPath:        d.VirtPath,
+			ContainerPath: d.DeviceInfo.ContainerPath,
 		}
 
-		containerStorage = append(containerStorage, deviceStorage)
+		ctrDevices = append(ctrDevices, kataDevice)
 	}
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
 		ExecId:      c.id,
-		Storages:    containerStorage,
+		Storages:    ctrStorages,
+		Devices:     ctrDevices,
 		OCI:         grpcSpec,
 	}
 
