@@ -555,7 +555,7 @@ func (c *Container) stop() error {
 		// Make sure we stop the shim process
 		if running, _ := isShimRunning(c.process.Pid); running {
 			l := c.Logger()
-			l.Warn("Failed to stop container so stopping dangling shim")
+			l.Error("Failed to stop container so stopping dangling shim")
 			if err := stopShim(c.process.Pid); err != nil {
 				l.WithError(err).Warn("failed to stop shim")
 			}
@@ -563,17 +563,22 @@ func (c *Container) stop() error {
 
 	}()
 
-	ctrRunning, err := isShimRunning(c.process.Pid)
-	if err != nil {
-		return err
-	}
-
-	if ctrRunning {
+	// Here we expect that stop() has been called because the container
+	// process returned or because it received a signal. In case of a
+	// signal, we want to give it some time to end the container process.
+	// However, if the signal didn't reach its goal, the caller still
+	// expects this container to be stopped, that's why we should not
+	// return an error, but instead try to kill it forcefully.
+	if err := waitForShim(c.process.Pid); err != nil {
+		// Force the container to be killed.
 		if err := c.pod.agent.killContainer(*(c.pod), *c, syscall.SIGKILL, true); err != nil {
 			return err
 		}
 
-		// Wait for the end of container
+		// Wait for the end of container process. We expect this call
+		// to succeed. Indeed, we have already given a second chance
+		// to the container by trying to kill it with SIGKILL, there
+		// is no reason to try to go further if we got an error.
 		if err := waitForShim(c.process.Pid); err != nil {
 			return err
 		}
