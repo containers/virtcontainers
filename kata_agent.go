@@ -48,6 +48,7 @@ var (
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
 	vsockSocketScheme           = "vsock"
+	kataBlkDevDriver            = "blk"
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -525,6 +526,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		}
 
 		deviceStorage := &grpc.Storage{
+			Driver:     kataBlkDevDriver,
 			Source:     d.VirtPath,
 			MountPoint: d.DeviceInfo.ContainerPath,
 		}
