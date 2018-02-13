@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -414,6 +415,11 @@ func getHostMemorySizeKb(memInfoPath string) (uint64, error) {
 
 // RunningOnVMM checks if the system is running inside a VM.
 func RunningOnVMM(cpuInfoPath string) (bool, error) {
+	if runtime.GOARCH == "arm64" {
+		virtLog.Debugf("Unable to know if the system is running inside a VM")
+		return false, nil
+	}
+
 	flagsField := "flags"
 
 	f, err := os.Open(cpuInfoPath)

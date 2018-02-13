@@ -17,35 +17,17 @@
 package virtcontainers
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewBridges(t *testing.T) {
-	assert := assert.New(t)
-	var countBridges uint32 = 1
-
-	bridges := NewBridges(countBridges, "")
-	assert.Nil(bridges)
-
-	bridges = NewBridges(countBridges, QemuQ35)
-	assert.Len(bridges, int(countBridges))
-
-	b := bridges[0]
-	assert.NotEmpty(b.ID)
-	assert.NotNil(b.Address)
-}
-
 func TestAddRemoveDevice(t *testing.T) {
 	assert := assert.New(t)
-	var countBridges uint32 = 1
 
 	// create a bridge
-	bridges := NewBridges(countBridges, "")
-	assert.Nil(bridges)
-	bridges = NewBridges(countBridges, QemuQ35)
-	assert.Len(bridges, int(countBridges))
+	bridges := []*Bridge{{make(map[uint32]string), pciBridge, "rgb123"}}
 
 	// add device
 	devID := "abc123"
@@ -53,7 +35,7 @@ func TestAddRemoveDevice(t *testing.T) {
 	addr, err := b.addDevice(devID)
 	assert.NoError(err)
 	if addr < 1 {
-		assert.Fail("address cannot be less then 1")
+		assert.Fail("address cannot be less than 1")
 	}
 
 	// remove device
@@ -62,4 +44,15 @@ func TestAddRemoveDevice(t *testing.T) {
 
 	err = b.removeDevice(devID)
 	assert.NoError(err)
+
+	// add device when the bridge is full
+	bridges[0].Address = make(map[uint32]string)
+	for i := uint32(1); i <= pciBridgeMaxCapacity; i++ {
+		bridges[0].Address[i] = fmt.Sprintf("%d", i)
+	}
+	addr, err = b.addDevice(devID)
+	assert.Error(err)
+	if addr != 0 {
+		assert.Fail("address should be 0")
+	}
 }
