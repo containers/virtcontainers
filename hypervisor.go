@@ -469,5 +469,4 @@ type hypervisor interface {
 	hotplugRemoveDevice(devInfo interface{}, devType deviceType) error
 	getPodConsole(podID string) string
 	capabilities() capabilities
-	getState() interface{}
 }

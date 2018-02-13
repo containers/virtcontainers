@@ -1071,7 +1071,3 @@ func (q *qemu) addDevice(devInfo interface{}, devType deviceType) error {
 func (q *qemu) getPodConsole(podID string) string {
 	return filepath.Join(runStoragePath, podID, defaultConsole)
 }
-
-func (q *qemu) getState() interface{} {
-	return q.state
-}
