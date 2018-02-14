@@ -417,11 +417,19 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 	// Disable network namespace since it is already handled on the host by
 	// virtcontainers. The network is a complex part which cannot be simply
 	// passed to the agent.
-	for idx, ns := range grpcSpec.Linux.Namespaces {
-		if ns.Type == specs.NetworkNamespace {
-			grpcSpec.Linux.Namespaces = append(grpcSpec.Linux.Namespaces[:idx], grpcSpec.Linux.Namespaces[idx+1:]...)
+	// Every other namespaces's paths have to be emptied. This way, there
+	// is no confusion from the agent, trying to find an existing namespace
+	// on the guest.
+	var tmpNamespaces []grpc.LinuxNamespace
+	for _, ns := range grpcSpec.Linux.Namespaces {
+		switch ns.Type {
+		case specs.NetworkNamespace:
+		default:
+			ns.Path = ""
+			tmpNamespaces = append(tmpNamespaces, ns)
 		}
 	}
+	grpcSpec.Linux.Namespaces = tmpNamespaces
 
 	// Handle /dev/shm mount
 	for idx, mnt := range grpcSpec.Mounts {
