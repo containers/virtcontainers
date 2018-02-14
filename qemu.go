@@ -541,7 +541,7 @@ func (q *qemu) init(pod *Pod) error {
 
 	if err := pod.storage.fetchHypervisorState(pod.id, &q.state); err != nil {
 		q.Logger().Debug("Creating bridges")
-		q.state.Bridges = NewBridges(q.config.DefaultBridges, q.config.HypervisorMachineType)
+		q.state.Bridges = newBridges(q.config.DefaultBridges, q.config.HypervisorMachineType)
 
 		q.Logger().Debug("Creating UUID")
 		q.state.UUID = uuid.Generate().String()

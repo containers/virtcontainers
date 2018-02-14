@@ -39,8 +39,8 @@ type Bridge struct {
 	ID string
 }
 
-// NewBridges creates n new pci(e) bridges depending of the machine type
-func NewBridges(n uint32, machine string) []Bridge {
+// newBridges creates n new pci(e) bridges depending of the machine type
+func newBridges(n uint32, machine string) []Bridge {
 	var bridges []Bridge
 	var bt bridgeType
 
