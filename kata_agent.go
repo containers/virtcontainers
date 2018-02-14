@@ -414,6 +414,10 @@ func constraintGRPCSpec(grpcSpec *grpc.Spec) {
 	// here: https://github.com/kata-containers/agent/issues/104
 	grpcSpec.Linux.Seccomp = nil
 
+	// TODO: Remove this constraint as soon as the agent properly handles
+	// resources provided through the specification.
+	grpcSpec.Linux.Resources = nil
+
 	// Disable network namespace since it is already handled on the host by
 	// virtcontainers. The network is a complex part which cannot be simply
 	// passed to the agent.
