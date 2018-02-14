@@ -451,7 +451,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	rootfs := &grpc.Storage{}
 
 	// This is the guest absolute root path for that container.
-	rootPath := filepath.Join(kataGuestSharedDir, pod.id, rootfsDir)
+	rootPath := filepath.Join(kataGuestSharedDir, c.id, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
