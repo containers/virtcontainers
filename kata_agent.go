@@ -610,6 +610,10 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		rootfs.MountPoint = rootPathParent
 		rootfs.Fstype = c.state.Fstype
 
+		if c.state.Fstype == "xfs" {
+			rootfs.Options = []string{"nouuid"}
+		}
+
 		// Add rootfs to the list of container storage.
 		// We only need to do this for block based rootfs, as we
 		// want the agent to mount it into the right location
