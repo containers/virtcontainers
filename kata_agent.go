@@ -42,8 +42,8 @@ var (
 	defaultKataID               = "charch0"
 	errorMissingProxy           = errors.New("Missing proxy pointer")
 	errorMissingOCISpec         = errors.New("Missing OCI specification")
-	kataHostSharedDir           = "/tmp/kata-containers/shared/pods/"
-	kataGuestSharedDir          = "/tmp/kata-containers/shared/pods/"
+	kataHostSharedDir           = "/run/kata-containers/shared/pods/"
+	kataGuestSharedDir          = "/run/kata-containers/shared/containers/"
 	mountGuest9pTag             = "kataShared"
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
@@ -612,7 +612,7 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		// Add rootfs to the list of container storage.
 		// We only need to do this for block based rootfs, as we
 		// want the agent to mount it into the right location
-		// (/tmp/kata-containers/shared/pods/podID/ctrID/
+		// (kataGuestSharedDir/ctrID/
 		ctrStorages = append(ctrStorages, rootfs)
 
 	} else {
@@ -621,9 +621,9 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		// shared drive between the host and the guest.
 		// With 9pfs we don't need to ask the agent to
 		// mount the rootfs as the shared directory
-		// (/tmp/kata-containers/shared/pods/) is already
-		// mounted in the guest. We only need to mount the
-		// rootfs from the host and it will show up in the guest.
+		// (kataGuestSharedDir) is already mounted in the
+		// guest. We only need to mount the rootfs from
+		// the host and it will show up in the guest.
 		if err := bindMountContainerRootfs(kataHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
 			bindUnmountAllRootfs(kataHostSharedDir, *pod)
 			return nil, err
