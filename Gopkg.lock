@@ -69,7 +69,7 @@
 [[projects]]
   name = "github.com/intel/govmm"
   packages = ["qemu"]
-  revision = "9250e77eda726cbc468985582ce6de932c868bec"
+  revision = "d60256118ff05e570408e24c159171cca903e362"
 
 [[projects]]
   name = "github.com/kata-containers/agent"
@@ -222,6 +222,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "621a46584907c4b9c0c46fb3de56fe812915de1f6b23369acf5e2a8bb5ce0e1a"
+  inputs-digest = "d1b1980db6fe04323222ed48c840543ed3a9f4a8f66113e08b5cf96a974e13e6"
   solver-name = "gps-cdcl"
   solver-version = 1
