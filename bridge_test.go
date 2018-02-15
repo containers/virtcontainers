@@ -26,10 +26,10 @@ func TestNewBridges(t *testing.T) {
 	assert := assert.New(t)
 	var countBridges uint32 = 1
 
-	bridges := NewBridges(countBridges, "")
+	bridges := newBridges(countBridges, "")
 	assert.Nil(bridges)
 
-	bridges = NewBridges(countBridges, QemuQ35)
+	bridges = newBridges(countBridges, QemuQ35)
 	assert.Len(bridges, int(countBridges))
 
 	b := bridges[0]
@@ -42,9 +42,9 @@ func TestAddRemoveDevice(t *testing.T) {
 	var countBridges uint32 = 1
 
 	// create a bridge
-	bridges := NewBridges(countBridges, "")
+	bridges := newBridges(countBridges, "")
 	assert.Nil(bridges)
-	bridges = NewBridges(countBridges, QemuQ35)
+	bridges = newBridges(countBridges, QemuQ35)
 	assert.Len(bridges, int(countBridges))
 
 	// add device
