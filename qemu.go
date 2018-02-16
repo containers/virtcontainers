@@ -177,14 +177,6 @@ func (q *qemu) init(pod *Pod) error {
 		}
 	}
 
-	if err := q.buildPath(); err != nil {
-		return err
-	}
-
-	if err := q.buildKernelParams(); err != nil {
-		return err
-	}
-
 	nested, err := RunningOnVMM(procCPUInfo)
 	if err != nil {
 		return err
