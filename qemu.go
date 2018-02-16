@@ -111,7 +111,7 @@ func (q *qemu) Logger() *logrus.Entry {
 	return virtLog.WithField("subsystem", "qemu")
 }
 
-func (q *qemu) buildKernelParams() string {
+func (q *qemu) kernelParameters() string {
 	// get a list of arch kernel parameters
 	params := q.arch.kernelParameters(q.config.Debug)
 
@@ -133,8 +133,8 @@ func (q *qemu) capabilities() capabilities {
 	return q.arch.capabilities()
 }
 
-// Build the QEMU binary path
-func (q *qemu) buildPath() (string, error) {
+// get the QEMU binary path
+func (q *qemu) qemuPath() (string, error) {
 	p, err := q.config.HypervisorAssetPath()
 	if err != nil {
 		return "", err
@@ -192,7 +192,7 @@ func (q *qemu) init(pod *Pod) error {
 	return nil
 }
 
-func (q *qemu) setCPUResources(podConfig PodConfig) govmmQemu.SMP {
+func (q *qemu) cpuTopology(podConfig PodConfig) govmmQemu.SMP {
 	vcpus := q.config.DefaultVCPUs
 	if podConfig.VMConfig.VCPUs > 0 {
 		vcpus = uint32(podConfig.VMConfig.VCPUs)
@@ -201,7 +201,7 @@ func (q *qemu) setCPUResources(podConfig PodConfig) govmmQemu.SMP {
 	return q.arch.cpuTopology(vcpus)
 }
 
-func (q *qemu) setMemoryResources(podConfig PodConfig) (govmmQemu.Memory, error) {
+func (q *qemu) memoryTopology(podConfig PodConfig) (govmmQemu.Memory, error) {
 	hostMemKb, err := getHostMemorySizeKb(procMemInfo)
 	if err != nil {
 		return govmmQemu.Memory{}, fmt.Errorf("Unable to read memory info: %s", err)
@@ -254,9 +254,9 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		machine.Options += accelerators
 	}
 
-	smp := q.setCPUResources(podConfig)
+	smp := q.cpuTopology(podConfig)
 
-	memory, err := q.setMemoryResources(podConfig)
+	memory, err := q.memoryTopology(podConfig)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	kernel := govmmQemu.Kernel{
 		Path:   kernelPath,
-		Params: q.buildKernelParams(),
+		Params: q.kernelParameters(),
 	}
 
 	rtc := govmmQemu.RTC{
@@ -347,7 +347,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 		return err
 	}
 
-	qemuPath, err := q.buildPath()
+	qemuPath, err := q.qemuPath()
 	if err != nil {
 		return err
 	}

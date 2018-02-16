@@ -52,7 +52,7 @@ func testQemuKernelParameters(t *testing.T, kernelParams []Param, expected strin
 		arch:   &qemuArchBase{},
 	}
 
-	params := q.buildKernelParams()
+	params := q.kernelParameters()
 	if params != expected {
 		t.Fatalf("Got: %v, Expecting: %v", params, expected)
 	}
@@ -151,7 +151,7 @@ func TestQemuCPUTopology(t *testing.T) {
 		VMConfig: vmConfig,
 	}
 
-	smp := q.setCPUResources(podConfig)
+	smp := q.cpuTopology(podConfig)
 
 	if reflect.DeepEqual(smp, expectedOut) == false {
 		t.Fatalf("Got %v\nExpecting %v", smp, expectedOut)
@@ -185,7 +185,7 @@ func TestQemuMemoryTopology(t *testing.T) {
 		VMConfig: vmConfig,
 	}
 
-	memory, err := q.setMemoryResources(podConfig)
+	memory, err := q.memoryTopology(podConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,26 +305,26 @@ func TestQemuQemuPath(t *testing.T) {
 	}
 
 	// get config hypervisor path
-	path, err := q.buildPath()
+	path, err := q.qemuPath()
 	assert.NoError(err)
 	assert.Equal(path, expectedPath)
 
 	// config hypervisor path does not exist
 	q.config.HypervisorPath = "/abc/rgb/123"
-	path, err = q.buildPath()
+	path, err = q.qemuPath()
 	assert.Error(err)
 	assert.Equal(path, "")
 
 	// get arch hypervisor path
 	q.config.HypervisorPath = ""
-	path, err = q.buildPath()
+	path, err = q.qemuPath()
 	assert.NoError(err)
 	assert.Equal(path, expectedPath)
 
 	// bad machine type, arch should fail
 	qkvm.machineType = "rgb"
 	q.arch = qkvm
-	path, err = q.buildPath()
+	path, err = q.qemuPath()
 	assert.Error(err)
 	assert.Equal(path, "")
 }
