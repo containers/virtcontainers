@@ -845,16 +845,9 @@ func (p *Pod) stop() error {
 		return err
 	}
 
-	// This handles the special case of stopping a pod in ready state.
-	if p.state.State == StateReady {
-		return p.setPodState(StateStopped)
-	}
-
 	for _, c := range p.containers {
-		if c.state.State == StateRunning || c.state.State == StatePaused {
-			if err := c.stop(); err != nil {
-				return err
-			}
+		if err := c.stop(); err != nil {
+			return err
 		}
 	}
 
