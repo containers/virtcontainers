@@ -80,8 +80,7 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 	}
 
 	// Start the VM
-	err = p.startVM(netNsPath)
-	if err != nil {
+	if err := p.startVM(); err != nil {
 		return nil, err
 	}
 

@@ -768,10 +768,10 @@ func (p *Pod) delete() error {
 }
 
 // startVM starts the VM.
-func (p *Pod) startVM(netNsPath string) error {
+func (p *Pod) startVM() error {
 	p.Logger().Info("Starting VM")
 
-	if err := p.network.run(netNsPath, func() error {
+	if err := p.network.run(p.networkNS.NetNsPath, func() error {
 		return p.hypervisor.startPod()
 	}); err != nil {
 		return err
