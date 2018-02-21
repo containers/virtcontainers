@@ -831,13 +831,6 @@ func (p *Pod) start() error {
 	return nil
 }
 
-// stopVM stops the agent inside the VM and shut down the VM itself.
-func (p *Pod) stopVM() error {
-	p.Logger().Info("Stopping VM")
-
-	return p.hypervisor.stopPod()
-}
-
 // stop stops a pod. The containers that are making the pod
 // will be destroyed.
 func (p *Pod) stop() error {
@@ -852,6 +845,11 @@ func (p *Pod) stop() error {
 	}
 
 	if err := p.agent.stopPod(*p); err != nil {
+		return err
+	}
+
+	p.Logger().Info("Stopping VM")
+	if err := p.hypervisor.stopPod(); err != nil {
 		return err
 	}
 

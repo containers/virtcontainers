@@ -466,10 +466,6 @@ func (c *Container) delete() error {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
-	if err := stopShim(c.process.Pid); err != nil {
-		return err
-	}
-
 	return c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 }
 

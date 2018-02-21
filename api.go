@@ -117,27 +117,8 @@ func DeletePod(podID string) (VCPod, error) {
 		return nil, err
 	}
 
-	// Stop the VM
-	err = p.stopVM()
-	if err != nil {
-		return nil, err
-	}
-
-	// Remove the network
-	if p.networkNS.NetNsCreated {
-		if err := p.network.remove(*p, p.networkNS); err != nil {
-			return nil, err
-		}
-	}
-
 	// Delete it.
-	err = p.delete()
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute poststop hooks.
-	if err := p.config.Hooks.postStopHooks(); err != nil {
+	if err := p.delete(); err != nil {
 		return nil, err
 	}
 
@@ -206,6 +187,18 @@ func StopPod(podID string) (VCPod, error) {
 	err = p.stop()
 	if err != nil {
 		p.delete()
+		return nil, err
+	}
+
+	// Remove the network
+	if p.networkNS.NetNsCreated {
+		if err := p.network.remove(*p, p.networkNS); err != nil {
+			return nil, err
+		}
+	}
+
+	// Execute poststop hooks.
+	if err := p.config.Hooks.postStopHooks(); err != nil {
 		return nil, err
 	}
 
