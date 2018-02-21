@@ -1,10 +1,31 @@
 # virtcontainers 1.0 API
 
+The virtcontainers 1.0 API operates on two high level objects:
+[Pods](#pod-api) and [containers](#container-api):
+
 * [Pod API](#pod-api)
 * [Container API](#container-api)
 * [Examples](#examples)
 
 ## Pod API
+
+The virtcontainers 1.0 pod API manages hardware virtualized
+[pod lifecycles](#pod-functions). The virtcontainers pod
+semantics strictly follow the
+[Kubernetes](https://kubernetes.io/docs/concepts/workloads/pods/pod/) ones.
+
+The pod API allows callers to [create](#createpod), [delete](#deletepod),
+[start](#startpod), [stop](#stoppod), [run](#runpod), [pause](#pausepod),
+[resume](resumepod) and [list](#listpod) VM (Virtual Machine) based pods.
+
+To initially create a pod, the API caller must prepare a
+[`PodConfig`](#podconfig) and pass it to either [`CreatePod`](#createpod)
+or [`RunPod`](#runpod). Upon successful pod creation, the virtcontainers
+API will return a [`VCPod`](#vcpod) interface back to the caller.
+
+The `VCPod` interface is a pod abstraction hiding the internal and private
+virtcontainers pod structure. It is a handle for API callers to manage the
+pod lifecycle through the rest of the [pod API](#pod-functions).
 
 * [Structures](#pod-structures)
 * [Functions](#pod-functions)
