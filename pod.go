@@ -736,6 +736,12 @@ func (p *Pod) delete() error {
 		return fmt.Errorf("Pod not ready, paused or stopped, impossible to delete")
 	}
 
+	for _, c := range p.containers {
+		if err := c.delete(); err != nil {
+			return err
+		}
+	}
+
 	return p.storage.deletePodResources(p.id, nil)
 }
 
@@ -821,24 +827,6 @@ func (p *Pod) start() error {
 	}
 
 	p.Logger().Info("Pod is started")
-
-	return nil
-}
-
-// stopShims stops all remaining shims corresponfing to not started/stopped
-// containers.
-func (p *Pod) stopShims() error {
-	shimCount := 0
-
-	for _, c := range p.containers {
-		if err := stopShim(c.process.Pid); err != nil {
-			return err
-		}
-
-		shimCount++
-	}
-
-	p.Logger().WithField("shim-count", shimCount).Info("Stopped shims")
 
 	return nil
 }

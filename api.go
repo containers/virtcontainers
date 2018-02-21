@@ -117,11 +117,6 @@ func DeletePod(podID string) (VCPod, error) {
 		return nil, err
 	}
 
-	// Stop shims
-	if err := p.stopShims(); err != nil {
-		return nil, err
-	}
-
 	// Stop the VM
 	err = p.stopVM()
 	if err != nil {
