@@ -547,6 +547,39 @@ func ResumePod(podID string) (VCPod, error)
 
 ## Container API
 
+The virtcontainers 1.0 container API manages pod
+[container lifecycles](#container-functions).
+
+A virtcontainers container is process running inside a containerized
+environment, as part of a hardware virtualized context. In other words,
+a virtcontainers container is just a regular container running inside a
+virtual machine's guest OS.
+
+A virtcontainers container always belong to one and only one
+virtcontainers pod, again following the
+[Kubernetes](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/)
+logic and semantics.
+
+The container API allows callers to [create](#createcontainer),
+[delete](#deletecontainer), [start](#startcontainer), [stop](#stopcontainer),
+[kill](#killcontainer) and [observe](#statuscontainer) containers. It also
+allows for running [additional processes](#entercontainer) inside a
+specific container.
+
+As a virtcontainers container is always linked to a pod, the entire container
+API always takes a pod ID as its first argument.
+
+To create a container, the API caller must prepare a
+[`ContainerConfig`](#containerconfig) and pass it to
+[`CreateContainer`](#createcontainer) together with a pod ID. Upon successful
+container creation, the virtcontainers API will return a
+[`VCContainer`](#vccontainer) interface back to the caller.
+
+The `VCContainer` interface is a container abstraction hiding the internal
+and private virtcontainers container structure. It is a handle for API callers
+to manage the container lifecycle through the rest of the
+[container API](#container-functions).
+
 * [Structures](#container-structures)
 * [Functions](#container-functions)
 
