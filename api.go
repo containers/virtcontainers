@@ -53,29 +53,8 @@ func createPodFromConfig(podConfig PodConfig) (*Pod, error) {
 		return nil, err
 	}
 
-	// Initialize the network.
-	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute prestart hooks inside netns
-	err = p.network.run(netNsPath, func() error {
-		return p.config.Hooks.preStartHooks()
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the network
-	p.networkNS, err = p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store the network
-	err = p.storage.storePodNetwork(p.id, p.networkNS)
-	if err != nil {
+	// Create the pod network
+	if err := p.createNetwork(); err != nil {
 		return nil, err
 	}
 
@@ -189,11 +168,9 @@ func StopPod(podID string) (VCPod, error) {
 		return nil, err
 	}
 
-	// Remove the network
-	if p.networkNS.NetNsCreated {
-		if err := p.network.remove(*p, p.networkNS); err != nil {
-			return nil, err
-		}
+	// Remove the network.
+	if err := p.removeNetwork(); err != nil {
+		return nil, err
 	}
 
 	// Execute poststop hooks.

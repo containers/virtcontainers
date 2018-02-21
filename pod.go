@@ -767,6 +767,39 @@ func (p *Pod) delete() error {
 	return p.storage.deletePodResources(p.id, nil)
 }
 
+func (p *Pod) createNetwork() error {
+	// Initialize the network.
+	netNsPath, netNsCreated, err := p.network.init(p.config.NetworkConfig)
+	if err != nil {
+		return err
+	}
+
+	// Execute prestart hooks inside netns
+	if err := p.network.run(netNsPath, func() error {
+		return p.config.Hooks.preStartHooks()
+	}); err != nil {
+		return err
+	}
+
+	// Add the network
+	networkNS, err := p.network.add(*p, p.config.NetworkConfig, netNsPath, netNsCreated)
+	if err != nil {
+		return err
+	}
+	p.networkNS = networkNS
+
+	// Store the network
+	return p.storage.storePodNetwork(p.id, networkNS)
+}
+
+func (p *Pod) removeNetwork() error {
+	if p.networkNS.NetNsCreated {
+		return p.network.remove(*p, p.networkNS)
+	}
+
+	return nil
+}
+
 // startVM starts the VM.
 func (p *Pod) startVM() error {
 	p.Logger().Info("Starting VM")
