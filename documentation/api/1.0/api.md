@@ -862,3 +862,71 @@ func ProcessListContainer(podID, containerID string, options ProcessListOptions)
 ```
 
 ## Examples
+
+### Preparing and running a pod
+
+```Go
+
+// This example creates and starts a single container pod,
+// using qemu as the hypervisor and hyperstart as the VM agent.
+func Example_createAndStartPod() {
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/bin:/usr/bin:/sbin:/usr/sbin",
+		},
+	}
+
+	cmd := vc.Cmd{
+		Args:    strings.Split("/bin/sh", " "),
+		Envs:    envs,
+		WorkDir: "/",
+	}
+
+	// Define the container command and bundle.
+	container := vc.ContainerConfig{
+		ID:     "1",
+		RootFs: containerRootfs,
+		Cmd:    cmd,
+	}
+
+	// Sets the hypervisor configuration.
+	hypervisorConfig := vc.HypervisorConfig{
+		KernelPath:     "/usr/share/clear-containers/vmlinux.container",
+		ImagePath:      "/usr/share/clear-containers/clear-containers.img",
+		HypervisorPath: "/usr/bin/qemu-lite-system-x86_64",
+	}
+
+	// Use hyperstart default values for the agent.
+	agConfig := vc.HyperConfig{}
+
+	// VM resources
+	vmConfig := vc.Resources{
+		VCPUs:  4,
+		Memory: 1024,
+	}
+
+	// The pod configuration:
+	// - One container
+	// - Hypervisor is QEMU
+	// - Agent is hyperstart
+	podConfig := vc.PodConfig{
+		VMConfig: vmConfig,
+
+		HypervisorType:   vc.QemuHypervisor,
+		HypervisorConfig: hypervisorConfig,
+
+		AgentType:   vc.HyperstartAgent,
+		AgentConfig: agConfig,
+
+		Containers: []vc.ContainerConfig{container},
+	}
+
+	_, err := vc.RunPod(podConfig)
+	if err != nil {
+		fmt.Printf("Could not run pod: %s", err)
+	}
+
+	return
+}
+```
