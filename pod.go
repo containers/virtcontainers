@@ -727,6 +727,28 @@ func (p *Pod) findContainer(containerID string) (*Container, error) {
 		containerID, p.id)
 }
 
+// removeContainer removes a container from the containers list held by the
+// pod structure, based on a container ID.
+func (p *Pod) removeContainer(containerID string) error {
+	if p == nil {
+		return errNeedPod
+	}
+
+	if containerID == "" {
+		return errNeedContainerID
+	}
+
+	for idx, c := range p.containers {
+		if containerID == c.id {
+			p.containers = append(p.containers[:idx], p.containers[idx+1:]...)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Could not remove the container %q from the pod %q containers list",
+		containerID, p.id)
+}
+
 // delete deletes an already created pod.
 // The VM in which the pod is running will be shut down.
 func (p *Pod) delete() error {

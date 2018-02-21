@@ -466,6 +466,11 @@ func (c *Container) delete() error {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
+	// Remove the container from pod structure
+	if err := c.pod.removeContainer(c.id); err != nil {
+		return err
+	}
+
 	return c.pod.storage.deleteContainerResources(c.podID, c.id, nil)
 }
 
