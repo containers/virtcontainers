@@ -143,6 +143,7 @@ func TestQemuCPUTopology(t *testing.T) {
 		Sockets: uint32(vcpus),
 		Cores:   defaultCores,
 		Threads: defaultThreads,
+		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
 	vmConfig := Resources{

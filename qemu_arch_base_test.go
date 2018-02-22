@@ -174,6 +174,7 @@ func TestQemuArchBaseCPUTopology(t *testing.T) {
 		Sockets: vcpus,
 		Cores:   defaultCores,
 		Threads: defaultThreads,
+		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
 	smp := qemuArchBase.cpuTopology(vcpus)
