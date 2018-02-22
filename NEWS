@@ -1,3 +1,14 @@
+1.0.7:
+	Added ARM64 support
+	Added Kata Containers support
+	Added dockershim support
+	Added govmm support
+	Added support for the one proxy per VM model
+	Added 1.0 API documentation
+	Added hotplug support for QEMU's Q35 machine type
+	Fixed the agent, proxy and shim hierarchy
+	Fixed the state storage implementation
+
 1.0.6:
 	Added SRIOV support
 	Added Multi-OS support
