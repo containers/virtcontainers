@@ -468,7 +468,8 @@ func (c *Container) delete() error {
 		return fmt.Errorf("Container not ready or stopped, impossible to delete")
 	}
 
-	if err := stopShim(c.process.Pid); err != nil {
+	// Remove the container from pod structure
+	if err := c.pod.removeContainer(c.id); err != nil {
 		return err
 	}
 
