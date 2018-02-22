@@ -420,12 +420,14 @@ func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 
-	agentCaps := c.pod.agent.capabilities()
-	hypervisorCaps := c.pod.hypervisor.capabilities()
+	if !c.pod.config.HypervisorConfig.DisableBlockDeviceUse {
+		agentCaps := c.pod.agent.capabilities()
+		hypervisorCaps := c.pod.hypervisor.capabilities()
 
-	if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
-		if err := c.hotplugDrive(); err != nil {
-			return nil, err
+		if agentCaps.isBlockDeviceSupported() && hypervisorCaps.isBlockDeviceHotplugSupported() {
+			if err := c.hotplugDrive(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
