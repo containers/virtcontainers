@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	ns "github.com/containers/virtcontainers/pkg/nsenter"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )
@@ -54,6 +55,7 @@ type ShimParams struct {
 	Terminal  bool
 	Detach    bool
 	PID       int
+	CreateNS  []ns.NSType
 }
 
 // ShimConfig is the structure providing specific configuration
@@ -188,6 +190,15 @@ func startShim(args []string, params ShimParams) (int, error) {
 		cmd.Stderr = os.Stderr
 	}
 
+	cloneFlags := 0
+	for _, nsType := range params.CreateNS {
+		cloneFlags |= ns.CloneFlagsTable[nsType]
+	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: uintptr(cloneFlags),
+	}
+
 	var f *os.File
 	var err error
 	if params.Console != "" {
@@ -199,15 +210,11 @@ func startShim(args []string, params ShimParams) (int, error) {
 		cmd.Stdin = f
 		cmd.Stdout = f
 		cmd.Stderr = f
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			// Create Session
-			Setsid: true,
-
-			// Set Controlling terminal to Ctty
-			Setctty: true,
-			Ctty:    int(f.Fd()),
-		}
-
+		// Create Session
+		cmd.SysProcAttr.Setsid = true
+		// Set Controlling terminal to Ctty
+		cmd.SysProcAttr.Setctty = true
+		cmd.SysProcAttr.Ctty = int(f.Fd())
 	}
 	defer func() {
 		if f != nil {
