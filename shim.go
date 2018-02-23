@@ -56,6 +56,7 @@ type ShimParams struct {
 	Detach    bool
 	PID       int
 	CreateNS  []ns.NSType
+	EnterNS   []ns.Namespace
 }
 
 // ShimConfig is the structure providing specific configuration
@@ -166,13 +167,16 @@ func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (
 		Console:   cmd.Console,
 		Terminal:  cmd.Interactive,
 		Detach:    cmd.Detach,
+		EnterNS:   []ns.Namespace{
+			{
+				Path: pod.networkNS.NetNsPath,
+				Type: ns.NSTypeNet,
+			},
+		},
 	}
 
-	var pid int
-	if err := pod.network.run(pod.networkNS.NetNsPath, func() (shimErr error) {
-		pid, shimErr = shim.start(*pod, shimParams)
-		return
-	}); err != nil {
+	pid, err := shim.start(*pod, shimParams)
+	if err != nil {
 		return nil, err
 	}
 
@@ -222,7 +226,9 @@ func startShim(args []string, params ShimParams) (int, error) {
 		}
 	}()
 
-	if err := cmd.Start(); err != nil {
+	if err := ns.NsEnter(params.EnterNS, func() error {
+		return cmd.Start()
+	}); err != nil {
 		return -1, err
 	}
 
