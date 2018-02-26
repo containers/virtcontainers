@@ -876,12 +876,13 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 
 	config := newTestPodConfigNoop()
 	hypervisorConfig := HypervisorConfig{
-		KernelPath:     filepath.Join(testDir, testKernel),
-		ImagePath:      filepath.Join(testDir, testImage),
-		HypervisorPath: filepath.Join(testDir, testHypervisor),
-		DefaultVCPUs:   defaultVCPUs,
-		DefaultMemSz:   defaultMemSzMiB,
-		DefaultBridges: defaultBridges,
+		KernelPath:        filepath.Join(testDir, testKernel),
+		ImagePath:         filepath.Join(testDir, testImage),
+		HypervisorPath:    filepath.Join(testDir, testHypervisor),
+		DefaultVCPUs:      defaultVCPUs,
+		DefaultMemSz:      defaultMemSzMiB,
+		DefaultBridges:    defaultBridges,
+		BlockDeviceDriver: defaultBlockDriver,
 	}
 
 	expectedStatus := PodStatus{
@@ -930,12 +931,13 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 
 	config := newTestPodConfigNoop()
 	hypervisorConfig := HypervisorConfig{
-		KernelPath:     filepath.Join(testDir, testKernel),
-		ImagePath:      filepath.Join(testDir, testImage),
-		HypervisorPath: filepath.Join(testDir, testHypervisor),
-		DefaultVCPUs:   defaultVCPUs,
-		DefaultMemSz:   defaultMemSzMiB,
-		DefaultBridges: defaultBridges,
+		KernelPath:        filepath.Join(testDir, testKernel),
+		ImagePath:         filepath.Join(testDir, testImage),
+		HypervisorPath:    filepath.Join(testDir, testHypervisor),
+		DefaultVCPUs:      defaultVCPUs,
+		DefaultMemSz:      defaultMemSzMiB,
+		DefaultBridges:    defaultBridges,
+		BlockDeviceDriver: defaultBlockDriver,
 	}
 
 	expectedStatus := PodStatus{

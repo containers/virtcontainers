@@ -19,6 +19,7 @@ package virtcontainers
 import (
 	"bytes"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -280,5 +281,54 @@ func TestGetVirtDriveName(t *testing.T) {
 			t.Fatalf("Incorrect drive Name: Got: %s, Expecting :%s", driveName, test.expectedDrive)
 
 		}
+	}
+}
+
+func TestGetSCSIIdLun(t *testing.T) {
+	tests := []struct {
+		index          int
+		expectedScsiID int
+		expectedLun    int
+	}{
+		{0, 0, 0},
+		{1, 0, 1},
+		{2, 0, 2},
+		{255, 0, 255},
+		{256, 1, 0},
+		{257, 1, 1},
+		{258, 1, 2},
+		{512, 2, 0},
+		{513, 2, 1},
+	}
+
+	for _, test := range tests {
+		scsiID, lun, err := getSCSIIdLun(test.index)
+		assert.Nil(t, err)
+
+		if scsiID != test.expectedScsiID && lun != test.expectedLun {
+			t.Fatalf("Expecting scsi-id:lun %d:%d,  Got %d:%d", test.expectedScsiID, test.expectedLun, scsiID, lun)
+		}
+	}
+
+	_, _, err := getSCSIIdLun(maxSCSIDevices + 1)
+	assert.NotNil(t, err)
+}
+
+func TestGetSCSIAddress(t *testing.T) {
+	tests := []struct {
+		index               int
+		expectedSCSIAddress string
+	}{
+		{0, "0:0"},
+		{200, "0:200"},
+		{255, "0:255"},
+		{258, "1:2"},
+		{512, "2:0"},
+	}
+
+	for _, test := range tests {
+		scsiAddr, err := getSCSIAddress(test.index)
+		assert.Nil(t, err)
+		assert.Equal(t, scsiAddr, test.expectedSCSIAddress)
 	}
 }
