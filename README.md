@@ -29,6 +29,7 @@ Table of Contents
       * [How to check if container uses devicemapper block device as its rootfs](#how-to-check-if-container-uses-devicemapper-block-device-as-its-rootfs)
    * [Devices](#devices)
       * [How to pass a device using VFIO-passthrough](#how-to-pass-a-device-using-vfio-passthrough)
+   * [Developers](#developers)
 
 # What is it ?
 
@@ -346,3 +347,8 @@ PCI devices. The driver for the device needs to be present within the
 Clear Containers kernel. If the driver is missing,  you can add it to your
 custom container kernel using the [osbuilder](https://github.com/clearcontainers/osbuilder)
 tooling.
+
+# Developers
+
+For information on how to build, develop and test `virtcontainers`, see the
+[developer documentation](documentation/Developers.md).
