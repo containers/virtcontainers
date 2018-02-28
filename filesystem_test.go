@@ -80,16 +80,27 @@ func TestFilesystemCreateAllResourcesSuccessful(t *testing.T) {
 
 	for _, container := range contConfigs {
 		configPath := filepath.Join(configStoragePath, testPodID, container.ID)
-		_, err = os.Stat(configPath)
+		s, err := os.Stat(configPath)
 		if err != nil {
 			t.Fatal(err)
 		}
 
+		// Check we created the dirs with the correct mode
+		if s.Mode() != dirMode {
+			t.Fatal(fmt.Errorf("dirmode [%v] != expected [%v]", s.Mode(), dirMode))
+		}
+
 		runPath := filepath.Join(runStoragePath, testPodID, container.ID)
-		_, err = os.Stat(runPath)
+		s, err = os.Stat(runPath)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		// Check we created the dirs with the correct mode
+		if s.Mode() != dirMode {
+			t.Fatal(fmt.Errorf("dirmode [%v] != expected [%v]", s.Mode(), dirMode))
+		}
+
 	}
 }
 
