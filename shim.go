@@ -154,7 +154,8 @@ func stopShim(pid int) error {
 	return nil
 }
 
-func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (*Process, error) {
+func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd,
+	createNSList []ns.NSType, enterNSList []ns.Namespace) (*Process, error) {
 	process := &Process{
 		Token:     token,
 		StartTime: time.Now().UTC(),
@@ -167,12 +168,8 @@ func prepareAndStartShim(pod *Pod, shim shim, cid, token, url string, cmd Cmd) (
 		Console:   cmd.Console,
 		Terminal:  cmd.Interactive,
 		Detach:    cmd.Detach,
-		EnterNS:   []ns.Namespace{
-			{
-				Path: pod.networkNS.NetNsPath,
-				Type: ns.NSTypeNet,
-			},
-		},
+		CreateNS:  createNSList,
+		EnterNS:   enterNSList,
 	}
 
 	pid, err := shim.start(*pod, shimParams)
