@@ -174,13 +174,12 @@ func TestHypervisorConfigDefaults(t *testing.T) {
 	testHypervisorConfigValid(t, hypervisorConfig, true)
 
 	hypervisorConfigDefaultsExpected := &HypervisorConfig{
-		KernelPath:        fmt.Sprintf("%s/%s", testDir, testKernel),
-		ImagePath:         fmt.Sprintf("%s/%s", testDir, testImage),
-		HypervisorPath:    "",
-		DefaultVCPUs:      defaultVCPUs,
-		DefaultMemSz:      defaultMemSzMiB,
-		DefaultBridges:    defaultBridges,
-		BlockDeviceDriver: defaultBlockDriver,
+		KernelPath:     fmt.Sprintf("%s/%s", testDir, testKernel),
+		ImagePath:      fmt.Sprintf("%s/%s", testDir, testImage),
+		HypervisorPath: "",
+		DefaultVCPUs:   defaultVCPUs,
+		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 	if reflect.DeepEqual(hypervisorConfig, hypervisorConfigDefaultsExpected) == false {
 		t.Fatal()
