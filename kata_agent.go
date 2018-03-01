@@ -590,8 +590,22 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		if err != nil {
 			return nil, err
 		}
+		virtPath := filepath.Join(devPath, driveName)
 
-		rootfs.Source = filepath.Join(devPath, driveName)
+		// Create a new device with empty ContainerPath so that we get
+		// the device being waited for by the agent inside the VM,
+		// without trying to match and update it into the OCI spec list
+		// of actual devices. The device corresponding to the rootfs is
+		// a very specific case.
+		rootfsDevice := &grpc.Device{
+			Type:          kataBlkDevType,
+			VmPath:        virtPath,
+			ContainerPath: "",
+		}
+
+		ctrDevices = append(ctrDevices, rootfsDevice)
+
+		rootfs.Source = virtPath
 		rootfs.MountPoint = rootPath // Should we remove the "rootfs" suffix?
 		rootfs.Fstype = c.state.Fstype
 
