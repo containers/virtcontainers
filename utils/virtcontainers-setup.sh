@@ -22,6 +22,21 @@ if [[ $EUID -ne 0 ]]; then
 	exit 1
 fi
 
+if [[ -z "$GOPATH" ]]; then
+	echo "This script requires GOPATH to be set. You may need to invoke via 'sudo -E PATH=$PATH ./virtcontainers-setup.sh'"
+	exit 1
+fi
+
+if [ ! $(command -v docker) ]; then
+	echo "This script requires docker to be installed and executable"
+	exit 1
+fi
+
+if [ ! $(command -v git) ]; then
+	echo "This script requires git to be installed and executable"
+	exit 1
+fi
+
 tmpdir=$(mktemp -d)
 virtcontainers_build_dir="virtcontainers/build"
 echo -e "Create temporary build directory ${tmpdir}/${virtcontainers_build_dir}"
