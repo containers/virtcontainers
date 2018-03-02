@@ -28,6 +28,7 @@ import (
 	"syscall"
 
 	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
+	ns "github.com/containers/virtcontainers/pkg/nsenter"
 	"github.com/containers/virtcontainers/pkg/uuid"
 	kataclient "github.com/kata-containers/agent/protocols/client"
 	"github.com/kata-containers/agent/protocols/grpc"
@@ -297,7 +298,19 @@ func (k *kataAgent) exec(pod *Pod, c Container, cmd Cmd) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, cmd)
+	enterNSList := []ns.Namespace{
+		{
+			PID:  c.process.Pid,
+			Type: ns.NSTypeNet,
+		},
+		{
+			PID:  c.process.Pid,
+			Type: ns.NSTypePID,
+		},
+	}
+
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId,
+		k.state.URL, cmd, []ns.NSType{}, enterNSList)
 }
 
 func (k *kataAgent) generateInterfacesAndRoutes(networkNS NetworkNamespace) ([]*grpc.Interface, []*grpc.Route, error) {
@@ -671,7 +684,17 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, err
 	}
 
-	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId, k.state.URL, c.config.Cmd)
+	createNSList := []ns.NSType{ns.NSTypePID}
+
+	enterNSList := []ns.Namespace{
+		{
+			Path: pod.networkNS.NetNsPath,
+			Type: ns.NSTypeNet,
+		},
+	}
+
+	return prepareAndStartShim(pod, k.shim, c.id, req.ExecId,
+		k.state.URL, c.config.Cmd, createNSList, enterNSList)
 }
 
 func (k *kataAgent) startContainer(pod Pod, c *Container) error {
