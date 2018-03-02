@@ -62,6 +62,10 @@
   name = "github.com/kata-containers/agent"
   revision = "33eecb2a445f906811a5bc9713d2dafd10768d18"
 
+[[constraint]]
+  name = "github.com/containerd/cri-containerd"
+  revision = "3d382e2f5dabe3bae62ceb9ded56bdee847008ee"
+
 [prune]
   non-go = true
   go-tests = true
