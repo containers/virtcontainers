@@ -593,6 +593,9 @@ func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
 		if q.config.BlockDeviceDriver == VirtioBlock {
 			driver := "virtio-blk-pci"
 			addr, bus, err := q.addDeviceToBridge(drive.ID)
+			if err != nil {
+				return err
+			}
 
 			if err = q.qmpMonitorCh.qmp.ExecutePCIDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, addr, bus); err != nil {
 				return err
