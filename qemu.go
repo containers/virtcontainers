@@ -76,10 +76,6 @@ const (
 	removeDevice
 )
 
-const (
-	scsiControllerID = "scsi0"
-)
-
 type qmpLogger struct {
 	logger *logrus.Entry
 }
@@ -332,6 +328,7 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 
 	devices = q.arch.append9PVolumes(devices, podConfig.Volumes)
 	devices = q.arch.appendConsole(devices, q.getPodConsole(podConfig.ID))
+	devices = q.arch.appendBridges(devices, q.state.Bridges)
 
 	imagePath, err := q.config.ImageAssetPath()
 	if err != nil {
@@ -341,15 +338,6 @@ func (q *qemu) createPod(podConfig PodConfig) error {
 	devices, err = q.arch.appendImage(devices, imagePath)
 	if err != nil {
 		return err
-	}
-
-	if q.config.BlockDeviceDriver == VirtioBlock {
-		devices = q.arch.appendBridges(devices, q.state.Bridges)
-		if err != nil {
-			return err
-		}
-	} else {
-		devices = q.arch.appendSCSIController(devices)
 	}
 
 	cpuModel := q.arch.cpuModel()
@@ -590,30 +578,22 @@ func (q *qemu) hotplugBlockDevice(drive Drive, op operation) error {
 			return err
 		}
 
-		if q.config.BlockDeviceDriver == VirtioBlock {
-			driver := "virtio-blk-pci"
-			addr, bus, err := q.addDeviceToBridge(drive.ID)
+		driver := "virtio-blk-pci"
 
-			if err = q.qmpMonitorCh.qmp.ExecutePCIDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, addr, bus); err != nil {
-				return err
-			}
-		} else {
-			driver := "scsi-hd"
-
-			// Bus exposed by the SCSI Controller
-			bus := scsiControllerID + ".0"
-
-			// Get SCSI-id and LUN based on the order of attaching drives.
-			scsiID, lun, err := getSCSIIdLun(drive.Index)
-			if err != nil {
-				return err
-			}
-
-			if err = q.qmpMonitorCh.qmp.ExecuteSCSIDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, bus, scsiID, lun); err != nil {
-				return err
-			}
+		addr, bus, err := q.addDeviceToBridge(drive.ID)
+		if err != nil {
+			return err
 		}
+
+		if err = q.qmpMonitorCh.qmp.ExecutePCIDeviceAdd(q.qmpMonitorCh.ctx, drive.ID, devID, driver, addr, bus); err != nil {
+			return err
+		}
+
 	} else {
+		if err := q.removeDeviceFromBridge(drive.ID); err != nil {
+			return err
+		}
+
 		if err := q.qmpMonitorCh.qmp.ExecuteDeviceDel(q.qmpMonitorCh.ctx, devID); err != nil {
 			return err
 		}

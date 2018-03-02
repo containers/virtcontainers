@@ -47,8 +47,6 @@ const (
 	defaultMemSzMiB = 2048
 
 	defaultBridges = 1
-
-	defaultBlockDriver = VirtioSCSI
 )
 
 // deviceType describes a virtualized device type.
@@ -157,10 +155,6 @@ type HypervisorConfig struct {
 	// DisableBlockDeviceUse disallows a block device from being used.
 	DisableBlockDeviceUse bool
 
-	// BlockDeviceDriver specifies the driver to be used for block device
-	// either VirtioSCSI or VirtioBlock with the default driver being defaultBlockDriver
-	BlockDeviceDriver string
-
 	// KernelParams are additional guest kernel parameters.
 	KernelParams []Param
 
@@ -231,10 +225,6 @@ func (conf *HypervisorConfig) valid() (bool, error) {
 
 	if conf.DefaultBridges == 0 {
 		conf.DefaultBridges = defaultBridges
-	}
-
-	if conf.BlockDeviceDriver == "" {
-		conf.BlockDeviceDriver = defaultBlockDriver
 	}
 
 	return true, nil

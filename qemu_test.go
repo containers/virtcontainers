@@ -30,13 +30,12 @@ import (
 
 func newQemuConfig() HypervisorConfig {
 	return HypervisorConfig{
-		KernelPath:        testQemuKernelPath,
-		ImagePath:         testQemuImagePath,
-		HypervisorPath:    testQemuPath,
-		DefaultVCPUs:      defaultVCPUs,
-		DefaultMemSz:      defaultMemSzMiB,
-		DefaultBridges:    defaultBridges,
-		BlockDeviceDriver: defaultBlockDriver,
+		KernelPath:     testQemuKernelPath,
+		ImagePath:      testQemuImagePath,
+		HypervisorPath: testQemuPath,
+		DefaultVCPUs:   defaultVCPUs,
+		DefaultMemSz:   defaultMemSzMiB,
+		DefaultBridges: defaultBridges,
 	}
 }
 

@@ -414,22 +414,13 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
 
 	if c.state.Fstype != "" {
-		// Pass a drive name only in case of block driver
-		if pod.config.HypervisorConfig.BlockDeviceDriver == VirtioBlock {
-			driveName, err := getVirtDriveName(c.state.BlockIndex)
-			if err != nil {
-				return err
-			}
-			container.Image = driveName
-		} else {
-			scsiAddr, err := getSCSIAddress(c.state.BlockIndex)
-			if err != nil {
-				return err
-			}
-			container.SCSIAddr = scsiAddr
+		driveName, err := getVirtDriveName(c.state.BlockIndex)
+		if err != nil {
+			return err
 		}
 
 		container.Fstype = c.state.Fstype
+		container.Image = driveName
 	} else {
 
 		if err := bindMountContainerRootfs(defaultSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
@@ -459,7 +450,6 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 				Path:         d.DeviceInfo.ContainerPath,
 				AbsolutePath: true,
 				DockerVolume: false,
-				SCSIAddr:     d.SCSIAddr,
 			}
 			fsmap = append(fsmap, fsmapDesc)
 		}
