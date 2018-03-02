@@ -28,16 +28,16 @@ func init() {
 	runtime.LockOSThread()
 }
 
-var virtLog = logrus.FieldLogger(logrus.New())
+var logFields = logrus.Fields{
+	"source": "virtcontainers",
+	"arch":   runtime.GOARCH,
+}
+
+var virtLog = logrus.New().WithFields(logFields)
 
 // SetLogger sets the logger for virtcontainers package.
 func SetLogger(logger logrus.FieldLogger) {
-	fields := logrus.Fields{
-		"source": "virtcontainers",
-		"arch":   runtime.GOARCH,
-	}
-
-	virtLog = logger.WithFields(fields)
+	virtLog = logger.WithFields(logFields)
 }
 
 // CreatePod is the virtcontainers pod creation entry point.
