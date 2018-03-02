@@ -60,7 +60,7 @@
 
 [[constraint]]
   name = "github.com/kata-containers/agent"
-  revision = "11f8b0ad0a3bb5771b88cbccd0a9c7dca5fd8e56"
+  revision = "33eecb2a445f906811a5bc9713d2dafd10768d18"
 
 [prune]
   non-go = true

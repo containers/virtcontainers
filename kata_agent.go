@@ -43,12 +43,13 @@ var (
 	defaultKataID               = "charch0"
 	errorMissingProxy           = errors.New("Missing proxy pointer")
 	errorMissingOCISpec         = errors.New("Missing OCI specification")
-	kataHostSharedDir           = "/tmp/kata-containers/shared/pods/"
-	kataGuestSharedDir          = "/tmp/kata-containers/shared/pods/"
+	kataHostSharedDir           = "/run/kata-containers/shared/pods/"
+	kataGuestSharedDir          = "/run/kata-containers/shared/containers/"
 	mountGuest9pTag             = "kataShared"
 	type9pFs                    = "9p"
 	devPath                     = "/dev"
 	vsockSocketScheme           = "vsock"
+	kataBlkDevType              = "blk"
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -582,7 +583,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		return nil, errorMissingOCISpec
 	}
 
-	var containerStorage []*grpc.Storage
+	var ctrStorages []*grpc.Storage
+	var ctrDevices []*grpc.Device
 
 	// The rootfs storage volume represents the container rootfs
 	// mount point inside the guest.
@@ -592,7 +594,8 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 	rootfs := &grpc.Storage{}
 
 	// This is the guest absolute root path for that container.
-	rootPath := filepath.Join(kataGuestSharedDir, c.id, rootfsDir)
+	rootPathParent := filepath.Join(kataGuestSharedDir, c.id)
+	rootPath := filepath.Join(rootPathParent, rootfsDir)
 
 	if c.state.Fstype != "" {
 		// This is a block based device rootfs.
@@ -601,16 +604,34 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		if err != nil {
 			return nil, err
 		}
+		virtPath := filepath.Join(devPath, driveName)
 
-		rootfs.Source = filepath.Join(devPath, driveName)
-		rootfs.MountPoint = rootPath // Should we remove the "rootfs" suffix?
+		// Create a new device with empty ContainerPath so that we get
+		// the device being waited for by the agent inside the VM,
+		// without trying to match and update it into the OCI spec list
+		// of actual devices. The device corresponding to the rootfs is
+		// a very specific case.
+		rootfsDevice := &grpc.Device{
+			Type:          kataBlkDevType,
+			VmPath:        virtPath,
+			ContainerPath: "",
+		}
+
+		ctrDevices = append(ctrDevices, rootfsDevice)
+
+		rootfs.Source = virtPath
+		rootfs.MountPoint = rootPathParent
 		rootfs.Fstype = c.state.Fstype
+
+		if c.state.Fstype == "xfs" {
+			rootfs.Options = []string{"nouuid"}
+		}
 
 		// Add rootfs to the list of container storage.
 		// We only need to do this for block based rootfs, as we
 		// want the agent to mount it into the right location
-		// (/tmp/kata-containers/shared/pods/podID/ctrID/
-		containerStorage = append(containerStorage, rootfs)
+		// (kataGuestSharedDir/ctrID/
+		ctrStorages = append(ctrStorages, rootfs)
 
 	} else {
 		// This is not a block based device rootfs.
@@ -618,9 +639,9 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 		// shared drive between the host and the guest.
 		// With 9pfs we don't need to ask the agent to
 		// mount the rootfs as the shared directory
-		// (/tmp/kata-containers/shared/pods/) is already
-		// mounted in the guest. We only need to mount the
-		// rootfs from the host and it will show up in the guest.
+		// (kataGuestSharedDir) is already mounted in the
+		// guest. We only need to mount the rootfs from
+		// the host and it will show up in the guest.
 		if err := bindMountContainerRootfs(kataHostSharedDir, pod.id, c.id, c.rootFs, false); err != nil {
 			bindUnmountAllRootfs(kataHostSharedDir, *pod)
 			return nil, err
@@ -665,18 +686,20 @@ func (k *kataAgent) createContainer(pod *Pod, c *Container) (*Process, error) {
 			continue
 		}
 
-		deviceStorage := &grpc.Storage{
-			Source:     d.VirtPath,
-			MountPoint: d.DeviceInfo.ContainerPath,
+		kataDevice := &grpc.Device{
+			Type:          kataBlkDevType,
+			VmPath:        d.VirtPath,
+			ContainerPath: d.DeviceInfo.ContainerPath,
 		}
 
-		containerStorage = append(containerStorage, deviceStorage)
+		ctrDevices = append(ctrDevices, kataDevice)
 	}
 
 	req := &grpc.CreateContainerRequest{
 		ContainerId: c.id,
 		ExecId:      c.id,
-		Storages:    containerStorage,
+		Storages:    ctrStorages,
+		Devices:     ctrDevices,
 		OCI:         grpcSpec,
 	}
 
