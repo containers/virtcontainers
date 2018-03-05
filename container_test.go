@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"testing"
 
+	vcAnnotations "github.com/containers/virtcontainers/pkg/annotations"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -280,4 +281,54 @@ func TestCheckPodRunningSuccessful(t *testing.T) {
 	}
 	err := c.checkPodRunning("test_cmd")
 	assert.Nil(t, err, "%v", err)
+}
+
+func TestContainerAddResources(t *testing.T) {
+	assert := assert.New(t)
+
+	c := &Container{}
+	err := c.addResources()
+	assert.Nil(err)
+
+	c.config = &ContainerConfig{Annotations: make(map[string]string)}
+	c.config.Annotations[vcAnnotations.ContainerTypeKey] = string(PodSandbox)
+	err = c.addResources()
+	assert.Nil(err)
+
+	c.config.Annotations[vcAnnotations.ContainerTypeKey] = string(PodContainer)
+	err = c.addResources()
+	assert.Nil(err)
+
+	c.config.Resources = ContainerResources{
+		CPUQuota:  5000,
+		CPUPeriod: 1000,
+	}
+	c.pod = &Pod{hypervisor: &mockHypervisor{}}
+	err = c.addResources()
+	assert.Nil(err)
+}
+
+func TestContainerRemoveResources(t *testing.T) {
+	assert := assert.New(t)
+
+	c := &Container{}
+	err := c.addResources()
+	assert.Nil(err)
+
+	c.config = &ContainerConfig{Annotations: make(map[string]string)}
+	c.config.Annotations[vcAnnotations.ContainerTypeKey] = string(PodSandbox)
+	err = c.removeResources()
+	assert.Nil(err)
+
+	c.config.Annotations[vcAnnotations.ContainerTypeKey] = string(PodContainer)
+	err = c.removeResources()
+	assert.Nil(err)
+
+	c.config.Resources = ContainerResources{
+		CPUQuota:  5000,
+		CPUPeriod: 1000,
+	}
+	c.pod = &Pod{hypervisor: &mockHypervisor{}}
+	err = c.removeResources()
+	assert.Nil(err)
 }

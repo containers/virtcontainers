@@ -883,6 +883,7 @@ func TestStatusPodSuccessfulStateReady(t *testing.T) {
 		DefaultMemSz:      defaultMemSzMiB,
 		DefaultBridges:    defaultBridges,
 		BlockDeviceDriver: defaultBlockDriver,
+		DefaultMaxVCPUs:   defaultMaxQemuVCPUs,
 	}
 
 	expectedStatus := PodStatus{
@@ -938,6 +939,7 @@ func TestStatusPodSuccessfulStateRunning(t *testing.T) {
 		DefaultMemSz:      defaultMemSzMiB,
 		DefaultBridges:    defaultBridges,
 		BlockDeviceDriver: defaultBlockDriver,
+		DefaultMaxVCPUs:   defaultMaxQemuVCPUs,
 	}
 
 	expectedStatus := PodStatus{

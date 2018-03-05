@@ -424,6 +424,13 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 		Process: process,
 	}
 
+	if c.config.Resources.CPUQuota != 0 && c.config.Resources.CPUPeriod != 0 {
+		container.Constraints = hyperstart.Constraints{
+			CPUQuota:  c.config.Resources.CPUQuota,
+			CPUPeriod: c.config.Resources.CPUPeriod,
+		}
+	}
+
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
 
 	if c.state.Fstype != "" {

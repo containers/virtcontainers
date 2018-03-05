@@ -162,3 +162,20 @@ func TestWriteToFile(t *testing.T) {
 
 	assert.True(t, reflect.DeepEqual(testData, data))
 }
+
+func TestConstraintsToVCPUs(t *testing.T) {
+	assert := assert.New(t)
+
+	vcpus := ConstraintsToVCPUs(0, 100)
+	assert.Zero(vcpus)
+
+	vcpus = ConstraintsToVCPUs(100, 0)
+	assert.Zero(vcpus)
+
+	expectedVCPUs := uint(4)
+	vcpus = ConstraintsToVCPUs(4000, 1000)
+	assert.Equal(expectedVCPUs, vcpus)
+
+	vcpus = ConstraintsToVCPUs(4000, 1200)
+	assert.Equal(expectedVCPUs, vcpus)
+}

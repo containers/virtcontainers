@@ -37,6 +37,7 @@ func newQemuConfig() HypervisorConfig {
 		DefaultMemSz:      defaultMemSzMiB,
 		DefaultBridges:    defaultBridges,
 		BlockDeviceDriver: defaultBlockDriver,
+		DefaultMaxVCPUs:   defaultMaxQemuVCPUs,
 	}
 }
 
@@ -142,6 +143,7 @@ func TestQemuCPUTopology(t *testing.T) {
 		Sockets: uint32(vcpus),
 		Cores:   defaultCores,
 		Threads: defaultThreads,
+		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
 	vmConfig := Resources{

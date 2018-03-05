@@ -213,6 +213,7 @@ func (q *qemuArchBase) cpuTopology(vcpus uint32) govmmQemu.SMP {
 		Sockets: vcpus,
 		Cores:   defaultCores,
 		Threads: defaultThreads,
+		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
 	return smp
