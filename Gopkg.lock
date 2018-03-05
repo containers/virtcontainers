@@ -10,10 +10,9 @@
   revision = "1d2a6a3ea132a86abd0731408b7dc34f2fc17d55"
 
 [[projects]]
-  branch = "master"
   name = "github.com/containerd/cri-containerd"
   packages = ["pkg/annotations"]
-  revision = "ca3b73899a159b17e49156f756d1c77e3b60bce4"
+  revision = "3d382e2f5dabe3bae62ceb9ded56bdee847008ee"
 
 [[projects]]
   name = "github.com/containernetworking/cni"
@@ -55,7 +54,6 @@
   revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
 
 [[projects]]
-  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -64,7 +62,8 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/intel/govmm"
@@ -142,7 +141,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8"
+  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
 
 [[projects]]
   name = "golang.org/x/net"
@@ -166,7 +165,6 @@
   revision = "1d2aa6dbdea45adaaebb9905d0666e4537563829"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -184,13 +182,14 @@
     "unicode/norm",
     "unicode/rangetable"
   ]
-  revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "a8101f21cf983e773d0c1133ebc5424792003214"
+  revision = "2c5e7ac708aaa719366570dd82bda44541ca2a63"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -222,6 +221,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "330df5abadea5f3be14269dd342c18760e40e322f20f9c5c0ce0515f5b489ac5"
+  inputs-digest = "e967c53b1d55018feac5c3db0e1c142cb63042311aac76206a47ce7c0cd8316c"
   solver-name = "gps-cdcl"
   solver-version = 1
