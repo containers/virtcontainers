@@ -6,4 +6,5 @@
 /shim/mock/shim
 /shim/mock/cc-shim/cc-shim
 /shim/mock/kata-shim/kata-shim
+/utils/supportfiles
 profile.cov
