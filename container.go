@@ -625,7 +625,7 @@ func (c *Container) kill(signal syscall.Signal, all bool) error {
 	}
 
 	if c.state.State != StateReady && c.state.State != StateRunning {
-		return fmt.Errorf("Container not ready or running, impossible to signal the container")
+		return Errorf("Container not ready or running, impossible to signal the container")
 	}
 
 	return c.pod.agent.killContainer(*(c.pod), *c, signal, all)

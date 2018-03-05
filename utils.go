@@ -17,10 +17,16 @@
 package virtcontainers
 
 import (
+	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const cpBinaryName = "cp"
@@ -95,4 +101,56 @@ func writeToFile(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+// Errorf is the same as fmt.Errorf() except that it creates an error object
+// that also includes all available logging fields and details of where the
+// error originated.
+func Errorf(format string, args ...interface{}) error {
+	now := time.Now().UTC()
+	nano := now.Format(time.RFC3339Nano)
+
+	// establish name of the _calling_ function!
+
+	// at least 1 entry needed
+	pc := make([]uintptr, 10)
+	runtime.Callers(2, pc)
+	fn := runtime.FuncForPC(pc[0])
+	file, line := fn.FileLine(pc[0])
+
+	// create a new error object
+	err := fmt.Errorf(format, args...)
+
+	buf := &bytes.Buffer{}
+
+	logger := virtLog
+	formatter := logger.Logger.Formatter
+	out := logger.Logger.Out
+
+	// cause subsequent log calls to save the log output
+	logger.Logger.Out = buf
+
+	// temporarily tweak log settings
+	logger.Logger.Formatter = &logrus.TextFormatter{
+		DisableColors:   true,
+		TimestampFormat: time.RFC3339Nano,
+	}
+
+	// undo changed logger settings
+	defer func() {
+		logger.Logger.Formatter = formatter
+		logger.Logger.Out = out
+	}()
+
+	// call the logger and save the output, including all the structured
+	// fields and add some additional ones.
+	logger.WithError(err).WithFields(logrus.Fields{
+		"error-time": nano,
+		"file":       fmt.Sprintf("%q", file),
+		"line":       line,
+		"function":   fn.Name(),
+		"hello":      "world",
+	}).Error()
+
+	return errors.New(buf.String())
 }
