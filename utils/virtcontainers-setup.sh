@@ -17,10 +17,7 @@
 
 set -e
 
-if [[ $EUID -ne 0 ]]; then
-	echo "This script must be run as root"
-	exit 1
-fi
+SCRIPT_PATH=$(dirname $(readlink -f $0))
 
 if [[ -z "$GOPATH" ]]; then
 	echo "This script requires GOPATH to be set. You may need to invoke via 'sudo -E PATH=$PATH ./virtcontainers-setup.sh'"
@@ -42,7 +39,7 @@ virtcontainers_build_dir="virtcontainers/build"
 echo -e "Create temporary build directory ${tmpdir}/${virtcontainers_build_dir}"
 mkdir -p ${tmpdir}/${virtcontainers_build_dir}
 
-TMPDIR="/tmp"
+TMPDIR="${SCRIPT_PATH}/supportfiles"
 OPTDIR="/opt"
 ETCDIR="/etc"
 
@@ -50,8 +47,8 @@ echo -e "Create ${TMPDIR}/cni/bin (needed by testing)"
 rm -rf ${TMPDIR}/cni/bin
 mkdir -p ${TMPDIR}/cni/bin
 echo -e "Create cni directories ${OPTDIR}/cni/bin and ${ETCDIR}/cni/net.d"
-mkdir -p ${OPTDIR}/cni/bin
-mkdir -p ${ETCDIR}/cni/net.d
+sudo mkdir -p ${OPTDIR}/cni/bin
+sudo mkdir -p ${ETCDIR}/cni/net.d
 
 bundlesdir="${TMPDIR}/bundles"
 echo -e "Create bundles in ${bundlesdir}"
@@ -73,8 +70,8 @@ echo "Clone cni"
 git clone https://github.com/containernetworking/plugins.git
 
 echo "Copy CNI config files"
-cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf ${ETCDIR}/cni/net.d/
-cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf ${ETCDIR}/cni/net.d/
+sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/10-mynet.conf ${ETCDIR}/cni/net.d/
+sudo cp $GOPATH/src/github.com/containers/virtcontainers/test/cni/99-loopback.conf ${ETCDIR}/cni/net.d/
 
 pushd plugins
 ./build.sh
@@ -83,6 +80,6 @@ cp ./bin/loopback ${TMPDIR}/cni/bin/loopback
 cp ./bin/host-local ${TMPDIR}/cni/bin/host-local
 popd
 popd
-cp ${TMPDIR}/cni/bin/* /opt/cni/bin/
+sudo cp ${TMPDIR}/cni/bin/* ${OPTDIR}/cni/bin/
 
 rm -rf ${tmpdir}
