@@ -136,6 +136,9 @@ func TestQemuCPUTopology(t *testing.T) {
 
 	q := &qemu{
 		arch: &qemuArchBase{},
+		config: HypervisorConfig{
+			DefaultVCPUs: uint32(vcpus),
+		},
 	}
 
 	expectedOut := govmmQemu.SMP{
@@ -146,15 +149,7 @@ func TestQemuCPUTopology(t *testing.T) {
 		MaxCPUs: defaultMaxQemuVCPUs,
 	}
 
-	vmConfig := Resources{
-		VCPUs: uint(vcpus),
-	}
-
-	podConfig := PodConfig{
-		VMConfig: vmConfig,
-	}
-
-	smp := q.cpuTopology(podConfig)
+	smp := q.cpuTopology()
 
 	if reflect.DeepEqual(smp, expectedOut) == false {
 		t.Fatalf("Got %v\nExpecting %v", smp, expectedOut)

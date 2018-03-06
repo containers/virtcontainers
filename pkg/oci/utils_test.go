@@ -213,8 +213,6 @@ func TestMinimalPodConfig(t *testing.T) {
 
 func TestVmConfig(t *testing.T) {
 	var limitBytes int64 = 128 * 1024 * 1024
-	var quota int64 = 200000
-	var period uint64 = 100000
 
 	config := RuntimeConfig{
 		VMConfig: vc.Resources{
@@ -224,7 +222,6 @@ func TestVmConfig(t *testing.T) {
 
 	expectedResources := vc.Resources{
 		Memory: 128,
-		VCPUs:  2,
 	}
 
 	ocispec := CompatOCISpec{
@@ -233,10 +230,6 @@ func TestVmConfig(t *testing.T) {
 				Resources: &specs.LinuxResources{
 					Memory: &specs.LinuxMemory{
 						Limit: &limitBytes,
-					},
-					CPU: &specs.LinuxCPU{
-						Quota:  &quota,
-						Period: &period,
 					},
 				},
 			},
@@ -260,32 +253,9 @@ func TestVmConfig(t *testing.T) {
 		t.Fatalf("Got %v\n expecting error", resources)
 	}
 
-	limitBytes = 128 * 1024 * 1024
-	quota = -1
-	ocispec.Linux.Resources.CPU.Quota = &quota
-
-	resources, err = vmConfig(ocispec, config)
-	if err == nil {
-		t.Fatalf("Got %v\n expecting error", resources)
-	}
-
-	quota = 100000
-	period = 0
-	ocispec.Linux.Resources.CPU.Quota = &quota
-
-	resources, err = vmConfig(ocispec, config)
-	if err == nil {
-		t.Fatalf("Got %v\n expecting error", resources)
-	}
-
 	// Test case when Memory is nil
 	ocispec.Spec.Linux.Resources.Memory = nil
 	expectedResources.Memory = config.VMConfig.Memory
-	quota = 50000
-	period = 20000
-	ocispec.Linux.Resources.CPU.Quota = &quota
-	ocispec.Linux.Resources.CPU.Period = &period
-	expectedResources.VCPUs = 3
 	resources, err = vmConfig(ocispec, config)
 	if err != nil {
 		t.Fatal(err)
@@ -297,7 +267,6 @@ func TestVmConfig(t *testing.T) {
 
 	// Test case when CPU is nil
 	ocispec.Spec.Linux.Resources.CPU = nil
-	expectedResources.VCPUs = config.VMConfig.VCPUs
 	limitBytes = 20
 	ocispec.Linux.Resources.Memory = &specs.LinuxMemory{Limit: &limitBytes}
 	expectedResources.Memory = 1

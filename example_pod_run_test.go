@@ -60,7 +60,6 @@ func Example_createAndStartPod() {
 
 	// VM resources
 	vmConfig := vc.Resources{
-		VCPUs:  4,
 		Memory: 1024,
 	}
 
