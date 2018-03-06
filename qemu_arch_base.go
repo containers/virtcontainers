@@ -291,7 +291,8 @@ func (q *qemuArchBase) appendImage(devices []govmmQemu.Device, path string) ([]g
 
 func (q *qemuArchBase) appendSCSIController(devices []govmmQemu.Device) []govmmQemu.Device {
 	scsiController := govmmQemu.SCSIController{
-		ID: scsiControllerID,
+		ID:            scsiControllerID,
+		DisableModern: q.nestedRun,
 	}
 
 	devices = append(devices, scsiController)
