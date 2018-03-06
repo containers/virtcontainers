@@ -458,3 +458,18 @@ func TestQemuArchBaseAppendVFIODevice(t *testing.T) {
 
 	testQemuArchBaseAppend(t, vfDevice, expectedOut)
 }
+
+func TestQemuArchBaseAppendSCSIController(t *testing.T) {
+	var devices []govmmQemu.Device
+	assert := assert.New(t)
+	qemuArchBase := newQemuArchBase()
+
+	expectedOut := []govmmQemu.Device{
+		govmmQemu.SCSIController{
+			ID: scsiControllerID,
+		},
+	}
+
+	devices = qemuArchBase.appendSCSIController(devices)
+	assert.Equal(expectedOut, devices)
+}
