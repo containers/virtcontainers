@@ -31,9 +31,10 @@ const (
 	dirMode = os.FileMode(0750)
 )
 
-var testConfDir = "/tmp/cni/net.d"
-var testBinDir = "/tmp/cni/bin"
-var testWrongConfDir = "/tmp/cni/wrong"
+var testDirBase = "../../utils/supportfiles/cni"
+var testConfDir = testDirBase + "/net.d"
+var testBinDir = testDirBase + "/bin"
+var testWrongConfDir = testDirBase + "/wrong"
 var testDefFile = "10-test_network.conf"
 var testLoFile = "99-test_loopback.conf"
 var testWrongFile = "100-test_error.conf"

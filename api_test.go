@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -1999,7 +2000,12 @@ func createNewContainerConfigs(numOfContainers int) []ContainerConfig {
 		WorkDir: "/",
 	}
 
-	rootFs := "/tmp/bundles/busybox/"
+	_, thisFile, _, ok := runtime.Caller(0)
+	if ok == false {
+		return nil
+	}
+
+	rootFs := filepath.Dir(thisFile) + "/utils/supportfiles/bundles/busybox/"
 
 	for i := 0; i < numOfContainers; i++ {
 		contConfig := ContainerConfig{
