@@ -152,7 +152,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	proxyPath := context.String("proxy-path")
 	shimPath := context.String("shim-path")
 	machineType := context.String("machine-type")
-	vmVCPUs := context.Uint("vm-vcpus")
 	vmMemory := context.Uint("vm-memory")
 	agentType, ok := context.Generic("agent").(*vc.AgentType)
 	if ok != true {
@@ -208,7 +207,6 @@ func buildPodConfig(context *cli.Context) (vc.PodConfig, error) {
 	shimConfig := getShimConfig(*shimType, shimPath)
 
 	vmConfig := vc.Resources{
-		VCPUs:  vmVCPUs,
 		Memory: vmMemory,
 	}
 
