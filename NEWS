@@ -1,3 +1,10 @@
+1.0.8:
+	Added support for CPU hotplug
+	Added SCSI support for drives and volumes
+	Added networking support for Kata Containers
+	Added block device hotplug support for Kata Containers
+	Added support for starting shim inside their own PID namespace
+
 1.0.7:
 	Added ARM64 support
 	Added Kata Containers support
