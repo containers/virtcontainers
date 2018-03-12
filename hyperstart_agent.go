@@ -431,6 +431,10 @@ func (h *hyper) startOneContainer(pod Pod, c *Container) error {
 		}
 	}
 
+	if c.config.Resources.CPUShares != 0 {
+		container.Constraints.CPUShares = c.config.Resources.CPUShares
+	}
+
 	container.SystemMountsInfo.BindMountDev = c.systemMountsInfo.BindMountDev
 
 	if c.state.Fstype != "" {
