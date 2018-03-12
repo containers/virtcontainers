@@ -565,11 +565,15 @@ func ContainerConfig(ocispec CompatOCISpec, bundlePath, cid, console string, det
 	}
 
 	var resources vc.ContainerResources
-	if ocispec.Linux.Resources.CPU != nil &&
-		ocispec.Linux.Resources.CPU.Quota != nil &&
-		ocispec.Linux.Resources.CPU.Period != nil {
-		resources.CPUQuota = *ocispec.Linux.Resources.CPU.Quota
-		resources.CPUPeriod = *ocispec.Linux.Resources.CPU.Period
+	if ocispec.Linux.Resources.CPU != nil {
+		if ocispec.Linux.Resources.CPU.Quota != nil &&
+			ocispec.Linux.Resources.CPU.Period != nil {
+			resources.CPUQuota = *ocispec.Linux.Resources.CPU.Quota
+			resources.CPUPeriod = *ocispec.Linux.Resources.CPU.Period
+		}
+		if ocispec.Linux.Resources.CPU.Shares != nil {
+			resources.CPUShares = *ocispec.Linux.Resources.CPU.Shares
+		}
 	}
 
 	containerConfig := vc.ContainerConfig{
