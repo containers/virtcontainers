@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-set -e
+set -ex
 
 cidir=$(dirname "$0")
 tests_repo="github.com/clearcontainers/tests"
