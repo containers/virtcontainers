@@ -375,7 +375,17 @@ func (k *kataAgent) generateInterfacesAndRoutes(networkNS NetworkNamespace) ([]*
 			}
 
 			if route.Gw != nil {
-				r.Gateway = route.Gw.String()
+				gateway := route.Gw.String()
+
+				if route.Gw.To4() == nil {
+					// Skip IPv6 because is is not supported
+					k.Logger().WithFields(logrus.Fields{
+						"unsupported-route-type": "ipv6",
+						"gateway":                gateway,
+					}).Warn("unsupported route")
+					continue
+				}
+				r.Gateway = gateway
 			}
 
 			if route.Src != nil {
