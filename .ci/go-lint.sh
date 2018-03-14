@@ -30,7 +30,7 @@ linter_args="--tests --vendor"
 # run locally, all linters should be run to allow the developer to review any
 # failures (and potentially decide whether we need to explicitly enable a new
 # linter in the CI).
-if [ "$CI" = true ]; then
+if [ "$CI" = true ] || [ -z "$FULL_STATIC_CHECKS" ] ; then
 	linter_args+=" --disable-all"
 fi
 
